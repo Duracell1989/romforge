@@ -33,13 +33,13 @@ public sealed class HttpDatDownloader : IDatDownloader
         CancellationToken ct = default
     )
     {
-        string tempPath = Path.Combine(_appData.TempPath, Path.GetRandomFileName());
+        var tempPath = Path.Combine(_appData.TempPath, Path.GetRandomFileName());
         try
         {
             await DownloadToFileAsync(url, tempPath, progress, ct);
 
-            string destFileName = ResolveFileName(fileName, url, "downloaded.zip");
-            string destPath = Path.Combine(destDir, destFileName);
+            var destFileName = ResolveFileName(fileName, url, "downloaded.zip");
+            var destPath = Path.Combine(destDir, destFileName);
             File.Move(tempPath, destPath, overwrite: true);
             progress?.Report(100);
             return Result.Ok(destPath);
@@ -64,7 +64,7 @@ public sealed class HttpDatDownloader : IDatDownloader
         CancellationToken ct = default
     )
     {
-        string tempZip = Path.Combine(_appData.TempPath, Path.GetRandomFileName() + ".zip");
+        var tempZip = Path.Combine(_appData.TempPath, Path.GetRandomFileName() + ".zip");
         try
         {
             IProgress<int>? downloadProgress = progress is not null
@@ -72,21 +72,21 @@ public sealed class HttpDatDownloader : IDatDownloader
                 : null;
             await DownloadToFileAsync(url, tempZip, downloadProgress, ct);
 
-            using IArchive archive = ArchiveFactory.OpenArchive(tempZip);
-            List<IArchiveEntry> entries = archive.Entries.Where(e => !e.IsDirectory).ToList();
-            int total = entries.Count;
-            int done = 0;
+            using var archive = ArchiveFactory.OpenArchive(tempZip);
+            var entries = archive.Entries.Where(e => !e.IsDirectory).ToList();
+            var total = entries.Count;
+            var done = 0;
 
-            foreach (IArchiveEntry entry in entries)
+            foreach (var entry in entries)
             {
                 ct.ThrowIfCancellationRequested();
-                string relativePath = entry.Key!
+                var relativePath = entry.Key!
                     .Replace('/', Path.DirectorySeparatorChar)
                     .TrimStart(Path.DirectorySeparatorChar);
-                string destPath = Path.Combine(imgsDestDir, relativePath);
+                var destPath = Path.Combine(imgsDestDir, relativePath);
                 Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
-                await using Stream src = await entry.OpenEntryStreamAsync(ct);
-                await using FileStream dst = File.Create(destPath);
+                await using var src = await entry.OpenEntryStreamAsync(ct);
+                await using var dst = File.Create(destPath);
                 await src.CopyToAsync(dst, ct);
                 done++;
                 progress?.Report(50 + done * 50 / Math.Max(total, 1));
@@ -121,12 +121,12 @@ public sealed class HttpDatDownloader : IDatDownloader
             ct
         );
         response.EnsureSuccessStatusCode();
-        long? totalBytes = response.Content.Headers.ContentLength;
+        var totalBytes = response.Content.Headers.ContentLength;
 
-        await using Stream src = await response.Content.ReadAsStreamAsync(ct);
-        await using FileStream dst = File.Create(destPath);
+        await using var src = await response.Content.ReadAsStreamAsync(ct);
+        await using var dst = File.Create(destPath);
 
-        byte[] buffer = new byte[81920];
+        var buffer = new byte[81920];
         long bytesRead = 0;
         int n;
         while ((n = await src.ReadAsync(buffer, ct)) > 0)
@@ -144,7 +144,7 @@ public sealed class HttpDatDownloader : IDatDownloader
             return hint;
         try
         {
-            string last = new Uri(url).Segments.LastOrDefault() ?? string.Empty;
+            var last = new Uri(url).Segments.LastOrDefault() ?? string.Empty;
             if (!string.IsNullOrEmpty(last))
                 return Uri.UnescapeDataString(last);
         }

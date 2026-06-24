@@ -5,18 +5,16 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FluentResults;
-using System.Net.Http;
 using RomForge.Core.IO;
 using RomForge.Core.Matching;
-using RomForge.Core.Services;
 using RomForge.Core.Models;
 using RomForge.Core.Operations;
 using RomForge.Core.Scanning;
+using RomForge.Core.Services;
 using RomForge.UI.Services;
 using Serilog;
 
@@ -53,10 +51,10 @@ public partial class MainWindowVM : VMBase
     public partial GameRowVM? SelectedGame { get; set; }
 
     [ObservableProperty]
-    public partial bool IsReArchiving { get; set; }
+    private partial bool IsReArchiving { get; set; }
 
     [ObservableProperty]
-    public partial bool IsTrimming { get; set; }
+    private partial bool IsTrimming { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ReArchiveButtonLabel))]
@@ -226,7 +224,7 @@ public partial class MainWindowVM : VMBase
         );
         await _notifier.ShowProgressAsync("Importing DAT", progressVm, importTask);
 
-        Result<string> importResult = await importTask;
+        var importResult = await importTask;
         if (importResult.IsFailed)
         {
             await _notifier.NotifyErrorAsync(
@@ -612,7 +610,7 @@ public partial class MainWindowVM : VMBase
         {
             IsReArchiving = false;
             if (tempFile is not null && File.Exists(tempFile))
-                await _fileOperations.DeleteAsync(tempFile, CancellationToken.None);
+                await _fileOperations.DeleteAsync(tempFile);
         }
     }
 
@@ -749,7 +747,7 @@ public partial class MainWindowVM : VMBase
                 finally
                 {
                     if (tempFile is not null && File.Exists(tempFile))
-                        await _fileOperations.DeleteAsync(tempFile, CancellationToken.None);
+                        await _fileOperations.DeleteAsync(tempFile);
                 }
             }
         }
@@ -829,11 +827,7 @@ public partial class MainWindowVM : VMBase
 
             tempRom = extractResult.Value;
 
-            Result truncateResult = await _fileOperations.TruncateAsync(
-                tempRom,
-                game.Game.RomSize,
-                progress.CancellationToken
-            );
+            Result truncateResult = await _fileOperations.TruncateAsync(tempRom, game.Game.RomSize);
             if (truncateResult.IsFailed)
                 return $"Could not trim ROM.\n{truncateResult.Errors[0].Message}";
 
@@ -891,7 +885,7 @@ public partial class MainWindowVM : VMBase
         {
             IsTrimming = false;
             if (tempRom is not null && File.Exists(tempRom))
-                await _fileOperations.DeleteAsync(tempRom, CancellationToken.None);
+                await _fileOperations.DeleteAsync(tempRom);
         }
     }
 
@@ -975,30 +969,26 @@ public partial class MainWindowVM : VMBase
 
                     tempRom = extractResult.Value;
 
-                    Result truncateResult = await _fileOperations.TruncateAsync(
-                        tempRom,
-                        game.Game.RomSize,
-                        progress.CancellationToken
-                    );
+                    var truncateResult = await _fileOperations.TruncateAsync(tempRom, game.Game.RomSize);
                     if (truncateResult.IsFailed)
                     {
                         errors.Add($"{Path.GetFileName(target.Value.From)}: {truncateResult.Errors[0].Message}");
                         continue;
                     }
 
-                    bool samePath = target.Value.From.Equals(
+                    var samePath = target.Value.From.Equals(
                         target.Value.To,
                         StringComparison.OrdinalIgnoreCase
                     );
-                    string archiveDest = samePath ? target.Value.To + ".romforge_tmp" : target.Value.To;
+                    var archiveDest = samePath ? target.Value.To + ".romforge_tmp" : target.Value.To;
 
-                    int fileBase = i * 100 / targets.Count;
-                    int fileRange = 100 / targets.Count;
+                    var fileBase = i * 100 / targets.Count;
+                    var fileRange = 100 / targets.Count;
                     Progress<int> progressCallback = new Progress<int>(pct =>
                         progress.Progress = fileBase + pct * fileRange / 100
                     );
 
-                    Result compressResult = await _compressor.CompressAsync(
+                    var compressResult = await _compressor.CompressAsync(
                         tempRom,
                         archiveDest,
                         game.Game.RomSize,
@@ -1012,7 +1002,7 @@ public partial class MainWindowVM : VMBase
                         continue;
                     }
 
-                    Result deleteResult = await _fileOperations.DeleteAsync(target.Value.From);
+                    var deleteResult = await _fileOperations.DeleteAsync(target.Value.From);
                     if (deleteResult.IsFailed)
                     {
                         errors.Add($"Trimmed but could not delete original: {Path.GetFileName(target.Value.From)}: {deleteResult.Errors[0].Message}");
@@ -1021,15 +1011,15 @@ public partial class MainWindowVM : VMBase
 
                     if (samePath)
                     {
-                        Result renameResult = await _fileOperations.RenameAsync(archiveDest, target.Value.To);
-                        if (renameResult.IsFailed)
+                        var (_, isFailed, readOnlyList) = await _fileOperations.RenameAsync(archiveDest, target.Value.To);
+                        if (isFailed)
                         {
-                            errors.Add($"Trimmed but could not rename temp archive: {Path.GetFileName(target.Value.From)}: {renameResult.Errors[0].Message}");
+                            errors.Add($"Trimmed but could not rename temp archive: {Path.GetFileName(target.Value.From)}: {readOnlyList[0].Message}");
                             continue;
                         }
                     }
 
-                    ScannedRom updatedRom = game.ScannedRom! with
+                    var updatedRom = game.ScannedRom! with
                     {
                         FilePath = target.Value.To,
                         FileExtension = ArchiveFormat,
@@ -1049,7 +1039,7 @@ public partial class MainWindowVM : VMBase
                 finally
                 {
                     if (tempRom is not null && File.Exists(tempRom))
-                        await _fileOperations.DeleteAsync(tempRom, CancellationToken.None);
+                        await _fileOperations.DeleteAsync(tempRom);
                 }
             }
         }
@@ -1079,8 +1069,8 @@ public partial class MainWindowVM : VMBase
 
     private async Task ReplaceGameAsync(GameRowVM original, MatchResult updatedMatch)
     {
-        GameRowVM updatedRow = ActiveDat!.BuildGameRow(updatedMatch);
-        int index = ActiveDat.Games.IndexOf(original);
+        var updatedRow = ActiveDat!.BuildGameRow(updatedMatch);
+        var index = ActiveDat.Games.IndexOf(original);
         if (index < 0)
             return;
         ActiveDat.Games[index] = updatedRow;
@@ -1109,8 +1099,8 @@ public partial class MainWindowVM : VMBase
             return;
         }
 
-        string latestStr = versionResult.Value;
-        bool isNewer = int.TryParse(latestStr, out int latestVersion)
+        var latestStr = versionResult.Value;
+        var isNewer = int.TryParse(latestStr, out var latestVersion)
             ? latestVersion > header.DatVersion
             : !string.Equals(latestStr, header.DatVersion.ToString(), StringComparison.Ordinal);
 
@@ -1120,20 +1110,20 @@ public partial class MainWindowVM : VMBase
             return;
         }
 
-        bool confirmed = await _notifier.ConfirmAsync(
+        var confirmed = await _notifier.ConfirmAsync(
             "Update Available",
             $"A newer DAT version is available (current: {header.DatVersion}, latest: {latestStr}).\n\nDownload the update now?"
         );
         if (!confirmed)
             return;
 
-        ProgressWindowVM progressVm = new ProgressWindowVM(0, isCancellable: true);
+        var progressVm = new ProgressWindowVM(0, isCancellable: true);
         progressVm.CurrentFile = "Downloading DAT…";
 
         Task<Result> updateTask = RunDatUpdateAsync(header, progressVm);
         await _notifier.ShowProgressAsync("Updating DAT", progressVm, updateTask);
 
-        Result updateResult = await updateTask;
+        var updateResult = await updateTask;
         if (updateResult.IsFailed)
         {
             await _notifier.NotifyErrorAsync($"Update failed.\n{updateResult.Errors[0].Message}");
@@ -1151,8 +1141,8 @@ public partial class MainWindowVM : VMBase
         if (header.NewDatUrl is null)
             return Result.Fail("DAT download URL is not available.");
 
-        bool hasImages = header.NewImUrl is not null;
-        int datMax = hasImages ? 50 : 100;
+        var hasImages = header.NewImUrl is not null;
+        var datMax = hasImages ? 50 : 100;
 
         IProgress<int> datProgress = new Progress<int>(p =>
         {

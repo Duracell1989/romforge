@@ -34,9 +34,6 @@ public sealed partial class ProgressWindowVM : VMBase
         IsCancellable = isCancellable;
     }
 
-    private ProgressWindowVM()
-        : this(total: 1, isCancellable: false) { }
-
     [RelayCommand]
     private void Cancel() => _cts?.Cancel();
 }

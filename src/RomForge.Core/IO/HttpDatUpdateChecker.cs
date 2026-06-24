@@ -22,7 +22,7 @@ public sealed class HttpDatUpdateChecker : IDatUpdateChecker
     {
         try
         {
-            string body = await _http.GetStringAsync(versionUrl, ct);
+            var body = await _http.GetStringAsync(versionUrl, ct);
             return Result.Ok(body.Trim());
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

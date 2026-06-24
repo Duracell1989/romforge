@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
 using FluentResults;
 
@@ -8,11 +7,7 @@ namespace RomForge.Core.IO;
 
 public sealed class LocalRomFileOperations : IRomFileOperations
 {
-    public Task<Result> RenameAsync(
-        string from,
-        string to,
-        CancellationToken cancellationToken = default
-    )
+    public Task<Result> RenameAsync(string from, string to)
     {
         try
         {
@@ -25,7 +20,7 @@ public sealed class LocalRomFileOperations : IRomFileOperations
         }
     }
 
-    public Task<Result> DeleteAsync(string path, CancellationToken cancellationToken = default)
+    public Task<Result> DeleteAsync(string path)
     {
         try
         {
@@ -38,15 +33,11 @@ public sealed class LocalRomFileOperations : IRomFileOperations
         }
     }
 
-    public Task<Result> TruncateAsync(
-        string path,
-        long length,
-        CancellationToken cancellationToken = default
-    )
+    public Task<Result> TruncateAsync(string path, long length)
     {
         try
         {
-            using FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Write, FileShare.None);
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Write, FileShare.None);
             fs.SetLength(length);
             return Task.FromResult(Result.Ok());
         }

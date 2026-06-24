@@ -19,21 +19,20 @@ public static class OfflineListConfigReader
     {
         try
         {
-            Dictionary<string, string> options = ParseOptionSection(iniPath);
+            var options = ParseOptionSection(iniPath);
 
             List<LanguageBit> bits = [];
-            for (int n = 1; n <= 26; n++)
+            for (var n = 1; n <= 26; n++)
             {
-                if (options.TryGetValue($"l{n}", out string? raw))
-                {
-                    string label = raw.Trim('"').Trim();
-                    if (!string.IsNullOrEmpty(label))
-                        bits.Add(new LanguageBit(BitIndex: n, Label: label));
-                }
+                if (!options.TryGetValue($"l{n}", out var raw)) continue;
+
+                var label = raw.Trim('"').Trim();
+                if (!string.IsNullOrEmpty(label))
+                    bits.Add(new LanguageBit(BitIndex: n, Label: label));
             }
 
-            options.TryGetValue("RomFolder", out string? romFolder);
-            options.TryGetValue("ArchiveFormat", out string? archiveFormat);
+            options.TryGetValue("RomFolder", out var romFolder);
+            options.TryGetValue("ArchiveFormat", out var archiveFormat);
 
             return Result.Ok(new OfflineListConfig
             {
@@ -50,12 +49,12 @@ public static class OfflineListConfigReader
 
     private static Dictionary<string, string> ParseOptionSection(string iniPath)
     {
-        Dictionary<string, string> result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        bool inOptionSection = false;
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var inOptionSection = false;
 
-        foreach (string rawLine in File.ReadLines(iniPath))
+        foreach (var rawLine in File.ReadLines(iniPath))
         {
-            string line = rawLine.Trim();
+            var line = rawLine.Trim();
 
             if (line.StartsWith('['))
             {
@@ -66,9 +65,9 @@ public static class OfflineListConfigReader
             if (!inOptionSection || !line.Contains('='))
                 continue;
 
-            int eq = line.IndexOf('=');
-            string key = line[..eq].Trim();
-            string value = line[(eq + 1)..].Trim();
+            var eq = line.IndexOf('=');
+            var key = line[..eq].Trim();
+            var value = line[(eq + 1)..].Trim();
             result[key] = value;
         }
 

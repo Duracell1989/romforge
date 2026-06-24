@@ -55,11 +55,11 @@ public sealed class JsonRomScanCache : IRomScanCache
 
     public async Task SaveAsync(CancellationToken cancellationToken = default)
     {
-        string? dir = Path.GetDirectoryName(_filePath);
+        var dir = Path.GetDirectoryName(_filePath);
         if (!string.IsNullOrEmpty(dir))
             Directory.CreateDirectory(dir);
 
-        await using FileStream fs = File.Create(_filePath);
+        await using var fs = File.Create(_filePath);
         await JsonSerializer
             .SerializeAsync(fs, _entries, JsonOptions, cancellationToken)
             .ConfigureAwait(false);
@@ -72,7 +72,7 @@ public sealed class JsonRomScanCache : IRomScanCache
 
         try
         {
-            using FileStream fs = File.OpenRead(filePath);
+            using var fs = File.OpenRead(filePath);
             return JsonSerializer.Deserialize<Dictionary<string, CacheEntry>>(fs, JsonOptions)
                 ?? new Dictionary<string, CacheEntry>();
         }
@@ -82,7 +82,7 @@ public sealed class JsonRomScanCache : IRomScanCache
         }
     }
 
-    internal sealed record CacheEntry
+    private sealed record CacheEntry
     {
         public long Size { get; init; }
         public DateTime LastModified { get; init; }

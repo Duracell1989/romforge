@@ -27,7 +27,7 @@ public sealed class LocalDatImporter : IDatImporter
         CancellationToken ct
     )
     {
-        string destDatPath = Path.Combine(_appData.DatsPath, Path.GetFileName(sourceDatPath));
+        var destDatPath = Path.Combine(_appData.DatsPath, Path.GetFileName(sourceDatPath));
 
         if (!string.Equals(sourceDatPath, destDatPath, StringComparison.OrdinalIgnoreCase))
         {
@@ -68,25 +68,25 @@ public sealed class LocalDatImporter : IDatImporter
         CancellationToken ct
     )
     {
-        string? sourceImgsBase = FindSourceImgsBase(sourceDatPath);
+        var sourceImgsBase = FindSourceImgsBase(sourceDatPath);
         if (
             sourceImgsBase is null
             || sourceImgsBase.StartsWith(_appData.ImgsPath, StringComparison.OrdinalIgnoreCase)
         )
             return;
 
-        string folderName = string.IsNullOrEmpty(header.ImFolder) ? header.DatName : header.ImFolder;
-        string sourceImgFolder = Path.Combine(sourceImgsBase, folderName);
+        var folderName = string.IsNullOrEmpty(header.ImFolder) ? header.DatName : header.ImFolder;
+        var sourceImgFolder = Path.Combine(sourceImgsBase, folderName);
         if (!Directory.Exists(sourceImgFolder))
             return;
 
-        string[] files = Directory.GetFiles(sourceImgFolder, "*.png", SearchOption.AllDirectories);
+        var files = Directory.GetFiles(sourceImgFolder, "*.png", SearchOption.AllDirectories);
         if (files.Length == 0)
             return;
 
         _logger.Information("Copying {Count} images for {Folder}", files.Length, folderName);
 
-        string destImgFolder = Path.Combine(_appData.ImgsPath, folderName);
+        var destImgFolder = Path.Combine(_appData.ImgsPath, folderName);
 
         progress?.Report(new ImportProgress(Current: 0, Total: files.Length, CurrentFile: string.Empty));
 
@@ -94,10 +94,10 @@ public sealed class LocalDatImporter : IDatImporter
         {
             ct.ThrowIfCancellationRequested();
 
-            string file = files[i];
-            string relative = Path.GetRelativePath(sourceImgFolder, file);
-            string destFile = Path.Combine(destImgFolder, relative);
-            string? destDir = Path.GetDirectoryName(destFile);
+            var file = files[i];
+            var relative = Path.GetRelativePath(sourceImgFolder, file);
+            var destFile = Path.Combine(destImgFolder, relative);
+            var destDir = Path.GetDirectoryName(destFile);
             if (destDir is not null)
                 Directory.CreateDirectory(destDir);
 
@@ -121,17 +121,14 @@ public sealed class LocalDatImporter : IDatImporter
 
     private static string? FindSourceImgsBase(string datFilePath)
     {
-        string datDir = Path.GetDirectoryName(datFilePath) ?? string.Empty;
-        string parentDir = Path.GetDirectoryName(datDir) ?? string.Empty;
+        var datDir = Path.GetDirectoryName(datFilePath) ?? string.Empty;
+        var parentDir = Path.GetDirectoryName(datDir) ?? string.Empty;
 
-        string parentImgs = Path.Combine(parentDir, "imgs");
+        var parentImgs = Path.Combine(parentDir, "imgs");
         if (Directory.Exists(parentImgs))
             return parentImgs;
 
-        string sameImgs = Path.Combine(datDir, "imgs");
-        if (Directory.Exists(sameImgs))
-            return sameImgs;
-
-        return null;
+        var sameImgs = Path.Combine(datDir, "imgs");
+        return Directory.Exists(sameImgs) ? sameImgs : null;
     }
 }

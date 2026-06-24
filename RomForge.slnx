@@ -15,6 +15,9 @@
   <Folder Name="/packaging/">
     <File Path="packaging/macos/Info.plist" />
   </Folder>
+  <Folder Name="/assets/">
+    <File Path="assets/icon.svg" />
+  </Folder>
   <Folder Name="/.github/">
     <File Path=".github/workflows/ci.yml" />
     <File Path=".github/workflows/release.yml" />

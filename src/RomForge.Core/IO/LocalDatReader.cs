@@ -26,13 +26,13 @@ public sealed class LocalDatReader : IDatReader
 
         try
         {
-            Stream xmlStream = IsZip(_filePath)
+            var xmlStream = IsZip(_filePath)
                 ? await ExtractXmlFromZipAsync(_filePath, cancellationToken).ConfigureAwait(false)
                 : File.OpenRead(_filePath);
 
             await using (xmlStream)
             {
-                DatFile datFile = await DatParser
+                var datFile = await DatParser
                     .ParseAsync(xmlStream, cancellationToken)
                     .ConfigureAwait(false);
                 return Result.Ok(datFile);
@@ -48,8 +48,8 @@ public sealed class LocalDatReader : IDatReader
     private static bool IsZip(string path)
     {
         Span<byte> header = stackalloc byte[4];
-        using FileStream fs = File.OpenRead(path);
-        int read = fs.Read(header);
+        using var fs = File.OpenRead(path);
+        var read = fs.Read(header);
         // PK signature: 0x50 0x4B 0x03 0x04
         return read >= 4
             && header[0] == 0x50

@@ -1,9 +1,7 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentResults;
@@ -44,8 +42,8 @@ public sealed class SevenZipCliCompressor : IArchiveCompressor
                 "7-Zip binary not found. Install 7-Zip (macOS: brew install 7-zip)."
             );
 
-        long totalRam = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
-        int dictMb = ComputeDictionaryMb(romSize, totalRam);
+        var totalRam = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+        var dictMb = ComputeDictionaryMb(romSize, totalRam);
         _logger.Debug(
             "Compressing {Source} → {Dest} (format {Format}, dict {DictMb} MB)",
             Path.GetFileName(sourceFile),
@@ -54,7 +52,7 @@ public sealed class SevenZipCliCompressor : IArchiveCompressor
             dictMb
         );
 
-        ProcessStartInfo psi = new ProcessStartInfo(
+        var psi = new ProcessStartInfo(
             _binaryPath,
             BuildArguments(sourceFile, destArchive, romSize, totalRam, format)
         )
@@ -65,12 +63,12 @@ public sealed class SevenZipCliCompressor : IArchiveCompressor
             CreateNoWindow = true,
         };
 
-        Stopwatch sw = Stopwatch.StartNew();
-        using Process process = new Process();
+        var sw = Stopwatch.StartNew();
+        using var process = new Process();
         process.StartInfo = psi;
         process.Start();
 
-        Task stdoutTask = progress is not null
+        var stdoutTask = progress is not null
             ? MonitorProgressAsync(process.StandardOutput, progress, cancellationToken)
             : process.StandardOutput.ReadToEndAsync(cancellationToken);
 
@@ -82,7 +80,7 @@ public sealed class SevenZipCliCompressor : IArchiveCompressor
 
         if (process.ExitCode != 0)
         {
-            string stderr = stderrTask.Result.Trim();
+            var stderr = stderrTask.Result.Trim();
             _logger.Error(
                 "Compression failed (exit {Code}, {Elapsed}ms): {Stderr}",
                 process.ExitCode,
@@ -111,7 +109,7 @@ public sealed class SevenZipCliCompressor : IArchiveCompressor
         if (format == "zip")
             return $"a -tzip -mx=9 -y \"{destArchive}\" \"{sourceFile}\"";
 
-        int dictMb = ComputeDictionaryMb(romSize, totalRamBytes);
+        var dictMb = ComputeDictionaryMb(romSize, totalRamBytes);
         return $"a -t7z -m0=LZMA -mx=9 -mmf=bt5 -mmc=1000000000 -md={dictMb}m -mfb=273 -mlc=0 -mlp=2 -mpb=2 -y \"{destArchive}\" \"{sourceFile}\"";
     }
 
@@ -119,14 +117,14 @@ public sealed class SevenZipCliCompressor : IArchiveCompressor
     {
         if (romSize <= 0)
             return 1;
-        long mb = (romSize + 1024L * 1024 - 1) / (1024L * 1024);
+        var mb = (romSize + 1024L * 1024 - 1) / (1024L * 1024);
         if (mb <= 0)
             mb = 1;
         long pow2 = 1;
         while (pow2 < mb)
             pow2 <<= 1;
 
-        long ramCapMb = totalRamBytes > 0 ? totalRamBytes / (1024L * 1024) / 4 : 3840;
+        var ramCapMb = totalRamBytes > 0 ? totalRamBytes / (1024L * 1024) / 4 : 3840;
         if (ramCapMb < 1)
             ramCapMb = 1;
 
@@ -153,7 +151,7 @@ public sealed class SevenZipCliCompressor : IArchiveCompressor
             ? ["7z.exe", @"C:\Program Files\7-Zip\7z.exe", @"C:\Program Files (x86)\7-Zip\7z.exe"]
             : ["7zz", "7z", "7za"];
 
-        foreach (string candidate in candidates)
+        foreach (var candidate in candidates)
         {
             if (Path.IsPathRooted(candidate))
             {
@@ -162,7 +160,7 @@ public sealed class SevenZipCliCompressor : IArchiveCompressor
                 continue;
             }
 
-            string? found = FindInPath(candidate);
+            var found = FindInPath(candidate);
             if (found is not null)
                 return found;
         }
@@ -172,17 +170,17 @@ public sealed class SevenZipCliCompressor : IArchiveCompressor
 
     private static string? FindInPath(string name)
     {
-        IEnumerable<string> searchDirs = (
+        var searchDirs = (
             Environment.GetEnvironmentVariable("PATH") ?? string.Empty
         )
             .Split(Path.PathSeparator)
             .Concat(["/opt/homebrew/bin", "/usr/local/bin"]);
 
-        foreach (string dir in searchDirs)
+        foreach (var dir in searchDirs)
         {
             if (string.IsNullOrEmpty(dir))
                 continue;
-            string full = Path.Combine(dir, name);
+            var full = Path.Combine(dir, name);
             if (File.Exists(full))
                 return full;
         }

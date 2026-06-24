@@ -18,11 +18,11 @@ public static class ImagePathResolver
         string suffix
     )
     {
-        string folderName = string.IsNullOrEmpty(header.ImFolder)
+        var folderName = string.IsNullOrEmpty(header.ImFolder)
             ? header.DatName
             : header.ImFolder;
-        string subFolder = GetSubfolder(imageNumber);
-        string path = Path.Combine(
+        var subFolder = GetSubfolder(imageNumber);
+        var path = Path.Combine(
             imgsBasePath,
             folderName,
             subFolder,
@@ -33,7 +33,7 @@ public static class ImagePathResolver
 
     internal static string GetSubfolder(int imageNumber)
     {
-        int start = ((imageNumber - 1) / 500) * 500 + 1;
+        var start = ((imageNumber - 1) / 500) * 500 + 1;
         return $"{start}-{start + 499}";
     }
 }

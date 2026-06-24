@@ -23,16 +23,16 @@ public sealed class FileSystemRomSource : IRomSource
             RecurseSubdirectories = true,
             IgnoreInaccessible = true,
         };
-        foreach (string filePath in Directory.EnumerateFiles(folderPath, "*", enumOptions))
+        foreach (var filePath in Directory.EnumerateFiles(folderPath, "*", enumOptions))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            string fileExt = Path.GetExtension(filePath).ToLowerInvariant();
+            var fileExt = Path.GetExtension(filePath).ToLowerInvariant();
             if (string.IsNullOrEmpty(fileExt))
                 continue;
 
-            FileInfo fileInfo = new FileInfo(filePath);
-            RomContent? content = ArchiveExtensions.Contains(fileExt)
+            var fileInfo = new FileInfo(filePath);
+            var content = ArchiveExtensions.Contains(fileExt)
                 ? await Task.Run(() => BuildArchiveContent(filePath, fileExt, fileInfo), cancellationToken)
                 : BuildRawContent(filePath, fileExt, fileInfo);
 
@@ -43,7 +43,7 @@ public sealed class FileSystemRomSource : IRomSource
 
     private static RomContent BuildRawContent(string filePath, string fileExt, FileInfo fileInfo)
     {
-        string ext = fileExt.TrimStart('.');
+        var ext = fileExt.TrimStart('.');
         return new RomContent
         {
             FilePath = filePath,
@@ -63,9 +63,9 @@ public sealed class FileSystemRomSource : IRomSource
     {
         // Open briefly to read the entry name, then close; re-open when the stream is requested.
         string romExt;
-        using (IArchive probe = ArchiveFactory.OpenArchive(filePath))
+        using (var probe = ArchiveFactory.OpenArchive(filePath))
         {
-            IArchiveEntry? entry = probe.Entries.FirstOrDefault(e => !e.IsDirectory);
+            var entry = probe.Entries.FirstOrDefault(e => !e.IsDirectory);
             if (entry is null)
                 return null;
 
@@ -88,17 +88,17 @@ public sealed class FileSystemRomSource : IRomSource
         CancellationToken ct
     )
     {
-        IArchive archive = ArchiveFactory.OpenArchive(filePath);
+        var archive = ArchiveFactory.OpenArchive(filePath);
         try
         {
-            IArchiveEntry? entry = archive.Entries.FirstOrDefault(e => !e.IsDirectory);
+            var entry = archive.Entries.FirstOrDefault(e => !e.IsDirectory);
             if (entry is null)
             {
                 archive.Dispose();
                 return Stream.Null;
             }
 
-            Stream entryStream = await entry.OpenEntryStreamAsync(ct).ConfigureAwait(false);
+            var entryStream = await entry.OpenEntryStreamAsync(ct).ConfigureAwait(false);
             return new ArchiveOwningStream(archive, entryStream);
         }
         catch
