@@ -1,6 +1,9 @@
+using System.Threading.Tasks;
 using AwesomeAssertions;
+using FluentResults;
 using NUnit.Framework;
 using RomForge.Core.IO;
+using Serilog;
 
 namespace RomForge.Core.UnitTests.IO;
 
@@ -96,5 +99,41 @@ public sealed class SevenZipCliCompressorTests
         args.Should().NotContain("-t7z");
         args.Should().NotContain("-m0=LZMA");
         args.Should().NotContain("-md=");
+    }
+
+    [Test]
+    public void IsAvailable_WhenNoBinaryPath_ReturnsFalse()
+    {
+        SevenZipCliCompressor sut = new SevenZipCliCompressor(
+            new LoggerConfiguration().CreateLogger(),
+            null
+        );
+
+        sut.IsAvailable.Should().BeFalse();
+    }
+
+    [Test]
+    public void IsAvailable_WhenBinaryPathProvided_ReturnsTrue()
+    {
+        SevenZipCliCompressor sut = new SevenZipCliCompressor(
+            new LoggerConfiguration().CreateLogger(),
+            "/usr/bin/7zz"
+        );
+
+        sut.IsAvailable.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task CompressAsync_WhenUnavailable_ReturnsFail()
+    {
+        SevenZipCliCompressor sut = new SevenZipCliCompressor(
+            new LoggerConfiguration().CreateLogger(),
+            null
+        );
+
+        Result result = await sut.CompressAsync("/src/game.gba", "/out/game.7z", 0);
+
+        result.IsFailed.Should().BeTrue();
+        result.Errors[0].Message.Should().Contain("7-Zip binary not found");
     }
 }

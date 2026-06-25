@@ -25,6 +25,12 @@ public sealed class SevenZipCliCompressor : IArchiveCompressor
             _logger.Debug("7-Zip binary: {Path}", _binaryPath);
     }
 
+    internal SevenZipCliCompressor(ILogger logger, string? binaryPath)
+    {
+        _logger = logger.ForContext<SevenZipCliCompressor>();
+        _binaryPath = binaryPath;
+    }
+
     public bool IsAvailable => _binaryPath is not null;
 
     /// <exception cref="InvalidOperationException">The compressor is not available.</exception>
