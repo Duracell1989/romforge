@@ -13,13 +13,11 @@ jobs:
       matrix:
         include:
           - rid: osx-arm64
-            archive: RomForge-osx-arm64.tar.gz
-          - rid: osx-x64
-            archive: RomForge-osx-x64.tar.gz
+            archive: RomForge-macOS-arm64.tar.gz
           - rid: win-x64
-            archive: RomForge-win-x64.zip
+            archive: RomForge-Windows-x64.zip
           - rid: linux-x64
-            archive: RomForge-linux-x64.tar.gz
+            archive: RomForge-Linux-x64.tar.gz
 
     runs-on: ubuntu-latest
 
@@ -76,5 +74,5 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           gh release create "${{ github.ref_name }}" dist/* \
-            --title "${{ github.ref_name }}" \
+            --title "RomForge ${{ github.ref_name }}" \
             --generate-notes
