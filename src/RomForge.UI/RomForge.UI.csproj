@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>RomForge</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <Authors>Ben de Bruijn</Authors>
     <Copyright>Copyright © 2026 Ben de Bruijn</Copyright>
@@ -51,6 +52,8 @@
           DestinationFolder="$(_BundleRoot)/Contents/MacOS/%(RecursiveDir)" />
     <Copy SourceFiles="$(MSBuildProjectDirectory)/../../packaging/macos/Info.plist"
           DestinationFiles="$(_BundleRoot)/Contents/Info.plist" />
+    <Copy SourceFiles="$(MSBuildProjectDirectory)/../../packaging/macos/icon.icns"
+          DestinationFiles="$(_BundleRoot)/Contents/Resources/icon.icns" />
     <Exec Command="chmod +x '$(_BundleRoot)/Contents/MacOS/RomForge'" />
     <Message Text="Bundle: $(_BundleRoot)" Importance="High" />
   </Target>

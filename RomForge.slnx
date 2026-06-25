@@ -10,7 +10,6 @@
     <File Path="Directory.Build.props" />
     <File Path="coverage.runsettings" />
     <File Path="dotnet-tools.json" />
-    <File Path="sonar-project.properties" />
   </Folder>
   <Folder Name="/packaging/">
     <File Path="packaging/macos/Info.plist" />
