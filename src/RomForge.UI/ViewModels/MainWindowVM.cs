@@ -70,6 +70,7 @@ public partial class MainWindowVM : VMBase
 
     public string StatusSummary => ActiveDat?.StatusSummary ?? "No DAT loaded";
 
+#pragma warning disable S107
     public MainWindowVM(
         IFileDialogService fileDialogs,
         Func<string, IDatReader> datReaderFactory,
@@ -104,6 +105,7 @@ public partial class MainWindowVM : VMBase
         LoadedDats = new ObservableCollection<LoadedDatVM>();
         ArchiveFormat = "7z";
     }
+#pragma warning restore S107
 
     partial void OnSelectedGameChanged(GameRowVM? value)
     {
@@ -940,107 +942,9 @@ public partial class MainWindowVM : VMBase
                 progress.Current = i + 1;
                 progress.CurrentFile = Path.GetFileName(game.ScannedRom?.FilePath ?? string.Empty);
 
-                (string From, string To)? target = RomTrimmer.GetTrimTarget(
-                    new MatchResult
-                    {
-                        Game = game.Game,
-                        Status = game.Status,
-                        ScannedRom = game.ScannedRom,
-                    },
-                    ActiveDat!.DatFile.Header.RomTitle,
-                    ArchiveFormat
-                );
-
-                if (target is null)
-                    continue;
-
-                string? tempRom = null;
-                try
-                {
-                    Result<string> extractResult = await _extractor.ExtractToTempFileAsync(
-                        target.Value.From,
-                        progress.CancellationToken
-                    );
-                    if (extractResult.IsFailed)
-                    {
-                        errors.Add($"{Path.GetFileName(target.Value.From)}: {extractResult.Errors[0].Message}");
-                        continue;
-                    }
-
-                    tempRom = extractResult.Value;
-
-                    var truncateResult = await _fileOperations.TruncateAsync(tempRom, game.Game.RomSize);
-                    if (truncateResult.IsFailed)
-                    {
-                        errors.Add($"{Path.GetFileName(target.Value.From)}: {truncateResult.Errors[0].Message}");
-                        continue;
-                    }
-
-                    var samePath = target.Value.From.Equals(
-                        target.Value.To,
-                        StringComparison.OrdinalIgnoreCase
-                    );
-                    var archiveDest = samePath ? target.Value.To + ".romforge_tmp" : target.Value.To;
-
-                    var fileBase = i * 100 / targets.Count;
-                    var fileRange = 100 / targets.Count;
-                    Progress<int> progressCallback = new Progress<int>(pct =>
-                        progress.Progress = fileBase + pct * fileRange / 100
-                    );
-
-                    var compressResult = await _compressor.CompressAsync(
-                        tempRom,
-                        archiveDest,
-                        game.Game.RomSize,
-                        progressCallback,
-                        progress.CancellationToken,
-                        ArchiveFormat
-                    );
-                    if (compressResult.IsFailed)
-                    {
-                        errors.Add($"{Path.GetFileName(target.Value.From)}: {compressResult.Errors[0].Message}");
-                        continue;
-                    }
-
-                    var deleteResult = await _fileOperations.DeleteAsync(target.Value.From);
-                    if (deleteResult.IsFailed)
-                    {
-                        errors.Add($"Trimmed but could not delete original: {Path.GetFileName(target.Value.From)}: {deleteResult.Errors[0].Message}");
-                        continue;
-                    }
-
-                    if (samePath)
-                    {
-                        var (_, isFailed, readOnlyList) = await _fileOperations.RenameAsync(archiveDest, target.Value.To);
-                        if (isFailed)
-                        {
-                            errors.Add($"Trimmed but could not rename temp archive: {Path.GetFileName(target.Value.From)}: {readOnlyList[0].Message}");
-                            continue;
-                        }
-                    }
-
-                    var updatedRom = game.ScannedRom! with
-                    {
-                        FilePath = target.Value.To,
-                        FileExtension = ArchiveFormat,
-                        Crc = game.Game.Files.RomCrc,
-                        TrimmedCrc = null,
-                    };
-                    await ReplaceGameAsync(
-                        game,
-                        new MatchResult
-                        {
-                            Game = game.Game,
-                            Status = MatchStatus.Verified,
-                            ScannedRom = updatedRom,
-                        }
-                    );
-                }
-                finally
-                {
-                    if (tempRom is not null && File.Exists(tempRom))
-                        await _fileOperations.DeleteAsync(tempRom);
-                }
+                string? error = await TrimOneAsync(game, i, targets.Count, progress);
+                if (error is not null)
+                    errors.Add(error);
             }
         }
         catch (OperationCanceledException ex)
@@ -1058,6 +962,93 @@ public partial class MainWindowVM : VMBase
         }
 
         return errors;
+    }
+
+    private async Task<string?> TrimOneAsync(
+        GameRowVM game,
+        int index,
+        int total,
+        ProgressWindowVM progress
+    )
+    {
+        (string From, string To)? target = RomTrimmer.GetTrimTarget(
+            new MatchResult { Game = game.Game, Status = game.Status, ScannedRom = game.ScannedRom },
+            ActiveDat!.DatFile.Header.RomTitle,
+            ArchiveFormat
+        );
+
+        if (target is null)
+            return null;
+
+        string? tempRom = null;
+        try
+        {
+            Result<string> extractResult = await _extractor.ExtractToTempFileAsync(
+                target.Value.From,
+                progress.CancellationToken
+            );
+            if (extractResult.IsFailed)
+                return $"{Path.GetFileName(target.Value.From)}: {extractResult.Errors[0].Message}";
+
+            tempRom = extractResult.Value;
+
+            Result truncateResult = await _fileOperations.TruncateAsync(tempRom, game.Game.RomSize);
+            if (truncateResult.IsFailed)
+                return $"{Path.GetFileName(target.Value.From)}: {truncateResult.Errors[0].Message}";
+
+            bool samePath = target.Value.From.Equals(
+                target.Value.To,
+                StringComparison.OrdinalIgnoreCase
+            );
+            string archiveDest = samePath ? target.Value.To + ".romforge_tmp" : target.Value.To;
+
+            int fileBase = index * 100 / total;
+            int fileRange = 100 / total;
+            Progress<int> progressCallback = new Progress<int>(pct =>
+                progress.Progress = fileBase + pct * fileRange / 100
+            );
+
+            Result compressResult = await _compressor.CompressAsync(
+                tempRom,
+                archiveDest,
+                game.Game.RomSize,
+                progressCallback,
+                progress.CancellationToken,
+                ArchiveFormat
+            );
+            if (compressResult.IsFailed)
+                return $"{Path.GetFileName(target.Value.From)}: {compressResult.Errors[0].Message}";
+
+            Result deleteResult = await _fileOperations.DeleteAsync(target.Value.From);
+            if (deleteResult.IsFailed)
+                return $"Trimmed but could not delete original: {Path.GetFileName(target.Value.From)}: {deleteResult.Errors[0].Message}";
+
+            if (samePath)
+            {
+                var (_, isFailed, readOnlyList) = await _fileOperations.RenameAsync(archiveDest, target.Value.To);
+                if (isFailed)
+                    return $"Trimmed but could not rename temp archive: {Path.GetFileName(target.Value.From)}: {readOnlyList[0].Message}";
+            }
+
+            ScannedRom updatedRom = game.ScannedRom! with
+            {
+                FilePath = target.Value.To,
+                FileExtension = ArchiveFormat,
+                Crc = game.Game.Files.RomCrc,
+                TrimmedCrc = null,
+            };
+            await ReplaceGameAsync(
+                game,
+                new MatchResult { Game = game.Game, Status = MatchStatus.Verified, ScannedRom = updatedRom }
+            );
+
+            return null;
+        }
+        finally
+        {
+            if (tempRom is not null && File.Exists(tempRom))
+                await _fileOperations.DeleteAsync(tempRom);
+        }
     }
 
     private bool CanTrimAll() =>

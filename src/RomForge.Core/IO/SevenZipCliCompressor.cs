@@ -118,8 +118,6 @@ public sealed class SevenZipCliCompressor : IArchiveCompressor
         if (romSize <= 0)
             return 1;
         var mb = (romSize + 1024L * 1024 - 1) / (1024L * 1024);
-        if (mb <= 0)
-            mb = 1;
         long pow2 = 1;
         while (pow2 < mb)
             pow2 <<= 1;
