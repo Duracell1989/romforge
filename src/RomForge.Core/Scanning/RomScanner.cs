@@ -21,9 +21,16 @@ public static class RomScanner
         CancellationToken cancellationToken = default
     )
     {
+        int estimatedTotal = await source.CountAsync(folderPath, cancellationToken).ConfigureAwait(false);
+        int found = 0;
+
         List<RomContent> contents = new();
         await foreach (RomContent c in source.EnumerateAsync(folderPath, cancellationToken))
+        {
             contents.Add(c);
+            found++;
+            progress?.Report(new ScanProgress(found, estimatedTotal, Path.GetFileName(c.FilePath)));
+        }
 
         if (contents.Count == 0)
             return [];

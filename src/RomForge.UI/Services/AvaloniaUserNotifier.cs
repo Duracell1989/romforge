@@ -60,13 +60,35 @@ internal sealed class AvaloniaUserNotifier : IUserNotifier
 
         if (parent is not null)
         {
+            bool operationCompleted = false;
+            bool userInitiatedClose = false;
+
+            window.Closing += (_, e) =>
+            {
+                if (operationCompleted)
+                    return;
+                if (vm.IsCancellable)
+                {
+                    userInitiatedClose = true;
+                    vm.CancelCommand.Execute(null);
+                }
+                else
+                    e.Cancel = true;
+            };
+
             window.Opened += (_, _) =>
             {
                 _ = operationTask.ContinueWith(
-                    _ => Avalonia.Threading.Dispatcher.UIThread.Post(() => window.Close()),
+                    _ => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        operationCompleted = true;
+                        if (!userInitiatedClose)
+                            window.Close();
+                    }),
                     TaskScheduler.Default
                 );
             };
+
             await window.ShowDialog(parent);
         }
         else

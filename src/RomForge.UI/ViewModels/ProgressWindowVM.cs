@@ -17,7 +17,10 @@ public sealed partial class ProgressWindowVM : VMBase
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CountText))]
+    [NotifyPropertyChangedFor(nameof(IsIndeterminate))]
     public partial int Total { get; set; }
+
+    public bool IsIndeterminate => Total == 0;
 
     [ObservableProperty]
     public partial int Progress { get; set; }

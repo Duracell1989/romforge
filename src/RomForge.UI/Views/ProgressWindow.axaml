@@ -21,6 +21,7 @@
                    TextTrimming="CharacterEllipsis"/>
         <ProgressBar Minimum="0" Maximum="100"
                      Value="{Binding Progress}"
+                     IsIndeterminate="{Binding IsIndeterminate}"
                      Height="16"/>
         <Grid ColumnDefinitions="*,Auto">
             <TextBlock Grid.Column="0"

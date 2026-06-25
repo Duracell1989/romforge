@@ -12,6 +12,19 @@ public sealed class FileSystemRomSource : IRomSource
 {
     private static readonly HashSet<string> ArchiveExtensions = [".zip", ".7z"];
 
+    public Task<int> CountAsync(string folderPath, CancellationToken cancellationToken = default)
+    {
+        EnumerationOptions enumOptions = new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            IgnoreInaccessible = true,
+        };
+        int count = Directory
+            .EnumerateFiles(folderPath, "*", enumOptions)
+            .Count(f => !string.IsNullOrEmpty(Path.GetExtension(f)));
+        return Task.FromResult(count);
+    }
+
     public async IAsyncEnumerable<RomContent> EnumerateAsync(
         string folderPath,
         [System.Runtime.CompilerServices.EnumeratorCancellation]
