@@ -102,6 +102,7 @@ public static class RomScanner
             RomExtension = content.RomExtension,
             Crc = crc,
             TrimmedCrc = trimmedCrc,
+            LastModified = content.LastModified,
         };
     }
 

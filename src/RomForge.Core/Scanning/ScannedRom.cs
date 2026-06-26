@@ -1,3 +1,5 @@
+using System;
+
 namespace RomForge.Core.Scanning;
 
 public sealed record ScannedRom
@@ -7,4 +9,5 @@ public sealed record ScannedRom
     public string RomExtension { get; init; } = string.Empty;
     public uint Crc { get; init; }
     public uint? TrimmedCrc { get; init; }
+    public DateTime? LastModified { get; init; }
 }

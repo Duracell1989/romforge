@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using RomForge.Core.Matching;
@@ -45,12 +46,14 @@ public sealed class ScanResultStore
                     IsWrongArchiveType  INTEGER NOT NULL DEFAULT 0,
                     IsUntrimmed         INTEGER NOT NULL DEFAULT 0,
                     IsReArchived        INTEGER NOT NULL DEFAULT 0,
+                    LastModified        TEXT,
                     PRIMARY KEY (DatName, ReleaseNumber)
                 );";
             await cmd.ExecuteNonQueryAsync();
         }
 
         await MigrateAsync(conn);
+        await MigrateV2Async(conn);
     }
 
     /// <summary>
@@ -76,10 +79,10 @@ public sealed class ScanResultStore
                 ins.CommandText = @"
                     INSERT INTO ScanResults
                         (DatName, ReleaseNumber, Status, FilePath, FileExtension, RomExtension, Crc,
-                         IsIncorrectlyNamed, IsWrongArchiveType, IsUntrimmed, IsReArchived)
+                         IsIncorrectlyNamed, IsWrongArchiveType, IsUntrimmed, IsReArchived, LastModified)
                     VALUES
                         (@DatName, @ReleaseNumber, @Status, @FilePath, @FileExtension, @RomExtension, @Crc,
-                         @IsIncorrectlyNamed, @IsWrongArchiveType, @IsUntrimmed, @IsReArchived)";
+                         @IsIncorrectlyNamed, @IsWrongArchiveType, @IsUntrimmed, @IsReArchived, @LastModified)";
 
                 SqliteParameter pDatName = ins.Parameters.Add(ParamDatName, SqliteType.Text);
                 SqliteParameter pRelNum = ins.Parameters.Add("@ReleaseNumber", SqliteType.Integer);
@@ -92,6 +95,7 @@ public sealed class ScanResultStore
                 SqliteParameter pWrongArchive = ins.Parameters.Add("@IsWrongArchiveType", SqliteType.Integer);
                 SqliteParameter pUntrimmed = ins.Parameters.Add("@IsUntrimmed", SqliteType.Integer);
                 SqliteParameter pReArchived = ins.Parameters.Add("@IsReArchived", SqliteType.Integer);
+                SqliteParameter pLastModified = ins.Parameters.Add("@LastModified", SqliteType.Text);
 
                 foreach (MatchResult r in results)
                 {
@@ -106,6 +110,7 @@ public sealed class ScanResultStore
                     pWrongArchive.Value = r.IsWrongArchiveType ? 1 : 0;
                     pUntrimmed.Value = r.IsUntrimmed ? 1 : 0;
                     pReArchived.Value = r.IsReArchived ? 1 : 0;
+                    pLastModified.Value = (object?)r.ScannedRom?.LastModified?.ToString("O") ?? DBNull.Value;
                     await ins.ExecuteNonQueryAsync();
                 }
             }
@@ -154,7 +159,7 @@ public sealed class ScanResultStore
         await using SqliteCommand cmd = conn.CreateCommand();
         cmd.CommandText = @"
             SELECT ReleaseNumber, Status, FilePath, FileExtension, RomExtension, Crc,
-                   IsIncorrectlyNamed, IsWrongArchiveType, IsUntrimmed, IsReArchived
+                   IsIncorrectlyNamed, IsWrongArchiveType, IsUntrimmed, IsReArchived, LastModified
             FROM ScanResults
             WHERE DatName = @DatName";
         cmd.Parameters.AddWithValue(ParamDatName, datName);
@@ -172,9 +177,12 @@ public sealed class ScanResultStore
             bool isWrongArchiveType = reader.GetInt32(7) != 0;
             bool isUntrimmed = reader.GetInt32(8) != 0;
             bool isReArchived = reader.GetInt32(9) != 0;
+            DateTime? lastModified = await reader.IsDBNullAsync(10)
+                ? null
+                : DateTime.Parse(reader.GetString(10), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
             rows[releaseNumber] = new PersistedRow(
                 status, filePath, fileExt, romExt, crc,
-                isIncorrectlyNamed, isWrongArchiveType, isUntrimmed, isReArchived
+                isIncorrectlyNamed, isWrongArchiveType, isUntrimmed, isReArchived, lastModified
             );
         }
 
@@ -193,6 +201,7 @@ public sealed class ScanResultStore
                 FileExtension = row.FileExtension ?? string.Empty,
                 RomExtension = row.RomExtension ?? string.Empty,
                 Crc = row.Crc ?? 0,
+                LastModified = row.LastModified,
             }
             : null;
 
@@ -221,10 +230,10 @@ public sealed class ScanResultStore
             cmd.CommandText = @"
                 INSERT OR REPLACE INTO ScanResults
                     (DatName, ReleaseNumber, Status, FilePath, FileExtension, RomExtension, Crc,
-                     IsIncorrectlyNamed, IsWrongArchiveType, IsUntrimmed, IsReArchived)
+                     IsIncorrectlyNamed, IsWrongArchiveType, IsUntrimmed, IsReArchived, LastModified)
                 VALUES
                     (@DatName, @ReleaseNumber, @Status, @FilePath, @FileExtension, @RomExtension, @Crc,
-                     @IsIncorrectlyNamed, @IsWrongArchiveType, @IsUntrimmed, @IsReArchived)";
+                     @IsIncorrectlyNamed, @IsWrongArchiveType, @IsUntrimmed, @IsReArchived, @LastModified)";
             cmd.Parameters.AddWithValue(ParamDatName, datName);
             cmd.Parameters.AddWithValue("@ReleaseNumber", result.Game.ReleaseNumber);
             cmd.Parameters.AddWithValue("@Status", (int)result.Status);
@@ -240,6 +249,8 @@ public sealed class ScanResultStore
             cmd.Parameters.AddWithValue("@IsWrongArchiveType", result.IsWrongArchiveType ? 1 : 0);
             cmd.Parameters.AddWithValue("@IsUntrimmed", result.IsUntrimmed ? 1 : 0);
             cmd.Parameters.AddWithValue("@IsReArchived", result.IsReArchived ? 1 : 0);
+            cmd.Parameters.AddWithValue("@LastModified",
+                (object?)result.ScannedRom?.LastModified?.ToString("O") ?? DBNull.Value);
             await cmd.ExecuteNonQueryAsync();
         }
         catch (Exception ex)
@@ -298,6 +309,33 @@ public sealed class ScanResultStore
         _logger.Information("Migrated ScanResults table to flag-based schema");
     }
 
+    private async Task MigrateV2Async(SqliteConnection conn)
+    {
+        bool hasLastModified = false;
+        await using (SqliteCommand cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = "PRAGMA table_info(ScanResults)";
+            await using SqliteDataReader reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                if (reader.GetString(1) == "LastModified")
+                {
+                    hasLastModified = true;
+                    break;
+                }
+            }
+        }
+
+        if (hasLastModified)
+            return;
+
+        await using SqliteCommand alter = conn.CreateCommand();
+        alter.CommandText = "ALTER TABLE ScanResults ADD COLUMN LastModified TEXT";
+        await alter.ExecuteNonQueryAsync();
+
+        _logger.Information("Migrated ScanResults table: added LastModified column");
+    }
+
     private sealed record PersistedRow(
         MatchStatus Status,
         string? FilePath,
@@ -307,6 +345,7 @@ public sealed class ScanResultStore
         bool IsIncorrectlyNamed,
         bool IsWrongArchiveType,
         bool IsUntrimmed,
-        bool IsReArchived
+        bool IsReArchived,
+        DateTime? LastModified
     );
 }

@@ -261,6 +261,39 @@ public sealed class ScanResultStoreTests
         loaded[0].IsReArchived.Should().BeTrue();
     }
 
+    [Test]
+    public async Task SaveAndLoad_LastModified_RoundTripsAsUtc()
+    {
+        await _store.InitializeAsync();
+        Game game = MakeGame(1);
+        DatFile dat = MakeDat("TestDat", [game]);
+
+        // EU DST "fall back" moment: 2024-10-27 01:00 UTC = 02:00 local (CEST) = 01:00 local (CET).
+        // If the store accidentally converts to or from local time, the ticks will differ by ±3600s
+        // and DateTimeKind will not be Utc.
+        DateTime dstBoundary = new DateTime(2024, 10, 27, 1, 0, 0, DateTimeKind.Utc);
+        ScannedRom rom = new ScannedRom
+        {
+            FilePath = "/roms/game.gba",
+            FileExtension = "gba",
+            RomExtension = "gba",
+            Crc = 0xDEADBEEF,
+            LastModified = dstBoundary,
+        };
+        List<MatchResult> toSave =
+        [
+            new MatchResult { Game = game, Status = MatchStatus.Verified, ScannedRom = rom },
+        ];
+
+        await _store.SaveResultsAsync("TestDat", toSave);
+        IReadOnlyList<MatchResult> loaded = await _store.LoadResultsAsync("TestDat", dat);
+
+        DateTime? loaded_time = loaded[0].ScannedRom!.LastModified;
+        loaded_time.Should().NotBeNull();
+        loaded_time!.Value.Kind.Should().Be(DateTimeKind.Utc);
+        loaded_time.Value.Should().Be(dstBoundary);
+    }
+
     private static Game MakeGame(int releaseNumber) =>
         new Game
         {

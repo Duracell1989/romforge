@@ -323,7 +323,57 @@ public partial class MainWindowVM : VMBase
             persisted.Count > 0 ? persisted : RomMatcher.Match(datVm.DatFile, []).Results;
 
         datVm.Games = new ObservableCollection<GameRowVM>(matchResults.Select(datVm.BuildGameRow));
+
+        if (persisted.Count > 0)
+            _ = ValidateIntegrityAsync(datVm, matchResults);
+
         return datVm;
+    }
+
+    private async Task ValidateIntegrityAsync(LoadedDatVM datVm, IReadOnlyList<MatchResult> results)
+    {
+        try
+        {
+            IReadOnlyList<MatchResult> stale = await Task.Run(() =>
+                RomIntegrityChecker.FindStaleResults(results)
+            );
+
+            if (stale.Count == 0)
+                return;
+
+            string datName = datVm.DatFile.Header.DatName;
+#pragma warning disable S3267 // async body with multiple sequential awaits cannot be expressed as a LINQ projection
+            foreach (MatchResult staleResult in stale)
+            {
+                GameRowVM? existing = datVm.Games.FirstOrDefault(
+                    g => g.Game.ReleaseNumber == staleResult.Game.ReleaseNumber
+                );
+                if (existing is null)
+                    continue;
+
+                MatchResult missing = new MatchResult { Game = staleResult.Game, Status = MatchStatus.Missing };
+                await _scanResultStore.UpdateResultAsync(datName, missing);
+
+                int index = datVm.Games.IndexOf(existing);
+                if (index < 0)
+                    continue;
+
+                datVm.Games[index] = datVm.BuildGameRow(missing);
+                if (ReferenceEquals(SelectedGame, existing))
+                    SelectedGame = datVm.Games[index];
+            }
+#pragma warning restore S3267
+
+            _logger.Information(
+                "Integrity check for {DatName}: {Count} missing file(s) cleared",
+                datName,
+                stale.Count
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.Warning(ex, "Integrity check failed for {DatName}", datVm.DatFile.Header.DatName);
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanScanFolder))]
