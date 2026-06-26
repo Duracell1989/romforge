@@ -16,6 +16,10 @@
     </Design.DataContext>
 
     <StackPanel Margin="16" Spacing="10">
+        <TextBlock Text="{Binding Phase}"
+                   FontSize="11"
+                   Opacity="0.6"
+                   IsVisible="{Binding HasPhase}"/>
         <TextBlock Text="{Binding CurrentFile}"
                    FontSize="12"
                    TextTrimming="CharacterEllipsis"/>

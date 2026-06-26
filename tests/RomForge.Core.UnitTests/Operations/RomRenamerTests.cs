@@ -16,7 +16,7 @@ public sealed class RomRenamerTests
         int release = 1,
         string title = "Correct Title"
     ) =>
-        new()
+        new MatchResult
         {
             Game = new Game { ReleaseNumber = release, Title = title },
             Status = MatchStatus.Verified,
@@ -54,7 +54,7 @@ public sealed class RomRenamerTests
     [Test]
     public void GetRenameTarget_Missing_ReturnsNull()
     {
-        MatchResult result = new()
+        MatchResult result = new MatchResult
         {
             Game = new Game { ReleaseNumber = 1, Title = "Correct Title" },
             Status = MatchStatus.Missing,
@@ -82,7 +82,7 @@ public sealed class RomRenamerTests
     [Test]
     public void GetRenameTarget_PreservesArchiveExtension()
     {
-        MatchResult result = new()
+        MatchResult result = new MatchResult
         {
             Game = new Game { ReleaseNumber = 1, Title = "Game" },
             Status = MatchStatus.Verified,

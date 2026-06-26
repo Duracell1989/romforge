@@ -19,9 +19,13 @@ public sealed class FileSystemRomSource : IRomSource
             RecurseSubdirectories = true,
             IgnoreInaccessible = true,
         };
-        int count = Directory
-            .EnumerateFiles(folderPath, "*", enumOptions)
-            .Count(f => !string.IsNullOrEmpty(Path.GetExtension(f)));
+        int count = 0;
+        foreach (string f in Directory.EnumerateFiles(folderPath, "*", enumOptions))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!string.IsNullOrEmpty(Path.GetExtension(f)))
+                count++;
+        }
         return Task.FromResult(count);
     }
 

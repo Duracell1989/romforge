@@ -345,6 +345,7 @@ public partial class MainWindowVM : VMBase
             progressVm.Total = p.Total;
             progressVm.Current = p.Completed;
             progressVm.CurrentFile = p.CurrentFile;
+            progressVm.Phase = p.Phase;
             progressVm.Progress = p.Total > 0 ? p.Completed * 100 / p.Total : 0;
         });
 
@@ -646,7 +647,7 @@ public partial class MainWindowVM : VMBase
                     Game = game.Game,
                     Status = MatchStatus.Verified,
                     ScannedRom = updatedRom,
-                    IsIncorrectlyNamed = game.IsIncorrectlyNamed,
+                    IsIncorrectlyNamed = false,
                     IsWrongArchiveType = false,
                     IsUntrimmed = game.IsUntrimmed,
                     IsReArchived = true,
@@ -673,6 +674,7 @@ public partial class MainWindowVM : VMBase
         && !IsTrimming
         && SelectedGame?.Status == MatchStatus.Verified
         && !SelectedGame.IsUntrimmed
+        && SelectedGame.IsWrongArchiveType
         && _compressor.IsAvailable;
 
     [RelayCommand(CanExecute = nameof(CanReArchiveAll))]
@@ -682,7 +684,7 @@ public partial class MainWindowVM : VMBase
             return;
 
         List<GameRowVM> targets = ActiveDat
-            .Games.Where(g => g.Status == MatchStatus.Verified && !g.IsUntrimmed)
+            .Games.Where(g => g.Status == MatchStatus.Verified && !g.IsUntrimmed && g.IsWrongArchiveType)
             .ToList();
 
         if (targets.Count == 0)
@@ -799,7 +801,7 @@ public partial class MainWindowVM : VMBase
                             Game = game.Game,
                             Status = MatchStatus.Verified,
                             ScannedRom = updatedRom,
-                            IsIncorrectlyNamed = game.IsIncorrectlyNamed,
+                            IsIncorrectlyNamed = false,
                             IsWrongArchiveType = false,
                             IsUntrimmed = game.IsUntrimmed,
                             IsReArchived = true,
@@ -835,7 +837,7 @@ public partial class MainWindowVM : VMBase
         && !IsTrimming
         && _compressor.IsAvailable
         && ActiveDat is not null
-        && ActiveDat.Games.Any(g => g.Status == MatchStatus.Verified && !g.IsUntrimmed);
+        && ActiveDat.Games.Any(g => g.Status == MatchStatus.Verified && !g.IsUntrimmed && g.IsWrongArchiveType);
 
     [RelayCommand(CanExecute = nameof(CanTrim))]
     private async Task TrimSelectedAsync()

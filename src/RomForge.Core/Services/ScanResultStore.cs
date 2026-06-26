@@ -283,11 +283,16 @@ public sealed class ScanResultStore
             "UPDATE ScanResults SET Status = (CASE WHEN Status = 3 THEN 0 ELSE 1 END)",
         ];
 
-        foreach (string sql in statements)
+        await using (SqliteTransaction tx = (SqliteTransaction)await conn.BeginTransactionAsync())
         {
-            await using SqliteCommand cmd = conn.CreateCommand();
-            cmd.CommandText = sql;
-            await cmd.ExecuteNonQueryAsync();
+            foreach (string sql in statements)
+            {
+                await using SqliteCommand cmd = conn.CreateCommand();
+                cmd.Transaction = tx;
+                cmd.CommandText = sql;
+                await cmd.ExecuteNonQueryAsync();
+            }
+            await tx.CommitAsync();
         }
 
         _logger.Information("Migrated ScanResults table to flag-based schema");

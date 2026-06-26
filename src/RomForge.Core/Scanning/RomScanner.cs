@@ -29,7 +29,7 @@ public static class RomScanner
         {
             contents.Add(c);
             found++;
-            progress?.Report(new ScanProgress(found, estimatedTotal, Path.GetFileName(c.FilePath)));
+            progress?.Report(new ScanProgress(found, estimatedTotal, Path.GetFileName(c.FilePath), "Enumerating files..."));
         }
 
         if (contents.Count == 0)
@@ -50,7 +50,7 @@ public static class RomScanner
             {
                 results[item.Index] = await ProcessContentAsync(item.Content, cache, ct).ConfigureAwait(false);
                 int c = Interlocked.Increment(ref completed);
-                progress?.Report(new ScanProgress(c, total, Path.GetFileName(item.Content.FilePath)));
+                progress?.Report(new ScanProgress(c, total, Path.GetFileName(item.Content.FilePath), "Computing CRCs..."));
             }
         );
 

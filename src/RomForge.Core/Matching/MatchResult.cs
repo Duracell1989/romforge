@@ -3,7 +3,7 @@ using RomForge.Core.Scanning;
 
 namespace RomForge.Core.Matching;
 
-public sealed class MatchResult
+public sealed record MatchResult
 {
     public required Game Game { get; init; }
     public required MatchStatus Status { get; init; }
@@ -17,6 +17,5 @@ public sealed class MatchResult
         Status == MatchStatus.Verified
         && !IsIncorrectlyNamed
         && !IsWrongArchiveType
-        && !IsUntrimmed
-        && IsReArchived;
+        && !IsUntrimmed;
 }

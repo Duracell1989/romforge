@@ -17,7 +17,7 @@ public sealed class RomReArchiverTests
         int release = 1,
         string title = "Correct Title"
     ) =>
-        new()
+        new MatchResult
         {
             Game = new Game { ReleaseNumber = release, Title = title },
             Status = MatchStatus.Verified,

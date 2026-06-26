@@ -28,6 +28,12 @@ public sealed partial class ProgressWindowVM : VMBase
     [ObservableProperty]
     public partial string? CurrentFile { get; set; }
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasPhase))]
+    public partial string Phase { get; set; }
+
+    public bool HasPhase => !string.IsNullOrEmpty(Phase);
+
     public string CountText => $"{Current} of {Total}";
 
     public ProgressWindowVM(int total, bool isCancellable)
@@ -35,6 +41,7 @@ public sealed partial class ProgressWindowVM : VMBase
         _cts = isCancellable ? new CancellationTokenSource() : null;
         Total = total;
         IsCancellable = isCancellable;
+        Phase = string.Empty;
     }
 
     [RelayCommand]

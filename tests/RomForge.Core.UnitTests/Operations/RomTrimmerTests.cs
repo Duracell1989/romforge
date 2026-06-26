@@ -16,7 +16,7 @@ public sealed class RomTrimmerTests
         int release = 1,
         string title = "My Game"
     ) =>
-        new()
+        new MatchResult
         {
             Game = new Game { ReleaseNumber = release, Title = title },
             Status = MatchStatus.Verified,
@@ -66,7 +66,7 @@ public sealed class RomTrimmerTests
     [Test]
     public void GetTrimTarget_Missing_ReturnsNull()
     {
-        MatchResult result = new()
+        MatchResult result = new MatchResult
         {
             Game = new Game { ReleaseNumber = 1, Title = "My Game" },
             Status = MatchStatus.Missing,

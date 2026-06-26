@@ -101,17 +101,15 @@ public partial class LoadedDatVM : VMBase
                 return "No scan yet";
 
             int good = Games.Count(g => g.IsGood);
-            int verified = Games.Count(g => g.Status == MatchStatus.Verified && !g.IsGood);
-            int incorrectlyNamed = Games.Count(g => g.IsIncorrectlyNamed && !g.IsUntrimmed);
-            int wrongArchiveType = Games.Count(g => g.IsWrongArchiveType && !g.IsUntrimmed);
             int untrimmed = Games.Count(g => g.IsUntrimmed);
+            int wrongArchiveType = Games.Count(g => !g.IsUntrimmed && g.IsWrongArchiveType);
+            int incorrectlyNamed = Games.Count(g => !g.IsUntrimmed && !g.IsWrongArchiveType && g.IsIncorrectlyNamed);
             int missing = Games.Count(g => g.Status == MatchStatus.Missing);
 
             List<string> segments = new List<string> { $"{Games.Count} games" };
 
             if (good > 0)
                 segments.Add($"{good} good");
-            segments.Add($"{verified} verified");
             if (incorrectlyNamed > 0)
                 segments.Add($"{incorrectlyNamed} incorrectly named");
             if (wrongArchiveType > 0)

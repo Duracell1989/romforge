@@ -14,6 +14,7 @@ public sealed class ReArchiveStore
 {
     private const string ParamDatName = "@DatName";
     private const string ParamReleaseNumber = "@ReleaseNumber";
+    private const string ParamArchivedAt = "@ArchivedAt";
 
     private readonly string _connectionString;
     private readonly ILogger _logger;
@@ -54,7 +55,7 @@ public sealed class ReArchiveStore
                 VALUES (@DatName, @ReleaseNumber, @ArchivedAt)";
             cmd.Parameters.AddWithValue(ParamDatName, datName);
             cmd.Parameters.AddWithValue(ParamReleaseNumber, releaseNumber);
-            cmd.Parameters.AddWithValue("@ArchivedAt", DateTime.UtcNow.ToString("O"));
+            cmd.Parameters.AddWithValue(ParamArchivedAt, DateTime.UtcNow.ToString("O"));
             await cmd.ExecuteNonQueryAsync();
         }
         catch (Exception ex)
