@@ -35,4 +35,44 @@ public class ProgressWindowVMTests
 
         raised.Should().Contain(nameof(ProgressWindowVM.IsIndeterminate));
     }
+
+    [Test]
+    public void IsIndeterminate_TotalGoesFromPositiveToZero_BecomesTrue()
+    {
+        ProgressWindowVM vm = new ProgressWindowVM(10, isCancellable: false);
+
+        vm.Total = 0;
+
+        vm.IsIndeterminate.Should().BeTrue();
+    }
+
+    [Test]
+    public void HasPhase_EmptyString_ReturnsFalse()
+    {
+        ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: false);
+
+        vm.HasPhase.Should().BeFalse();
+    }
+
+    [Test]
+    public void HasPhase_NonEmptyString_ReturnsTrue()
+    {
+        ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: false);
+
+        vm.Phase = "Enumerating files...";
+
+        vm.HasPhase.Should().BeTrue();
+    }
+
+    [Test]
+    public void HasPhase_RaisesPropertyChanged_WhenPhaseChanges()
+    {
+        ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: false);
+        List<string?> raised = [];
+        vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        vm.Phase = "Computing CRCs...";
+
+        raised.Should().Contain(nameof(ProgressWindowVM.HasPhase));
+    }
 }

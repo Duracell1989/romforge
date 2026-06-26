@@ -283,4 +283,27 @@ public class RomMatcherTests
 
         summary.UnmatchedRoms.Should().BeEmpty();
     }
+
+    [Test]
+    public void Match_ArchiveExtensionUppercase_TreatedCaseInsensitive()
+    {
+        DatFile dat = DatWith(GameWith(0x12345678));
+        List<ScannedRom> roms = [RomWith(0x12345678, fileExt: "7Z")];
+
+        IReadOnlyList<MatchResult> results = RomMatcher.Match(dat, roms).Results;
+
+        results[0].IsWrongArchiveType.Should().BeFalse();
+    }
+
+    [Test]
+    public void Match_BothWrongArchiveAndWrongName_SetsBothFlags()
+    {
+        DatFile dat = DatWith("%u - %n", GameWith(0x12345678, release: 1, title: "Correct Name"));
+        List<ScannedRom> roms = [RomWith(0x12345678, fileExt: "zip", path: "/roms/Wrong Name.zip")];
+
+        IReadOnlyList<MatchResult> results = RomMatcher.Match(dat, roms).Results;
+
+        results[0].IsWrongArchiveType.Should().BeTrue();
+        results[0].IsIncorrectlyNamed.Should().BeTrue();
+    }
 }
