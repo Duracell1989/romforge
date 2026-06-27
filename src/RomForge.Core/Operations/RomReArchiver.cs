@@ -23,8 +23,6 @@ public static class RomReArchiver
         string dir = Path.GetDirectoryName(result.ScannedRom.FilePath) ?? string.Empty;
         string newPath = Path.Combine(dir, expectedStem + "." + targetExtension);
 
-        return result.ScannedRom.FilePath.Equals(newPath, StringComparison.OrdinalIgnoreCase)
-            ? null
-            : (result.ScannedRom.FilePath, newPath);
+        return (result.ScannedRom.FilePath, newPath);
     }
 }

@@ -17,5 +17,6 @@ public sealed record MatchResult
         Status == MatchStatus.Verified
         && !IsIncorrectlyNamed
         && !IsWrongArchiveType
-        && !IsUntrimmed;
+        && !IsUntrimmed
+        && IsReArchived;
 }

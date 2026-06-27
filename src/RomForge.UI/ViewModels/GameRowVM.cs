@@ -112,6 +112,8 @@ public sealed partial class GameRowVM : ObservableObject, IDisposable
         }
     }
 
+    public string ReArchivedText => _result.IsReArchived ? "✓" : "–";
+
     public string? ExpectedFileName =>
         _result.IsIncorrectlyNamed && !string.IsNullOrEmpty(_namingMask)
             ? NamingMask.Expand(_namingMask, _result.Game)

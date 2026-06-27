@@ -135,7 +135,7 @@ xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                         <Border DockPanel.Dock="Top"
                                 BorderThickness="0,0,0,1"
                                 Padding="4,3">
-                            <Grid ColumnDefinitions="60,*,150,140">
+                            <Grid ColumnDefinitions="60,*,150,60,80,80,130">
                                 <Button Grid.Column="0"
                                         Classes="col-header"
                                         Command="{Binding ActiveDat.SortByCommand}"
@@ -166,6 +166,33 @@ xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                                 <Button Grid.Column="3"
                                         Classes="col-header"
                                         Command="{Binding ActiveDat.SortByCommand}"
+                                        CommandParameter="Location">
+                                    <StackPanel Orientation="Horizontal" Spacing="2">
+                                        <TextBlock Text="Region" FontWeight="SemiBold" Opacity="0.7" FontSize="12"/>
+                                        <TextBlock Text="{Binding ActiveDat.LocationSortIndicator}" FontSize="12" Opacity="0.7"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Grid.Column="4"
+                                        Classes="col-header"
+                                        Command="{Binding ActiveDat.SortByCommand}"
+                                        CommandParameter="Language">
+                                    <StackPanel Orientation="Horizontal" Spacing="2">
+                                        <TextBlock Text="Language" FontWeight="SemiBold" Opacity="0.7" FontSize="12"/>
+                                        <TextBlock Text="{Binding ActiveDat.LanguageSortIndicator}" FontSize="12" Opacity="0.7"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Grid.Column="5"
+                                        Classes="col-header"
+                                        Command="{Binding ActiveDat.SortByCommand}"
+                                        CommandParameter="ReArchived">
+                                    <StackPanel Orientation="Horizontal" Spacing="2">
+                                        <TextBlock Text="Re-Archived" FontWeight="SemiBold" Opacity="0.7" FontSize="12"/>
+                                        <TextBlock Text="{Binding ActiveDat.ReArchivedSortIndicator}" FontSize="12" Opacity="0.7"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Grid.Column="6"
+                                        Classes="col-header"
+                                        Command="{Binding ActiveDat.SortByCommand}"
                                         CommandParameter="Status">
                                     <StackPanel Orientation="Horizontal" Spacing="2">
                                         <TextBlock Text="Status" FontWeight="SemiBold" Opacity="0.7" FontSize="12"/>
@@ -181,7 +208,7 @@ xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="vm:GameRowVM">
-                                    <Grid ColumnDefinitions="60,*,150,140" Margin="0,1">
+                                    <Grid ColumnDefinitions="60,*,150,60,80,80,130" Margin="0,1">
                                         <TextBlock Grid.Column="0"
                                                    Text="{Binding ReleaseNumber}"
                                                    Opacity="0.6"
@@ -197,6 +224,20 @@ xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                                                    Opacity="0.8"
                                                    VerticalAlignment="Center"/>
                                         <TextBlock Grid.Column="3"
+                                                   Text="{Binding Location}"
+                                                   FontSize="12"
+                                                   Opacity="0.8"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="4"
+                                                   Text="{Binding Language}"
+                                                   FontSize="12"
+                                                   Opacity="0.8"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="5"
+                                                   Text="{Binding ReArchivedText}"
+                                                   FontSize="13"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="6"
                                                    Text="{Binding StatusText}"
                                                    Foreground="{Binding StatusBrush}"
                                                    FontSize="12"

@@ -113,4 +113,18 @@ public sealed class RomReArchiverTests
 
         target!.Value.To.Should().EndWith(".zip");
     }
+
+    [Test]
+    public void GetReArchiveTarget_PathAlreadyCorrect_ReturnsTarget()
+    {
+        // A correctly-named 7z should still return a target — re-archiving in place
+        // gives RomForge control over compression quality even when name/format are already right.
+        MatchResult result = MakeVerifiedResult(filePath: "/roms/0001 - Correct Title.7z");
+
+        (string From, string To)? target = RomReArchiver.GetReArchiveTarget(result, "%u - %n", "7z");
+
+        target.Should().NotBeNull();
+        target!.Value.From.Should().Be("/roms/0001 - Correct Title.7z");
+        target.Value.To.Should().Be("/roms/0001 - Correct Title.7z");
+    }
 }

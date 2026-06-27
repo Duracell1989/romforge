@@ -18,7 +18,7 @@ namespace RomForge.UI.ViewModels;
 /// </summary>
 public partial class LoadedDatVM : VMBase
 {
-    private enum SortColumn { None, ReleaseNumber, Title, Publisher, Status }
+    private enum SortColumn { None, ReleaseNumber, Title, Publisher, Location, Language, ReArchived, Status }
 
     private readonly DatFile _datFile;
     private readonly string _imgsBasePath;
@@ -144,6 +144,9 @@ public partial class LoadedDatVM : VMBase
     public string ReleaseNumberSortIndicator => GetSortIndicator(SortColumn.ReleaseNumber);
     public string TitleSortIndicator => GetSortIndicator(SortColumn.Title);
     public string PublisherSortIndicator => GetSortIndicator(SortColumn.Publisher);
+    public string LocationSortIndicator => GetSortIndicator(SortColumn.Location);
+    public string LanguageSortIndicator => GetSortIndicator(SortColumn.Language);
+    public string ReArchivedSortIndicator => GetSortIndicator(SortColumn.ReArchived);
     public string StatusSortIndicator => GetSortIndicator(SortColumn.Status);
 
     [RelayCommand]
@@ -154,6 +157,9 @@ public partial class LoadedDatVM : VMBase
             "ReleaseNumber" => SortColumn.ReleaseNumber,
             "Title" => SortColumn.Title,
             "Publisher" => SortColumn.Publisher,
+            "Location" => SortColumn.Location,
+            "Language" => SortColumn.Language,
+            "ReArchived" => SortColumn.ReArchived,
             "Status" => SortColumn.Status,
             _ => SortColumn.None,
         };
@@ -170,6 +176,9 @@ public partial class LoadedDatVM : VMBase
         OnPropertyChanged(nameof(ReleaseNumberSortIndicator));
         OnPropertyChanged(nameof(TitleSortIndicator));
         OnPropertyChanged(nameof(PublisherSortIndicator));
+        OnPropertyChanged(nameof(LocationSortIndicator));
+        OnPropertyChanged(nameof(LanguageSortIndicator));
+        OnPropertyChanged(nameof(ReArchivedSortIndicator));
         OnPropertyChanged(nameof(StatusSortIndicator));
     }
 
@@ -198,6 +207,15 @@ public partial class LoadedDatVM : VMBase
                     g => g.Publisher ?? string.Empty,
                     System.StringComparer.CurrentCultureIgnoreCase
                 ),
+            SortColumn.Location => _sortDescending
+                ? items.OrderByDescending(g => g.Location, System.StringComparer.CurrentCultureIgnoreCase)
+                : items.OrderBy(g => g.Location, System.StringComparer.CurrentCultureIgnoreCase),
+            SortColumn.Language => _sortDescending
+                ? items.OrderByDescending(g => g.Language, System.StringComparer.CurrentCultureIgnoreCase)
+                : items.OrderBy(g => g.Language, System.StringComparer.CurrentCultureIgnoreCase),
+            SortColumn.ReArchived => _sortDescending
+                ? items.OrderByDescending(g => g.IsReArchived)
+                : items.OrderBy(g => g.IsReArchived),
             SortColumn.Status => _sortDescending
                 ? items.OrderByDescending(g => g.StatusSortKey)
                 : items.OrderBy(g => g.StatusSortKey),

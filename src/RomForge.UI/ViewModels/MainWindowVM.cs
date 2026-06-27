@@ -667,6 +667,14 @@ public partial class MainWindowVM : VMBase
 
             tempFile = extractResult.Value;
 
+            bool sameFile = target.From.Equals(target.To, StringComparison.OrdinalIgnoreCase);
+            if (sameFile)
+            {
+                Result preDeleteResult = await _fileOperations.DeleteAsync(target.From);
+                if (preDeleteResult.IsFailed)
+                    return $"Could not replace original archive.\n{preDeleteResult.Errors[0].Message}";
+            }
+
             Progress<int> progressCallback = new Progress<int>(pct => progress.Progress = pct);
             Result compressResult = await _compressor.CompressAsync(
                 tempFile,
@@ -679,9 +687,12 @@ public partial class MainWindowVM : VMBase
             if (compressResult.IsFailed)
                 return $"Compression failed.\n{compressResult.Errors[0].Message}";
 
-            Result deleteResult = await _fileOperations.DeleteAsync(target.From);
-            if (deleteResult.IsFailed)
-                return $"Re-archive succeeded but the original file could not be deleted.\n{deleteResult.Errors[0].Message}";
+            if (!sameFile)
+            {
+                Result deleteResult = await _fileOperations.DeleteAsync(target.From);
+                if (deleteResult.IsFailed)
+                    return $"Re-archive succeeded but the original file could not be deleted.\n{deleteResult.Errors[0].Message}";
+            }
 
             ScannedRom updatedRom = game.ScannedRom! with
             {
@@ -724,7 +735,7 @@ public partial class MainWindowVM : VMBase
         && !IsTrimming
         && SelectedGame?.Status == MatchStatus.Verified
         && !SelectedGame.IsUntrimmed
-        && SelectedGame.IsWrongArchiveType
+        && !SelectedGame.IsReArchived
         && _compressor.IsAvailable;
 
     [RelayCommand(CanExecute = nameof(CanReArchiveAll))]
@@ -734,7 +745,7 @@ public partial class MainWindowVM : VMBase
             return;
 
         List<GameRowVM> targets = ActiveDat
-            .Games.Where(g => g.Status == MatchStatus.Verified && !g.IsUntrimmed && g.IsWrongArchiveType)
+            .Games.Where(g => g.Status == MatchStatus.Verified && !g.IsUntrimmed && !g.IsReArchived)
             .ToList();
 
         if (targets.Count == 0)
@@ -809,6 +820,22 @@ public partial class MainWindowVM : VMBase
 
                     tempFile = extractResult.Value;
 
+                    bool sameFile = target.Value.From.Equals(
+                        target.Value.To,
+                        StringComparison.OrdinalIgnoreCase
+                    );
+                    if (sameFile)
+                    {
+                        Result preDeleteResult = await _fileOperations.DeleteAsync(target.Value.From);
+                        if (preDeleteResult.IsFailed)
+                        {
+                            errors.Add(
+                                $"Could not replace original: {Path.GetFileName(target.Value.From)}: {preDeleteResult.Errors[0].Message}"
+                            );
+                            continue;
+                        }
+                    }
+
                     int fileBase = i * 100 / targets.Count;
                     int fileRange = 100 / targets.Count;
                     Progress<int> progressCallback = new Progress<int>(pct =>
@@ -831,11 +858,14 @@ public partial class MainWindowVM : VMBase
                         continue;
                     }
 
-                    Result deleteResult = await _fileOperations.DeleteAsync(target.Value.From);
-                    if (deleteResult.IsFailed)
-                        errors.Add(
-                            $"Archived but could not delete original: {Path.GetFileName(target.Value.From)}: {deleteResult.Errors[0].Message}"
-                        );
+                    if (!sameFile)
+                    {
+                        Result deleteResult = await _fileOperations.DeleteAsync(target.Value.From);
+                        if (deleteResult.IsFailed)
+                            errors.Add(
+                                $"Archived but could not delete original: {Path.GetFileName(target.Value.From)}: {deleteResult.Errors[0].Message}"
+                            );
+                    }
 
                     ScannedRom updatedRom = game.ScannedRom! with
                     {
@@ -887,7 +917,7 @@ public partial class MainWindowVM : VMBase
         && !IsTrimming
         && _compressor.IsAvailable
         && ActiveDat is not null
-        && ActiveDat.Games.Any(g => g.Status == MatchStatus.Verified && !g.IsUntrimmed && g.IsWrongArchiveType);
+        && ActiveDat.Games.Any(g => g.Status == MatchStatus.Verified && !g.IsUntrimmed && !g.IsReArchived);
 
     [RelayCommand(CanExecute = nameof(CanTrim))]
     private async Task TrimSelectedAsync()

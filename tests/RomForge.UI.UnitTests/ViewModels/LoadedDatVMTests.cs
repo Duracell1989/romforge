@@ -214,7 +214,7 @@ public class LoadedDatVMTests
     public void StatusSummary_GoodGame_ContainsGoodCount()
     {
         LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
-        vm.Games.Add(MakeRow(new MatchResult { Game = new Game(), Status = MatchStatus.Verified }));
+        vm.Games.Add(MakeRow(new MatchResult { Game = new Game(), Status = MatchStatus.Verified, IsReArchived = true }));
 
         vm.StatusSummary.Should().Contain("1 good");
     }
