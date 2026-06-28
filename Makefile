@@ -1,7 +1,9 @@
 SOLUTION    := RomForge.slnx
 UI_PROJECT  := src/RomForge.UI/RomForge.UI.csproj
 APP_BUNDLE  := artifacts/RomForge.app
+DEV_BUNDLE  := artifacts/RomForge-dev.app
 PUBLISH_DIR := artifacts/publish/osx-arm64
+BUILD_OUT   := artifacts/bin/RomForge.UI/debug/net10.0
 
 .PHONY: build test run check clean coverage package sonar sonar-start
 
@@ -11,8 +13,14 @@ build:
 test:
 	dotnet test $(SOLUTION) --verbosity quiet
 
-run:
-	dotnet run --project $(UI_PROJECT)
+run: build
+	rm -rf $(DEV_BUNDLE)
+	mkdir -p $(DEV_BUNDLE)/Contents/MacOS $(DEV_BUNDLE)/Contents/Resources
+	cp -R $(BUILD_OUT)/. $(DEV_BUNDLE)/Contents/MacOS/
+	cp packaging/macos/Info.plist $(DEV_BUNDLE)/Contents/
+	cp packaging/macos/icon.icns $(DEV_BUNDLE)/Contents/Resources/
+	chmod +x $(DEV_BUNDLE)/Contents/MacOS/RomForge
+	open $(DEV_BUNDLE)
 
 check:
 	dotnet clean $(SOLUTION) --verbosity quiet

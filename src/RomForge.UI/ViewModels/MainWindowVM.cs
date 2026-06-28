@@ -1,11 +1,14 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FluentResults;
@@ -37,6 +40,7 @@ public partial class MainWindowVM : VMBase
     private readonly DatConfigService _configService;
     private readonly ScanResultStore _scanResultStore;
     private readonly ReArchiveStore _reArchiveStore;
+    private readonly AppPreferencesService _preferencesService;
 
     private ObservableCollection<GameRowVM>? _subscribedGames;
 
@@ -90,7 +94,8 @@ public partial class MainWindowVM : VMBase
         IDatDownloader downloader,
         DatConfigService configService,
         ScanResultStore scanResultStore,
-        ReArchiveStore reArchiveStore
+        ReArchiveStore reArchiveStore,
+        AppPreferencesService preferencesService
     )
     {
         _fileDialogs = fileDialogs;
@@ -108,6 +113,7 @@ public partial class MainWindowVM : VMBase
         _configService = configService;
         _scanResultStore = scanResultStore;
         _reArchiveStore = reArchiveStore;
+        _preferencesService = preferencesService;
         LoadedDats = new ObservableCollection<LoadedDatVM>();
         ArchiveFormat = "7z";
     }
@@ -155,10 +161,12 @@ public partial class MainWindowVM : VMBase
             newValue.PropertyChanged += OnActiveDatPropertyChanged;
             ResubscribeGames(newValue.Games);
             _ = LoadArchiveFormatAsync(newValue.DatFile.Header.DatName);
+            _ = _preferencesService.UpdateLastActiveDatAsync(newValue.DatFile.Header.DatName);
         }
         else
         {
             ArchiveFormat = "7z";
+            _ = _preferencesService.UpdateLastActiveDatAsync(null);
         }
         SelectedGame = null;
         RenameAllCommand.NotifyCanExecuteChanged();
@@ -258,6 +266,8 @@ public partial class MainWindowVM : VMBase
         await _scanResultStore.InitializeAsync();
         await _reArchiveStore.InitializeAsync();
 
+        AppPreferences prefs = await _preferencesService.LoadAsync();
+
         foreach (string path in _appData.GetImportedDatPaths())
         {
             Result<DatFile> result = await _datReaderFactory(path).ReadAsync();
@@ -275,8 +285,15 @@ public partial class MainWindowVM : VMBase
             LoadedDats.Add(datVm);
         }
 
-        if (LoadedDats.Count > 0)
-            ActiveDat = LoadedDats[0];
+        if (LoadedDats.Count == 0)
+            return;
+
+        LoadedDatVM? last = prefs.LastActiveDatName is not null
+            ? LoadedDats.FirstOrDefault(
+                d => string.Equals(d.DatFile.Header.DatName, prefs.LastActiveDatName, StringComparison.Ordinal))
+            : null;
+
+        ActiveDat = last ?? LoadedDats[0];
     }
 
     private async Task LoadDatFromManagedPathAsync(string managedPath)
@@ -652,68 +669,20 @@ public partial class MainWindowVM : VMBase
     )
     {
         IsReArchiving = true;
-        string? tempFile = null;
-
         try
         {
             progress.CurrentFile = Path.GetFileName(target.From);
-
-            Result<string> extractResult = await _extractor.ExtractToTempFileAsync(
-                target.From,
-                progress.CancellationToken
-            );
-            if (extractResult.IsFailed)
-                return $"Could not extract archive.\n{extractResult.Errors[0].Message}";
-
-            tempFile = extractResult.Value;
-
-            bool sameFile = target.From.Equals(target.To, StringComparison.OrdinalIgnoreCase);
-            if (sameFile)
-            {
-                Result preDeleteResult = await _fileOperations.DeleteAsync(target.From);
-                if (preDeleteResult.IsFailed)
-                    return $"Could not replace original archive.\n{preDeleteResult.Errors[0].Message}";
-            }
-
-            Progress<int> progressCallback = new Progress<int>(pct => progress.Progress = pct);
-            Result compressResult = await _compressor.CompressAsync(
-                tempFile,
-                target.To,
-                game.Game.RomSize,
-                progressCallback,
-                progress.CancellationToken,
-                ArchiveFormat
-            );
-            if (compressResult.IsFailed)
-                return $"Compression failed.\n{compressResult.Errors[0].Message}";
-
-            if (!sameFile)
-            {
-                Result deleteResult = await _fileOperations.DeleteAsync(target.From);
-                if (deleteResult.IsFailed)
-                    return $"Re-archive succeeded but the original file could not be deleted.\n{deleteResult.Errors[0].Message}";
-            }
-
-            ScannedRom updatedRom = game.ScannedRom! with
-            {
-                FilePath = target.To,
-                FileExtension = ArchiveFormat,
-            };
             string datName = ActiveDat!.DatFile.Header.DatName;
-            await _reArchiveStore.MarkAsync(datName, game.Game.ReleaseNumber);
-            await ReplaceGameAsync(
-                game,
-                new MatchResult
-                {
-                    Game = game.Game,
-                    Status = MatchStatus.Verified,
-                    ScannedRom = updatedRom,
-                    IsIncorrectlyNamed = false,
-                    IsWrongArchiveType = false,
-                    IsUntrimmed = game.IsUntrimmed,
-                    IsReArchived = true,
-                }
-            );
+
+            IProgress<int> compressionProgress = new Progress<int>(pct => progress.Progress = pct);
+            (MatchResult? updated, string? error) = await ReArchiveFileAsync(
+                game, target, ArchiveFormat, datName, progress.CancellationToken, compressionProgress);
+
+            if (error is not null)
+                return error;
+
+            if (updated is not null)
+                await ReplaceGameAsync(game, updated);
 
             return null;
         }
@@ -725,6 +694,72 @@ public partial class MainWindowVM : VMBase
         finally
         {
             IsReArchiving = false;
+        }
+    }
+
+    private async Task<(MatchResult? Updated, string? Error)> ReArchiveFileAsync(
+        GameRowVM game,
+        (string From, string To) target,
+        string archiveFormat,
+        string datName,
+        CancellationToken cancellationToken,
+        IProgress<int>? compressionProgress = null
+    )
+    {
+        string? tempFile = null;
+        try
+        {
+            Result<string> extractResult = await _extractor.ExtractToTempFileAsync(
+                target.From, cancellationToken);
+            if (extractResult.IsFailed)
+                return (null, $"{Path.GetFileName(target.From)}: {extractResult.Errors[0].Message}");
+
+            tempFile = extractResult.Value;
+
+            bool sameFile = target.From.Equals(target.To, StringComparison.OrdinalIgnoreCase);
+            if (sameFile)
+            {
+                Result preDeleteResult = await _fileOperations.DeleteAsync(target.From);
+                if (preDeleteResult.IsFailed)
+                    return (null, $"Could not replace original: {Path.GetFileName(target.From)}: {preDeleteResult.Errors[0].Message}");
+            }
+
+            Result compressResult = await _compressor.CompressAsync(
+                tempFile,
+                target.To,
+                game.Game.RomSize,
+                compressionProgress,
+                cancellationToken,
+                archiveFormat
+            );
+            if (compressResult.IsFailed)
+                return (null, $"{Path.GetFileName(target.From)}: {compressResult.Errors[0].Message}");
+
+            if (!sameFile)
+            {
+                Result deleteResult = await _fileOperations.DeleteAsync(target.From);
+                if (deleteResult.IsFailed)
+                    return (null, $"Archived but could not delete original: {Path.GetFileName(target.From)}: {deleteResult.Errors[0].Message}");
+            }
+
+            await _reArchiveStore.MarkAsync(datName, game.Game.ReleaseNumber);
+
+            MatchResult updatedMatch = new MatchResult
+            {
+                Game = game.Game,
+                Status = MatchStatus.Verified,
+                ScannedRom = game.ScannedRom! with { FilePath = target.To, FileExtension = archiveFormat },
+                IsIncorrectlyNamed = false,
+                IsWrongArchiveType = false,
+                IsUntrimmed = game.IsUntrimmed,
+                IsReArchived = true,
+            };
+
+            await _scanResultStore.UpdateResultAsync(datName, updatedMatch);
+            return (updatedMatch, null);
+        }
+        finally
+        {
             if (tempFile is not null && File.Exists(tempFile))
                 await _fileOperations.DeleteAsync(tempFile);
         }
@@ -751,9 +786,10 @@ public partial class MainWindowVM : VMBase
         if (targets.Count == 0)
             return;
 
-        ProgressWindowVM progressVm = new ProgressWindowVM(targets.Count, isCancellable: true);
-        Task<List<string>> operationTask = ReArchiveAllCoreAsync(targets, progressVm);
-        await _notifier.ShowProgressAsync(
+        int maxConcurrency = Math.Clamp(Environment.ProcessorCount / 2, 2, 4);
+        BatchProgressWindowVM progressVm = new BatchProgressWindowVM(targets.Count, maxConcurrency, isCancellable: true);
+        Task<List<string>> operationTask = ReArchiveAllCoreAsync(targets, progressVm, maxConcurrency);
+        await _notifier.ShowBatchProgressAsync(
             $"Re-Archiving ROMs to {ArchiveFormat}",
             progressVm,
             operationTask
@@ -774,20 +810,27 @@ public partial class MainWindowVM : VMBase
 
     private async Task<List<string>> ReArchiveAllCoreAsync(
         List<GameRowVM> targets,
-        ProgressWindowVM progress
+        BatchProgressWindowVM progress,
+        int maxConcurrency
     )
     {
         IsReArchiving = true;
         List<string> errors = new List<string>();
+        object errorsLock = new object();
+        int completed = 0;
+        SemaphoreSlim semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
+        ConcurrentQueue<BatchSlotVM> slotQueue = new ConcurrentQueue<BatchSlotVM>(progress.Slots);
+        LoadedDatVM activeDat = ActiveDat!;
+        string archiveFormat = ArchiveFormat;
+        string datName = activeDat.DatFile.Header.DatName;
+        string namingMask = activeDat.DatFile.Header.RomTitle;
+        CancellationToken ct = progress.CancellationToken;
 
-        try
+        async Task ProcessGameAsync(GameRowVM game)
         {
-            for (int i = 0; i < targets.Count; i++)
+            await semaphore.WaitAsync(ct);
+            try
             {
-                GameRowVM game = targets[i];
-                progress.Current = i + 1;
-                progress.CurrentFile = Path.GetFileName(game.ScannedRom?.FilePath ?? string.Empty);
-
                 (string From, string To)? target = RomReArchiver.GetReArchiveTarget(
                     new MatchResult
                     {
@@ -796,111 +839,68 @@ public partial class MainWindowVM : VMBase
                         ScannedRom = game.ScannedRom,
                         IsUntrimmed = game.IsUntrimmed,
                     },
-                    ActiveDat!.DatFile.Header.RomTitle,
-                    ArchiveFormat
+                    namingMask,
+                    archiveFormat
                 );
 
-                if (target is null)
-                    continue;
-
-                string? tempFile = null;
-                try
+                if (target is not null)
                 {
-                    Result<string> extractResult = await _extractor.ExtractToTempFileAsync(
-                        target.Value.From,
-                        progress.CancellationToken
-                    );
-                    if (extractResult.IsFailed)
+                    slotQueue.TryDequeue(out BatchSlotVM? slot);
+                    slot!.FileName = Path.GetFileName(target.Value.From);
+                    slot.Progress = 0;
+
+                    IProgress<int> slotProgress = new Progress<int>(pct => slot.Progress = pct);
+                    (MatchResult? updated, string? error) = await ReArchiveFileAsync(
+                        game, target.Value, archiveFormat, datName, ct, slotProgress);
+
+                    slot.FileName = null;
+                    slot.Progress = 0;
+                    slotQueue.Enqueue(slot);
+
+                    if (error is not null)
                     {
-                        errors.Add(
-                            $"{Path.GetFileName(target.Value.From)}: {extractResult.Errors[0].Message}"
-                        );
-                        continue;
+                        lock (errorsLock)
+                            errors.Add(error);
                     }
-
-                    tempFile = extractResult.Value;
-
-                    bool sameFile = target.Value.From.Equals(
-                        target.Value.To,
-                        StringComparison.OrdinalIgnoreCase
-                    );
-                    if (sameFile)
+                    else if (updated is not null)
                     {
-                        Result preDeleteResult = await _fileOperations.DeleteAsync(target.Value.From);
-                        if (preDeleteResult.IsFailed)
+                        MatchResult capturedUpdated = updated;
+                        await Dispatcher.UIThread.InvokeAsync(() =>
                         {
-                            errors.Add(
-                                $"Could not replace original: {Path.GetFileName(target.Value.From)}: {preDeleteResult.Errors[0].Message}"
-                            );
-                            continue;
-                        }
+                            GameRowVM updatedRow = activeDat.BuildGameRow(capturedUpdated);
+                            int index = activeDat.Games.IndexOf(game);
+                            if (index >= 0)
+                            {
+                                activeDat.Games[index] = updatedRow;
+                                if (ReferenceEquals(SelectedGame, game))
+                                    SelectedGame = updatedRow;
+                            }
+                        });
                     }
-
-                    int fileBase = i * 100 / targets.Count;
-                    int fileRange = 100 / targets.Count;
-                    Progress<int> progressCallback = new Progress<int>(pct =>
-                        progress.Progress = fileBase + pct * fileRange / 100
-                    );
-
-                    Result compressResult = await _compressor.CompressAsync(
-                        tempFile,
-                        target.Value.To,
-                        game.Game.RomSize,
-                        progressCallback,
-                        progress.CancellationToken,
-                        ArchiveFormat
-                    );
-                    if (compressResult.IsFailed)
-                    {
-                        errors.Add(
-                            $"{Path.GetFileName(target.Value.From)}: {compressResult.Errors[0].Message}"
-                        );
-                        continue;
-                    }
-
-                    if (!sameFile)
-                    {
-                        Result deleteResult = await _fileOperations.DeleteAsync(target.Value.From);
-                        if (deleteResult.IsFailed)
-                            errors.Add(
-                                $"Archived but could not delete original: {Path.GetFileName(target.Value.From)}: {deleteResult.Errors[0].Message}"
-                            );
-                    }
-
-                    ScannedRom updatedRom = game.ScannedRom! with
-                    {
-                        FilePath = target.Value.To,
-                        FileExtension = ArchiveFormat,
-                    };
-                    string datName = ActiveDat!.DatFile.Header.DatName;
-                    await _reArchiveStore.MarkAsync(datName, game.Game.ReleaseNumber);
-                    await ReplaceGameAsync(
-                        game,
-                        new MatchResult
-                        {
-                            Game = game.Game,
-                            Status = MatchStatus.Verified,
-                            ScannedRom = updatedRom,
-                            IsIncorrectlyNamed = false,
-                            IsWrongArchiveType = false,
-                            IsUntrimmed = game.IsUntrimmed,
-                            IsReArchived = true,
-                        }
-                    );
                 }
-                finally
+
+                int done = Interlocked.Increment(ref completed);
+                await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    if (tempFile is not null && File.Exists(tempFile))
-                        await _fileOperations.DeleteAsync(tempFile);
-                }
+                    progress.Completed = done;
+                });
             }
+            finally
+            {
+                semaphore.Release();
+            }
+        }
+
+        try
+        {
+            await Task.WhenAll(targets.Select(ProcessGameAsync));
         }
         catch (OperationCanceledException ex)
         {
             _logger.Information(
                 ex,
                 "Re-archive all cancelled after {Completed} of {Total}",
-                progress.Current,
+                completed,
                 targets.Count
             );
         }
@@ -912,7 +912,8 @@ public partial class MainWindowVM : VMBase
         return errors;
     }
 
-    private bool CanReArchiveAll() =>
+    private bool CanReArchiveAll()
+ =>
         !IsReArchiving
         && !IsTrimming
         && _compressor.IsAvailable
