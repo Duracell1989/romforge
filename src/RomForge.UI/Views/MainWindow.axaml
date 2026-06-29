@@ -1,13 +1,12 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:RomForge.UI.ViewModels"
-        xmlns:converters="using:RomForge.UI.Converters"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         x:Class="RomForge.UI.Views.MainWindow"
         x:DataType="vm:MainWindowVM"
-        Icon="/Assets/icon.png"
+        Icon="avares://RomForge/Assets/icon.png"
         Title="RomForge"
         Width="1200" Height="700"
         MinWidth="800" MinHeight="500">
@@ -30,11 +29,7 @@
         </Style>
     </Window.Styles>
 
-    <Window.Resources>
-        <converters:MatchStatusToBrushConverter x:Key="StatusToBrush"/>
-    </Window.Resources>
-
-    <Design.DataContext>
+<Design.DataContext>
         <vm:MainWindowVM/>
     </Design.DataContext>
 
@@ -62,6 +57,7 @@
                 </ComboBox>
                 <Separator Width="1" Height="18" Margin="4,0" IsVisible="{Binding IsDatLoaded}"/>
                 <Button Command="{Binding ScanFolderCommand}" Content="Scan Folder…"/>
+                <Button Command="{Binding MoveUnverifiedCommand}" Content="{Binding MoveUnverifiedLabel}"/>
                 <Button Command="{Binding RenameSelectedCommand}" Content="Rename"/>
                 <Button Command="{Binding RenameAllCommand}" Content="Rename All"/>
                 <Separator Width="1" Height="18" Margin="4,0" IsVisible="{Binding IsDatLoaded}"/>
@@ -129,6 +125,8 @@
                                               IsChecked="{Binding ActiveDat.ShowWrongArchiveType}"/>
                                     <CheckBox Content="Untrimmed"
                                               IsChecked="{Binding ActiveDat.ShowUntrimmed}"/>
+                                    <CheckBox Content="Good"
+                                              IsChecked="{Binding ActiveDat.ShowGood}"/>
                                 </StackPanel>
                             </Grid>
                         </Border>
@@ -137,7 +135,7 @@
                         <Border DockPanel.Dock="Top"
                                 BorderThickness="0,0,0,1"
                                 Padding="4,3">
-                            <Grid ColumnDefinitions="60,*,150,140">
+                            <Grid ColumnDefinitions="60,*,150,60,80,80,130">
                                 <Button Grid.Column="0"
                                         Classes="col-header"
                                         Command="{Binding ActiveDat.SortByCommand}"
@@ -168,6 +166,33 @@
                                 <Button Grid.Column="3"
                                         Classes="col-header"
                                         Command="{Binding ActiveDat.SortByCommand}"
+                                        CommandParameter="Location">
+                                    <StackPanel Orientation="Horizontal" Spacing="2">
+                                        <TextBlock Text="Region" FontWeight="SemiBold" Opacity="0.7" FontSize="12"/>
+                                        <TextBlock Text="{Binding ActiveDat.LocationSortIndicator}" FontSize="12" Opacity="0.7"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Grid.Column="4"
+                                        Classes="col-header"
+                                        Command="{Binding ActiveDat.SortByCommand}"
+                                        CommandParameter="Language">
+                                    <StackPanel Orientation="Horizontal" Spacing="2">
+                                        <TextBlock Text="Language" FontWeight="SemiBold" Opacity="0.7" FontSize="12"/>
+                                        <TextBlock Text="{Binding ActiveDat.LanguageSortIndicator}" FontSize="12" Opacity="0.7"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Grid.Column="5"
+                                        Classes="col-header"
+                                        Command="{Binding ActiveDat.SortByCommand}"
+                                        CommandParameter="ReArchived">
+                                    <StackPanel Orientation="Horizontal" Spacing="2">
+                                        <TextBlock Text="Re-Archived" FontWeight="SemiBold" Opacity="0.7" FontSize="12"/>
+                                        <TextBlock Text="{Binding ActiveDat.ReArchivedSortIndicator}" FontSize="12" Opacity="0.7"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Grid.Column="6"
+                                        Classes="col-header"
+                                        Command="{Binding ActiveDat.SortByCommand}"
                                         CommandParameter="Status">
                                     <StackPanel Orientation="Horizontal" Spacing="2">
                                         <TextBlock Text="Status" FontWeight="SemiBold" Opacity="0.7" FontSize="12"/>
@@ -183,7 +208,7 @@
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="vm:GameRowVM">
-                                    <Grid ColumnDefinitions="60,*,150,140" Margin="0,1">
+                                    <Grid ColumnDefinitions="60,*,150,60,80,80,130" Margin="0,1">
                                         <TextBlock Grid.Column="0"
                                                    Text="{Binding ReleaseNumber}"
                                                    Opacity="0.6"
@@ -199,8 +224,22 @@
                                                    Opacity="0.8"
                                                    VerticalAlignment="Center"/>
                                         <TextBlock Grid.Column="3"
+                                                   Text="{Binding Location}"
+                                                   FontSize="12"
+                                                   Opacity="0.8"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="4"
+                                                   Text="{Binding Language}"
+                                                   FontSize="12"
+                                                   Opacity="0.8"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="5"
+                                                   Text="{Binding ReArchivedText}"
+                                                   FontSize="13"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="6"
                                                    Text="{Binding StatusText}"
-                                                   Foreground="{Binding Status, Converter={StaticResource StatusToBrush}}"
+                                                   Foreground="{Binding StatusBrush}"
                                                    FontSize="12"
                                                    VerticalAlignment="Center"/>
                                     </Grid>
@@ -254,7 +293,7 @@
                                             <TextBlock Grid.Row="2" Grid.Column="0" Text="Status:" Opacity="0.6"/>
                                             <TextBlock Grid.Row="2" Grid.Column="1"
                                                        Text="{Binding StatusText}"
-                                                       Foreground="{Binding Status, Converter={StaticResource StatusToBrush}}"/>
+                                                       Foreground="{Binding StatusBrush}"/>
 
                                             <TextBlock Grid.Row="3" Grid.Column="0" Text="Location:" Opacity="0.6"/>
                                             <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Location}"/>

@@ -9,15 +9,11 @@ public static class RomRenamer
 {
     /// <summary>
     /// Returns the source and destination paths for renaming a ROM archive to match the naming
-    /// mask, or <see langword="null"/> if the result is not <see cref="MatchStatus.IncorrectlyNamed"/>.
+    /// mask, or <see langword="null"/> if the result is not incorrectly named.
     /// </summary>
     public static (string From, string To)? GetRenameTarget(MatchResult result, string namingMask)
     {
-        if (
-            result.Status != MatchStatus.IncorrectlyNamed
-            || result.ScannedRom is null
-            || string.IsNullOrEmpty(namingMask)
-        )
+        if (!result.IsIncorrectlyNamed || result.ScannedRom is null || string.IsNullOrEmpty(namingMask))
             return null;
 
         string expectedStem = NamingMask.Expand(namingMask, result.Game);

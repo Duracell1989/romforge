@@ -127,6 +127,50 @@ public sealed class FileSystemRomSourceTests
         results.Select(r => r.RomExtension).Should().BeEquivalentTo("gba", "nds");
     }
 
+    [Test]
+    public async Task CountAsync_EmptyFolder_ReturnsZero()
+    {
+        int count = await _source.CountAsync(_tempDir);
+
+        count.Should().Be(0);
+    }
+
+    [Test]
+    public async Task CountAsync_MultipleFiles_ReturnsTotalCount()
+    {
+        WriteFile("a.gba", [0x01]);
+        WriteFile("b.nds", [0x02]);
+        WriteFile("c.7z", [0x03]);
+
+        int count = await _source.CountAsync(_tempDir);
+
+        count.Should().Be(3);
+    }
+
+    [Test]
+    public async Task CountAsync_FileWithNoExtension_IsExcluded()
+    {
+        WriteFile("noextension", [0xFF]);
+        WriteFile("game.gba", [0x01]);
+
+        int count = await _source.CountAsync(_tempDir);
+
+        count.Should().Be(1);
+    }
+
+    [Test]
+    public async Task CountAsync_FilesInSubfolders_AreIncluded()
+    {
+        WriteFile("root.gba", [0x01]);
+        string sub = Path.Combine(_tempDir, "sub");
+        Directory.CreateDirectory(sub);
+        await File.WriteAllBytesAsync(Path.Combine(sub, "nested.nds"), [0x02]);
+
+        int count = await _source.CountAsync(_tempDir);
+
+        count.Should().Be(2);
+    }
+
     private string WriteFile(string name, byte[] content)
     {
         string path = Path.Combine(_tempDir, name);

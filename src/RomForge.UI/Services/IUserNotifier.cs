@@ -9,4 +9,5 @@ public interface IUserNotifier
     Task NotifyErrorAsync(string message);
     Task<bool> ConfirmAsync(string title, string message);
     Task ShowProgressAsync(string title, ProgressWindowVM vm, Task operationTask);
+    Task ShowBatchProgressAsync(string title, BatchProgressWindowVM vm, Task operationTask);
 }

@@ -2,9 +2,6 @@ namespace RomForge.Core.Matching;
 
 public enum MatchStatus
 {
-    Verified,
-    IncorrectlyNamed,
-    WrongArchiveType,
-    Missing,
-    Untrimmed,
+    Missing = 0,
+    Verified = 1,
 }

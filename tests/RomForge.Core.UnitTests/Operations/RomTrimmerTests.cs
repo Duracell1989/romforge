@@ -11,15 +11,15 @@ namespace RomForge.Core.UnitTests.Operations;
 public sealed class RomTrimmerTests
 {
     private static MatchResult MakeResult(
-        MatchStatus status,
+        bool isUntrimmed,
         string? filePath = "/roms/game.7z",
         int release = 1,
         string title = "My Game"
     ) =>
-        new()
+        new MatchResult
         {
             Game = new Game { ReleaseNumber = release, Title = title },
-            Status = status,
+            Status = MatchStatus.Verified,
             ScannedRom = filePath is null
                 ? null
                 : new ScannedRom
@@ -28,12 +28,13 @@ public sealed class RomTrimmerTests
                     FileExtension = "7z",
                     RomExtension = "gba",
                 },
+            IsUntrimmed = isUntrimmed,
         };
 
     [Test]
     public void GetTrimTarget_Untrimmed_ReturnsPaths()
     {
-        MatchResult result = MakeResult(MatchStatus.Untrimmed);
+        MatchResult result = MakeResult(isUntrimmed: true);
 
         (string From, string To)? target = RomTrimmer.GetTrimTarget(result, "%u - %n");
 
@@ -45,10 +46,7 @@ public sealed class RomTrimmerTests
     [Test]
     public void GetTrimTarget_SameNameAndFormat_StillReturnsPaths()
     {
-        MatchResult result = MakeResult(
-            MatchStatus.Untrimmed,
-            filePath: "/roms/0001 - My Game.7z"
-        );
+        MatchResult result = MakeResult(isUntrimmed: true, filePath: "/roms/0001 - My Game.7z");
 
         (string From, string To)? target = RomTrimmer.GetTrimTarget(result, "%u - %n");
 
@@ -57,13 +55,22 @@ public sealed class RomTrimmerTests
         target.Value.To.Should().Be("/roms/0001 - My Game.7z");
     }
 
-    [TestCase(MatchStatus.Verified)]
-    [TestCase(MatchStatus.Missing)]
-    [TestCase(MatchStatus.IncorrectlyNamed)]
-    [TestCase(MatchStatus.WrongArchiveType)]
-    public void GetTrimTarget_NotUntrimmed_ReturnsNull(MatchStatus status)
+    [Test]
+    public void GetTrimTarget_NotUntrimmed_ReturnsNull()
     {
-        MatchResult result = MakeResult(status);
+        MatchResult result = MakeResult(isUntrimmed: false);
+
+        RomTrimmer.GetTrimTarget(result, "%u - %n").Should().BeNull();
+    }
+
+    [Test]
+    public void GetTrimTarget_Missing_ReturnsNull()
+    {
+        MatchResult result = new MatchResult
+        {
+            Game = new Game { ReleaseNumber = 1, Title = "My Game" },
+            Status = MatchStatus.Missing,
+        };
 
         RomTrimmer.GetTrimTarget(result, "%u - %n").Should().BeNull();
     }
@@ -71,7 +78,7 @@ public sealed class RomTrimmerTests
     [Test]
     public void GetTrimTarget_NoScannedRom_ReturnsNull()
     {
-        MatchResult result = MakeResult(MatchStatus.Untrimmed, filePath: null);
+        MatchResult result = MakeResult(isUntrimmed: true, filePath: null);
 
         RomTrimmer.GetTrimTarget(result, "%u - %n").Should().BeNull();
     }
@@ -79,7 +86,7 @@ public sealed class RomTrimmerTests
     [Test]
     public void GetTrimTarget_EmptyMask_UsesExistingFileStem()
     {
-        MatchResult result = MakeResult(MatchStatus.Untrimmed, filePath: "/roms/My Favourite Game.7z");
+        MatchResult result = MakeResult(isUntrimmed: true, filePath: "/roms/My Favourite Game.7z");
 
         (string From, string To)? target = RomTrimmer.GetTrimTarget(result, string.Empty);
 
@@ -90,7 +97,7 @@ public sealed class RomTrimmerTests
     [Test]
     public void GetTrimTarget_ZipExtension_OutputsZip()
     {
-        MatchResult result = MakeResult(MatchStatus.Untrimmed, filePath: "/roms/game.7z");
+        MatchResult result = MakeResult(isUntrimmed: true, filePath: "/roms/game.7z");
 
         (string From, string To)? target = RomTrimmer.GetTrimTarget(result, "%u - %n", "zip");
 
@@ -100,7 +107,7 @@ public sealed class RomTrimmerTests
     [Test]
     public void GetTrimTarget_DefaultExtension_OutputsSevenZ()
     {
-        MatchResult result = MakeResult(MatchStatus.Untrimmed, filePath: "/roms/game.7z");
+        MatchResult result = MakeResult(isUntrimmed: true, filePath: "/roms/game.7z");
 
         (string From, string To)? target = RomTrimmer.GetTrimTarget(result, "%u - %n");
 

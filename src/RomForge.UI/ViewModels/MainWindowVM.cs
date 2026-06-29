@@ -1,11 +1,14 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FluentResults;
@@ -36,6 +39,8 @@ public partial class MainWindowVM : VMBase
     private readonly IDatDownloader _downloader;
     private readonly DatConfigService _configService;
     private readonly ScanResultStore _scanResultStore;
+    private readonly ReArchiveStore _reArchiveStore;
+    private readonly AppPreferencesService _preferencesService;
 
     private ObservableCollection<GameRowVM>? _subscribedGames;
 
@@ -70,6 +75,9 @@ public partial class MainWindowVM : VMBase
 
     public string StatusSummary => ActiveDat?.StatusSummary ?? "No DAT loaded";
 
+    public string MoveUnverifiedLabel =>
+        $"Move Unverified ({ActiveDat?.UnmatchedCount ?? 0})";
+
 #pragma warning disable S107
     public MainWindowVM(
         IFileDialogService fileDialogs,
@@ -85,7 +93,9 @@ public partial class MainWindowVM : VMBase
         IDatUpdateChecker updateChecker,
         IDatDownloader downloader,
         DatConfigService configService,
-        ScanResultStore scanResultStore
+        ScanResultStore scanResultStore,
+        ReArchiveStore reArchiveStore,
+        AppPreferencesService preferencesService
     )
     {
         _fileDialogs = fileDialogs;
@@ -102,6 +112,8 @@ public partial class MainWindowVM : VMBase
         _downloader = downloader;
         _configService = configService;
         _scanResultStore = scanResultStore;
+        _reArchiveStore = reArchiveStore;
+        _preferencesService = preferencesService;
         LoadedDats = new ObservableCollection<LoadedDatVM>();
         ArchiveFormat = "7z";
     }
@@ -149,10 +161,12 @@ public partial class MainWindowVM : VMBase
             newValue.PropertyChanged += OnActiveDatPropertyChanged;
             ResubscribeGames(newValue.Games);
             _ = LoadArchiveFormatAsync(newValue.DatFile.Header.DatName);
+            _ = _preferencesService.UpdateLastActiveDatAsync(newValue.DatFile.Header.DatName);
         }
         else
         {
             ArchiveFormat = "7z";
+            _ = _preferencesService.UpdateLastActiveDatAsync(null);
         }
         SelectedGame = null;
         RenameAllCommand.NotifyCanExecuteChanged();
@@ -161,6 +175,8 @@ public partial class MainWindowVM : VMBase
         ScanFolderCommand.NotifyCanExecuteChanged();
         RemoveDatCommand.NotifyCanExecuteChanged();
         CheckDatUpdateCommand.NotifyCanExecuteChanged();
+        MoveUnverifiedCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(MoveUnverifiedLabel));
     }
 
     private void OnActiveDatPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -169,7 +185,18 @@ public partial class MainWindowVM : VMBase
             OnPropertyChanged(nameof(StatusSummary));
 
         if (e.PropertyName == nameof(LoadedDatVM.Games) && sender is LoadedDatVM dat)
+        {
             ResubscribeGames(dat.Games);
+            RenameAllCommand.NotifyCanExecuteChanged();
+            ReArchiveAllCommand.NotifyCanExecuteChanged();
+            TrimAllCommand.NotifyCanExecuteChanged();
+        }
+
+        if (e.PropertyName == nameof(LoadedDatVM.UnmatchedRoms))
+        {
+            MoveUnverifiedCommand.NotifyCanExecuteChanged();
+            OnPropertyChanged(nameof(MoveUnverifiedLabel));
+        }
     }
 
     private void ResubscribeGames(ObservableCollection<GameRowVM>? newGames)
@@ -242,6 +269,9 @@ public partial class MainWindowVM : VMBase
     public async Task LoadManagedDatsAsync()
     {
         await _scanResultStore.InitializeAsync();
+        await _reArchiveStore.InitializeAsync();
+
+        AppPreferences prefs = await _preferencesService.LoadAsync();
 
         foreach (string path in _appData.GetImportedDatPaths())
         {
@@ -260,8 +290,15 @@ public partial class MainWindowVM : VMBase
             LoadedDats.Add(datVm);
         }
 
-        if (LoadedDats.Count > 0)
-            ActiveDat = LoadedDats[0];
+        if (LoadedDats.Count == 0)
+            return;
+
+        LoadedDatVM? last = prefs.LastActiveDatName is not null
+            ? LoadedDats.FirstOrDefault(
+                d => string.Equals(d.DatFile.Header.DatName, prefs.LastActiveDatName, StringComparison.Ordinal))
+            : null;
+
+        ActiveDat = last ?? LoadedDats[0];
     }
 
     private async Task LoadDatFromManagedPathAsync(string managedPath)
@@ -305,10 +342,60 @@ public partial class MainWindowVM : VMBase
         IReadOnlyList<MatchResult> persisted =
             await _scanResultStore.LoadResultsAsync(datFile.Header.DatName, datFile);
         IReadOnlyList<MatchResult> matchResults =
-            persisted.Count > 0 ? persisted : RomMatcher.Match(datVm.DatFile, []);
+            persisted.Count > 0 ? persisted : RomMatcher.Match(datVm.DatFile, []).Results;
 
         datVm.Games = new ObservableCollection<GameRowVM>(matchResults.Select(datVm.BuildGameRow));
+
+        if (persisted.Count > 0)
+            _ = ValidateIntegrityAsync(datVm, matchResults);
+
         return datVm;
+    }
+
+    private async Task ValidateIntegrityAsync(LoadedDatVM datVm, IReadOnlyList<MatchResult> results)
+    {
+        try
+        {
+            IReadOnlyList<MatchResult> stale = await Task.Run(() =>
+                RomIntegrityChecker.FindStaleResults(results)
+            );
+
+            if (stale.Count == 0)
+                return;
+
+            string datName = datVm.DatFile.Header.DatName;
+#pragma warning disable S3267 // async body with multiple sequential awaits cannot be expressed as a LINQ projection
+            foreach (MatchResult staleResult in stale)
+            {
+                GameRowVM? existing = datVm.Games.FirstOrDefault(
+                    g => g.Game.ReleaseNumber == staleResult.Game.ReleaseNumber
+                );
+                if (existing is null)
+                    continue;
+
+                MatchResult missing = new MatchResult { Game = staleResult.Game, Status = MatchStatus.Missing };
+                await _scanResultStore.UpdateResultAsync(datName, missing);
+
+                int index = datVm.Games.IndexOf(existing);
+                if (index < 0)
+                    continue;
+
+                datVm.Games[index] = datVm.BuildGameRow(missing);
+                if (ReferenceEquals(SelectedGame, existing))
+                    SelectedGame = datVm.Games[index];
+            }
+#pragma warning restore S3267
+
+            _logger.Information(
+                "Integrity check for {DatName}: {Count} missing file(s) cleared",
+                datName,
+                stale.Count
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.Warning(ex, "Integrity check failed for {DatName}", datVm.DatFile.Header.DatName);
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanScanFolder))]
@@ -330,6 +417,7 @@ public partial class MainWindowVM : VMBase
             progressVm.Total = p.Total;
             progressVm.Current = p.Completed;
             progressVm.CurrentFile = p.CurrentFile;
+            progressVm.Phase = p.Phase;
             progressVm.Progress = p.Total > 0 ? p.Completed * 100 / p.Total : 0;
         });
 
@@ -346,6 +434,7 @@ public partial class MainWindowVM : VMBase
         catch (OperationCanceledException ex)
         {
             _logger.Information(ex, "Scan cancelled");
+            await cache.SaveAsync();
             return;
         }
 
@@ -354,20 +443,39 @@ public partial class MainWindowVM : VMBase
         ActiveDat.RomFolder = folder;
         await _configService.UpdateRomFolderAsync(ActiveDat.DatFile.Header.DatName, folder);
 
-        List<MatchResult> matchResults = RomMatcher.Match(ActiveDat.DatFile, scannedRoms);
-        ActiveDat.Games = new ObservableCollection<GameRowVM>(
-            matchResults.Select(ActiveDat.BuildGameRow)
-        );
-        await _scanResultStore.SaveResultsAsync(ActiveDat.DatFile.Header.DatName, matchResults);
+        MatchSummary summary = RomMatcher.Match(ActiveDat.DatFile, scannedRoms);
+        string datName = ActiveDat.DatFile.Header.DatName;
+
+        HashSet<int> reArchived = await _reArchiveStore.GetReArchivedReleasesAsync(datName);
+        List<MatchResult> results = summary.Results
+            .Select(r => reArchived.Contains(r.Game.ReleaseNumber)
+                ? new MatchResult
+                {
+                    Game = r.Game,
+                    Status = r.Status,
+                    ScannedRom = r.ScannedRom,
+                    IsIncorrectlyNamed = r.IsIncorrectlyNamed,
+                    IsWrongArchiveType = r.IsWrongArchiveType,
+                    IsUntrimmed = r.IsUntrimmed,
+                    IsReArchived = true,
+                }
+                : r)
+            .ToList();
+
+        ActiveDat.UnmatchedRoms = summary.UnmatchedRoms;
+        ActiveDat.Games = new ObservableCollection<GameRowVM>(results.Select(ActiveDat.BuildGameRow));
+        await _scanResultStore.SaveResultsAsync(datName, results);
 
         _logger.Information(
-            "Scan complete: {Total} games, {Verified} verified, {Missing} missing, {BadName} incorrectly named, {BadArchive} wrong archive type, {Untrimmed} untrimmed",
-            matchResults.Count,
-            matchResults.Count(r => r.Status == MatchStatus.Verified),
-            matchResults.Count(r => r.Status == MatchStatus.Missing),
-            matchResults.Count(r => r.Status == MatchStatus.IncorrectlyNamed),
-            matchResults.Count(r => r.Status == MatchStatus.WrongArchiveType),
-            matchResults.Count(r => r.Status == MatchStatus.Untrimmed)
+            "Scan complete: {Total} games, {Verified} verified, {Good} good, {Missing} missing, {BadName} incorrectly named, {BadArchive} wrong archive type, {Untrimmed} untrimmed, {Unmatched} unmatched",
+            results.Count,
+            results.Count(r => r.Status == MatchStatus.Verified),
+            results.Count(r => r.IsGood),
+            results.Count(r => r.Status == MatchStatus.Missing),
+            results.Count(r => r.IsIncorrectlyNamed),
+            results.Count(r => r.IsWrongArchiveType),
+            results.Count(r => r.IsUntrimmed),
+            summary.UnmatchedRoms.Count
         );
     }
 
@@ -398,6 +506,7 @@ public partial class MainWindowVM : VMBase
                 Game = SelectedGame.Game,
                 Status = SelectedGame.Status,
                 ScannedRom = SelectedGame.ScannedRom,
+                IsIncorrectlyNamed = SelectedGame.IsIncorrectlyNamed,
             },
             ActiveDat.DatFile.Header.RomTitle
         );
@@ -412,18 +521,23 @@ public partial class MainWindowVM : VMBase
             return;
         }
 
-        ScannedRom updatedRom = SelectedGame.ScannedRom! with { FilePath = target.Value.To };
+        GameRowVM snapshot = SelectedGame;
+        ScannedRom updatedRom = snapshot.ScannedRom! with { FilePath = target.Value.To };
         await ReplaceSelectedGameAsync(
             new MatchResult
             {
-                Game = SelectedGame.Game,
+                Game = snapshot.Game,
                 Status = MatchStatus.Verified,
                 ScannedRom = updatedRom,
+                IsIncorrectlyNamed = false,
+                IsWrongArchiveType = snapshot.IsWrongArchiveType,
+                IsUntrimmed = snapshot.IsUntrimmed,
+                IsReArchived = snapshot.IsReArchived,
             }
         );
     }
 
-    private bool CanRename() => SelectedGame?.Status == MatchStatus.IncorrectlyNamed;
+    private bool CanRename() => SelectedGame?.IsIncorrectlyNamed == true;
 
     [RelayCommand(CanExecute = nameof(CanRenameAll))]
     private async Task RenameAllAsync()
@@ -432,7 +546,7 @@ public partial class MainWindowVM : VMBase
             return;
 
         List<GameRowVM> targets = ActiveDat
-            .Games.Where(g => g.Status == MatchStatus.IncorrectlyNamed)
+            .Games.Where(g => g.IsIncorrectlyNamed)
             .ToList();
 
         if (targets.Count == 0)
@@ -475,6 +589,7 @@ public partial class MainWindowVM : VMBase
                     Game = game.Game,
                     Status = game.Status,
                     ScannedRom = game.ScannedRom,
+                    IsIncorrectlyNamed = game.IsIncorrectlyNamed,
                 },
                 ActiveDat!.DatFile.Header.RomTitle
             );
@@ -497,6 +612,10 @@ public partial class MainWindowVM : VMBase
                     Game = game.Game,
                     Status = MatchStatus.Verified,
                     ScannedRom = updatedRom,
+                    IsIncorrectlyNamed = false,
+                    IsWrongArchiveType = game.IsWrongArchiveType,
+                    IsUntrimmed = game.IsUntrimmed,
+                    IsReArchived = game.IsReArchived,
                 }
             );
         }
@@ -508,7 +627,7 @@ public partial class MainWindowVM : VMBase
         !IsReArchiving
         && !IsTrimming
         && ActiveDat is not null
-        && ActiveDat.Games.Any(g => g.Status == MatchStatus.IncorrectlyNamed);
+        && ActiveDat.Games.Any(g => g.IsIncorrectlyNamed);
 
     [RelayCommand(CanExecute = nameof(CanReArchive))]
     private async Task ReArchiveSelectedAsync()
@@ -522,6 +641,7 @@ public partial class MainWindowVM : VMBase
                 Game = SelectedGame.Game,
                 Status = SelectedGame.Status,
                 ScannedRom = SelectedGame.ScannedRom,
+                IsUntrimmed = SelectedGame.IsUntrimmed,
             },
             ActiveDat.DatFile.Header.RomTitle,
             ArchiveFormat
@@ -555,51 +675,20 @@ public partial class MainWindowVM : VMBase
     )
     {
         IsReArchiving = true;
-        string? tempFile = null;
-
         try
         {
             progress.CurrentFile = Path.GetFileName(target.From);
+            string datName = ActiveDat!.DatFile.Header.DatName;
 
-            Result<string> extractResult = await _extractor.ExtractToTempFileAsync(
-                target.From,
-                progress.CancellationToken
-            );
-            if (extractResult.IsFailed)
-                return $"Could not extract archive.\n{extractResult.Errors[0].Message}";
+            IProgress<int> compressionProgress = new Progress<int>(pct => progress.Progress = pct);
+            (MatchResult? updated, string? error) = await ReArchiveFileAsync(
+                game, target, ArchiveFormat, datName, progress.CancellationToken, compressionProgress);
 
-            tempFile = extractResult.Value;
+            if (error is not null)
+                return error;
 
-            Progress<int> progressCallback = new Progress<int>(pct => progress.Progress = pct);
-            Result compressResult = await _compressor.CompressAsync(
-                tempFile,
-                target.To,
-                game.Game.RomSize,
-                progressCallback,
-                progress.CancellationToken,
-                ArchiveFormat
-            );
-            if (compressResult.IsFailed)
-                return $"Compression failed.\n{compressResult.Errors[0].Message}";
-
-            Result deleteResult = await _fileOperations.DeleteAsync(target.From);
-            if (deleteResult.IsFailed)
-                return $"Re-archive succeeded but the original file could not be deleted.\n{deleteResult.Errors[0].Message}";
-
-            ScannedRom updatedRom = game.ScannedRom! with
-            {
-                FilePath = target.To,
-                FileExtension = ArchiveFormat,
-            };
-            await ReplaceGameAsync(
-                game,
-                new MatchResult
-                {
-                    Game = game.Game,
-                    Status = MatchStatus.Verified,
-                    ScannedRom = updatedRom,
-                }
-            );
+            if (updated is not null)
+                await ReplaceGameAsync(game, updated);
 
             return null;
         }
@@ -611,6 +700,72 @@ public partial class MainWindowVM : VMBase
         finally
         {
             IsReArchiving = false;
+        }
+    }
+
+    private async Task<(MatchResult? Updated, string? Error)> ReArchiveFileAsync(
+        GameRowVM game,
+        (string From, string To) target,
+        string archiveFormat,
+        string datName,
+        CancellationToken cancellationToken,
+        IProgress<int>? compressionProgress = null
+    )
+    {
+        string? tempFile = null;
+        try
+        {
+            Result<string> extractResult = await _extractor.ExtractToTempFileAsync(
+                target.From, cancellationToken);
+            if (extractResult.IsFailed)
+                return (null, $"{Path.GetFileName(target.From)}: {extractResult.Errors[0].Message}");
+
+            tempFile = extractResult.Value;
+
+            bool sameFile = target.From.Equals(target.To, StringComparison.OrdinalIgnoreCase);
+            if (sameFile)
+            {
+                Result preDeleteResult = await _fileOperations.DeleteAsync(target.From);
+                if (preDeleteResult.IsFailed)
+                    return (null, $"Could not replace original: {Path.GetFileName(target.From)}: {preDeleteResult.Errors[0].Message}");
+            }
+
+            Result compressResult = await _compressor.CompressAsync(
+                tempFile,
+                target.To,
+                game.Game.RomSize,
+                compressionProgress,
+                cancellationToken,
+                archiveFormat
+            );
+            if (compressResult.IsFailed)
+                return (null, $"{Path.GetFileName(target.From)}: {compressResult.Errors[0].Message}");
+
+            if (!sameFile)
+            {
+                Result deleteResult = await _fileOperations.DeleteAsync(target.From);
+                if (deleteResult.IsFailed)
+                    return (null, $"Archived but could not delete original: {Path.GetFileName(target.From)}: {deleteResult.Errors[0].Message}");
+            }
+
+            await _reArchiveStore.MarkAsync(datName, game.Game.ReleaseNumber);
+
+            MatchResult updatedMatch = new MatchResult
+            {
+                Game = game.Game,
+                Status = MatchStatus.Verified,
+                ScannedRom = game.ScannedRom! with { FilePath = target.To, FileExtension = archiveFormat },
+                IsIncorrectlyNamed = false,
+                IsWrongArchiveType = false,
+                IsUntrimmed = game.IsUntrimmed,
+                IsReArchived = true,
+            };
+
+            await _scanResultStore.UpdateResultAsync(datName, updatedMatch);
+            return (updatedMatch, null);
+        }
+        finally
+        {
             if (tempFile is not null && File.Exists(tempFile))
                 await _fileOperations.DeleteAsync(tempFile);
         }
@@ -619,7 +774,9 @@ public partial class MainWindowVM : VMBase
     private bool CanReArchive() =>
         !IsReArchiving
         && !IsTrimming
-        && SelectedGame?.Status == MatchStatus.WrongArchiveType
+        && SelectedGame?.Status == MatchStatus.Verified
+        && !SelectedGame.IsUntrimmed
+        && !SelectedGame.IsGood
         && _compressor.IsAvailable;
 
     [RelayCommand(CanExecute = nameof(CanReArchiveAll))]
@@ -629,15 +786,16 @@ public partial class MainWindowVM : VMBase
             return;
 
         List<GameRowVM> targets = ActiveDat
-            .Games.Where(g => g.Status == MatchStatus.WrongArchiveType)
+            .Games.Where(g => g.Status == MatchStatus.Verified && !g.IsUntrimmed && !g.IsGood)
             .ToList();
 
         if (targets.Count == 0)
             return;
 
-        ProgressWindowVM progressVm = new ProgressWindowVM(targets.Count, isCancellable: true);
-        Task<List<string>> operationTask = ReArchiveAllCoreAsync(targets, progressVm);
-        await _notifier.ShowProgressAsync(
+        int maxConcurrency = Math.Clamp(Environment.ProcessorCount / 2, 2, 4);
+        BatchProgressWindowVM progressVm = new BatchProgressWindowVM(targets.Count, maxConcurrency, isCancellable: true);
+        Task<List<string>> operationTask = ReArchiveAllCoreAsync(targets, progressVm, maxConcurrency);
+        await _notifier.ShowBatchProgressAsync(
             $"Re-Archiving ROMs to {ArchiveFormat}",
             progressVm,
             operationTask
@@ -658,107 +816,86 @@ public partial class MainWindowVM : VMBase
 
     private async Task<List<string>> ReArchiveAllCoreAsync(
         List<GameRowVM> targets,
-        ProgressWindowVM progress
+        BatchProgressWindowVM progress,
+        int maxConcurrency
     )
     {
         IsReArchiving = true;
         List<string> errors = new List<string>();
+        object errorsLock = new object();
+        int completed = 0;
+        SemaphoreSlim semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
+        ConcurrentQueue<BatchSlotVM> slotQueue = new ConcurrentQueue<BatchSlotVM>(progress.Slots);
+        LoadedDatVM activeDat = ActiveDat!;
+        string archiveFormat = ArchiveFormat;
+        string datName = activeDat.DatFile.Header.DatName;
+        string namingMask = activeDat.DatFile.Header.RomTitle;
+        CancellationToken ct = progress.CancellationToken;
 
-        try
+        async Task ProcessGameAsync(GameRowVM game)
         {
-            for (int i = 0; i < targets.Count; i++)
+            await semaphore.WaitAsync(ct);
+            try
             {
-                GameRowVM game = targets[i];
-                progress.Current = i + 1;
-                progress.CurrentFile = Path.GetFileName(game.ScannedRom?.FilePath ?? string.Empty);
-
                 (string From, string To)? target = RomReArchiver.GetReArchiveTarget(
                     new MatchResult
                     {
                         Game = game.Game,
                         Status = game.Status,
                         ScannedRom = game.ScannedRom,
+                        IsUntrimmed = game.IsUntrimmed,
                     },
-                    ActiveDat!.DatFile.Header.RomTitle,
-                    ArchiveFormat
+                    namingMask,
+                    archiveFormat
                 );
 
-                if (target is null)
-                    continue;
-
-                string? tempFile = null;
-                try
+                if (target is not null)
                 {
-                    Result<string> extractResult = await _extractor.ExtractToTempFileAsync(
-                        target.Value.From,
-                        progress.CancellationToken
-                    );
-                    if (extractResult.IsFailed)
+                    slotQueue.TryDequeue(out BatchSlotVM? slot);
+                    slot!.FileName = Path.GetFileName(target.Value.From);
+                    slot.Progress = 0;
+
+                    IProgress<int> slotProgress = new Progress<int>(pct => slot.Progress = pct);
+                    (MatchResult? updated, string? error) = await ReArchiveFileAsync(
+                        game, target.Value, archiveFormat, datName, ct, slotProgress);
+
+                    slot.FileName = null;
+                    slot.Progress = 0;
+                    slotQueue.Enqueue(slot);
+
+                    if (error is not null)
                     {
-                        errors.Add(
-                            $"{Path.GetFileName(target.Value.From)}: {extractResult.Errors[0].Message}"
-                        );
-                        continue;
+                        lock (errorsLock)
+                            errors.Add(error);
                     }
-
-                    tempFile = extractResult.Value;
-
-                    int fileBase = i * 100 / targets.Count;
-                    int fileRange = 100 / targets.Count;
-                    Progress<int> progressCallback = new Progress<int>(pct =>
-                        progress.Progress = fileBase + pct * fileRange / 100
-                    );
-
-                    Result compressResult = await _compressor.CompressAsync(
-                        tempFile,
-                        target.Value.To,
-                        game.Game.RomSize,
-                        progressCallback,
-                        progress.CancellationToken,
-                        ArchiveFormat
-                    );
-                    if (compressResult.IsFailed)
+                    else if (updated is not null)
                     {
-                        errors.Add(
-                            $"{Path.GetFileName(target.Value.From)}: {compressResult.Errors[0].Message}"
-                        );
-                        continue;
+                        await UpdateGameRowOnUiThreadAsync(activeDat, game, updated);
                     }
-
-                    Result deleteResult = await _fileOperations.DeleteAsync(target.Value.From);
-                    if (deleteResult.IsFailed)
-                        errors.Add(
-                            $"Archived but could not delete original: {Path.GetFileName(target.Value.From)}: {deleteResult.Errors[0].Message}"
-                        );
-
-                    ScannedRom updatedRom = game.ScannedRom! with
-                    {
-                        FilePath = target.Value.To,
-                        FileExtension = ArchiveFormat,
-                    };
-                    await ReplaceGameAsync(
-                        game,
-                        new MatchResult
-                        {
-                            Game = game.Game,
-                            Status = MatchStatus.Verified,
-                            ScannedRom = updatedRom,
-                        }
-                    );
                 }
-                finally
+
+                int done = Interlocked.Increment(ref completed);
+                await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    if (tempFile is not null && File.Exists(tempFile))
-                        await _fileOperations.DeleteAsync(tempFile);
-                }
+                    progress.Completed = done;
+                });
             }
+            finally
+            {
+                semaphore.Release();
+            }
+        }
+
+        try
+        {
+            await Task.WhenAll(targets.Select(ProcessGameAsync));
         }
         catch (OperationCanceledException ex)
         {
             _logger.Information(
                 ex,
                 "Re-archive all cancelled after {Completed} of {Total}",
-                progress.Current,
+                completed,
                 targets.Count
             );
         }
@@ -775,7 +912,7 @@ public partial class MainWindowVM : VMBase
         && !IsTrimming
         && _compressor.IsAvailable
         && ActiveDat is not null
-        && ActiveDat.Games.Any(g => g.Status == MatchStatus.WrongArchiveType);
+        && ActiveDat.Games.Any(g => g.Status == MatchStatus.Verified && !g.IsUntrimmed && !g.IsGood);
 
     [RelayCommand(CanExecute = nameof(CanTrim))]
     private async Task TrimSelectedAsync()
@@ -789,6 +926,7 @@ public partial class MainWindowVM : VMBase
                 Game = SelectedGame.Game,
                 Status = SelectedGame.Status,
                 ScannedRom = SelectedGame.ScannedRom,
+                IsUntrimmed = SelectedGame.IsUntrimmed,
             },
             ActiveDat.DatFile.Header.RomTitle,
             ArchiveFormat
@@ -873,6 +1011,10 @@ public partial class MainWindowVM : VMBase
                     Game = game.Game,
                     Status = MatchStatus.Verified,
                     ScannedRom = updatedRom,
+                    IsIncorrectlyNamed = false,
+                    IsWrongArchiveType = false,
+                    IsUntrimmed = false,
+                    IsReArchived = game.IsReArchived,
                 }
             );
 
@@ -893,7 +1035,7 @@ public partial class MainWindowVM : VMBase
 
     private bool CanTrim() =>
         !IsTrimming
-        && SelectedGame?.Status == MatchStatus.Untrimmed
+        && SelectedGame?.IsUntrimmed == true
         && _compressor.IsAvailable;
 
     [RelayCommand(CanExecute = nameof(CanTrimAll))]
@@ -903,7 +1045,7 @@ public partial class MainWindowVM : VMBase
             return;
 
         List<GameRowVM> targets = ActiveDat
-            .Games.Where(g => g.Status == MatchStatus.Untrimmed)
+            .Games.Where(g => g.IsUntrimmed)
             .ToList();
 
         if (targets.Count == 0)
@@ -972,7 +1114,13 @@ public partial class MainWindowVM : VMBase
     )
     {
         (string From, string To)? target = RomTrimmer.GetTrimTarget(
-            new MatchResult { Game = game.Game, Status = game.Status, ScannedRom = game.ScannedRom },
+            new MatchResult
+            {
+                Game = game.Game,
+                Status = game.Status,
+                ScannedRom = game.ScannedRom,
+                IsUntrimmed = game.IsUntrimmed,
+            },
             ActiveDat!.DatFile.Header.RomTitle,
             ArchiveFormat
         );
@@ -1039,7 +1187,16 @@ public partial class MainWindowVM : VMBase
             };
             await ReplaceGameAsync(
                 game,
-                new MatchResult { Game = game.Game, Status = MatchStatus.Verified, ScannedRom = updatedRom }
+                new MatchResult
+                {
+                    Game = game.Game,
+                    Status = MatchStatus.Verified,
+                    ScannedRom = updatedRom,
+                    IsIncorrectlyNamed = false,
+                    IsWrongArchiveType = false,
+                    IsUntrimmed = false,
+                    IsReArchived = game.IsReArchived,
+                }
             );
 
             return null;
@@ -1056,7 +1213,7 @@ public partial class MainWindowVM : VMBase
         && !IsReArchiving
         && _compressor.IsAvailable
         && ActiveDat is not null
-        && ActiveDat.Games.Any(g => g.Status == MatchStatus.Untrimmed);
+        && ActiveDat.Games.Any(g => g.IsUntrimmed);
 
     private async Task ReplaceGameAsync(GameRowVM original, MatchResult updatedMatch)
     {
@@ -1072,6 +1229,86 @@ public partial class MainWindowVM : VMBase
 
     private async Task ReplaceSelectedGameAsync(MatchResult updatedMatch) =>
         await ReplaceGameAsync(SelectedGame!, updatedMatch);
+
+    private async Task UpdateGameRowOnUiThreadAsync(LoadedDatVM activeDat, GameRowVM original, MatchResult updated)
+    {
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            GameRowVM updatedRow = activeDat.BuildGameRow(updated);
+            int index = activeDat.Games.IndexOf(original);
+            if (index >= 0)
+            {
+                activeDat.Games[index] = updatedRow;
+                if (ReferenceEquals(SelectedGame, original))
+                    SelectedGame = updatedRow;
+            }
+        });
+    }
+
+    [RelayCommand(CanExecute = nameof(CanMoveUnverified))]
+    private async Task MoveUnverifiedAsync()
+    {
+        if (ActiveDat is null || ActiveDat.UnmatchedRoms.Count == 0)
+            return;
+
+        string? destFolder = await _fileDialogs.PickUnverifiedDestinationAsync();
+        if (destFolder is null)
+            return;
+
+        List<ScannedRom> targets = ActiveDat.UnmatchedRoms.ToList();
+        ProgressWindowVM progressVm = new ProgressWindowVM(targets.Count, isCancellable: true);
+        Task<List<string>> moveTask = MoveUnverifiedCoreAsync(targets, destFolder, ActiveDat, progressVm);
+        await _notifier.ShowProgressAsync("Moving Unverified Files", progressVm, moveTask);
+
+        List<string> errors = await moveTask;
+        _logger.Information(
+            "Move unverified: {Moved}/{Total} moved",
+            targets.Count - errors.Count,
+            targets.Count
+        );
+
+        if (errors.Count > 0)
+            await _notifier.NotifyErrorAsync(
+                $"Move failed for {errors.Count} file(s):\n{string.Join("\n", errors)}"
+            );
+    }
+
+    private async Task<List<string>> MoveUnverifiedCoreAsync(
+        List<ScannedRom> targets,
+        string destFolder,
+        LoadedDatVM activeDat,
+        ProgressWindowVM progress
+    )
+    {
+        List<string> errors = new List<string>();
+        List<ScannedRom> moved = new List<ScannedRom>();
+
+        for (int i = 0; i < targets.Count; i++)
+        {
+            if (progress.CancellationToken.IsCancellationRequested)
+                break;
+
+            ScannedRom rom = targets[i];
+            progress.Current = i + 1;
+            progress.CurrentFile = Path.GetFileName(rom.FilePath);
+            progress.Progress = (i + 1) * 100 / targets.Count;
+
+            string destPath = Path.Combine(destFolder, Path.GetFileName(rom.FilePath));
+            Result result = await _fileOperations.RenameAsync(rom.FilePath, destPath);
+
+            if (result.IsFailed)
+                errors.Add($"{Path.GetFileName(rom.FilePath)}: {result.Errors[0].Message}");
+            else
+                moved.Add(rom);
+        }
+
+        if (moved.Count > 0)
+            activeDat.UnmatchedRoms = activeDat.UnmatchedRoms.Where(r => !moved.Contains(r)).ToList();
+
+        return errors;
+    }
+
+    private bool CanMoveUnverified() => ActiveDat?.UnmatchedRoms.Count > 0;
 
     [RelayCommand(CanExecute = nameof(CanCheckDatUpdate))]
     private async Task CheckDatUpdateAsync()

@@ -13,7 +13,7 @@ public static class RomReArchiver
         string targetExtension = "7z"
     )
     {
-        if (result.Status != MatchStatus.WrongArchiveType || result.ScannedRom is null)
+        if (result.Status == MatchStatus.Missing || result.IsUntrimmed || result.ScannedRom is null)
             return null;
 
         string expectedStem = string.IsNullOrEmpty(namingMask)
@@ -23,8 +23,6 @@ public static class RomReArchiver
         string dir = Path.GetDirectoryName(result.ScannedRom.FilePath) ?? string.Empty;
         string newPath = Path.Combine(dir, expectedStem + "." + targetExtension);
 
-        return result.ScannedRom.FilePath.Equals(newPath, StringComparison.OrdinalIgnoreCase)
-            ? null
-            : (result.ScannedRom.FilePath, newPath);
+        return (result.ScannedRom.FilePath, newPath);
     }
 }

@@ -21,19 +21,51 @@ public static class RomScanner
         CancellationToken cancellationToken = default
     )
     {
+        int estimatedTotal = await source.CountAsync(folderPath, cancellationToken).ConfigureAwait(false);
+        int found = 0;
+
         List<RomContent> contents = new();
         await foreach (RomContent c in source.EnumerateAsync(folderPath, cancellationToken))
+        {
             contents.Add(c);
+            found++;
+            progress?.Report(new ScanProgress(found, estimatedTotal, Path.GetFileName(c.FilePath), "Enumerating files..."));
+        }
 
         if (contents.Count == 0)
             return [];
 
-        int total = contents.Count;
+        ScannedRom?[] results = new ScannedRom?[contents.Count];
+        List<(RomContent Content, int Index)> needsCrc = new List<(RomContent, int)>();
+
+        for (int i = 0; i < contents.Count; i++)
+        {
+            RomContent c = contents[i];
+            long? fileSize = c.FileSize;
+            DateTime? lastModified = c.LastModified;
+
+            if (cache is not null && fileSize.HasValue && lastModified.HasValue
+                && cache.GetCrc(c.FilePath, fileSize.Value, lastModified.Value) is { } cachedCrc)
+            {
+                results[i] = new ScannedRom
+                {
+                    FilePath = c.FilePath,
+                    FileExtension = c.FileExtension,
+                    RomExtension = c.RomExtension,
+                    Crc = cachedCrc,
+                    TrimmedCrc = cache.GetTrimmedCrc(c.FilePath, fileSize.Value, lastModified.Value),
+                    LastModified = lastModified,
+                };
+            }
+            else
+                needsCrc.Add((c, i));
+        }
+
+        int crcTotal = needsCrc.Count;
         int completed = 0;
-        ScannedRom[] results = new ScannedRom[total];
 
         await Parallel.ForEachAsync(
-            contents.Select((c, i) => (Content: c, Index: i)),
+            needsCrc,
             new ParallelOptions
             {
                 MaxDegreeOfParallelism = Math.Min(Environment.ProcessorCount, 8),
@@ -41,16 +73,16 @@ public static class RomScanner
             },
             async (item, ct) =>
             {
-                results[item.Index] = await ProcessContentAsync(item.Content, cache, ct).ConfigureAwait(false);
+                results[item.Index] = await ComputeAndCacheAsync(item.Content, cache, ct).ConfigureAwait(false);
                 int c = Interlocked.Increment(ref completed);
-                progress?.Report(new ScanProgress(c, total, Path.GetFileName(item.Content.FilePath)));
+                progress?.Report(new ScanProgress(c, crcTotal, Path.GetFileName(item.Content.FilePath), "Computing CRCs..."));
             }
         );
 
-        return results;
+        return Array.ConvertAll(results, r => r!);
     }
 
-    private static async Task<ScannedRom> ProcessContentAsync(
+    private static async Task<ScannedRom> ComputeAndCacheAsync(
         RomContent content,
         IRomScanCache? cache,
         CancellationToken cancellationToken
@@ -58,35 +90,22 @@ public static class RomScanner
     {
         long? fileSize = content.FileSize;
         DateTime? lastModified = content.LastModified;
-        bool hasMeta = fileSize.HasValue && lastModified.HasValue;
+
+        Stream stream = await content.OpenStreamAsync(cancellationToken).ConfigureAwait(false);
 
         uint crc;
         uint? trimmedCrc;
 
-        if (
-            cache is not null
-            && hasMeta
-            && cache.GetCrc(content.FilePath, fileSize!.Value, lastModified!.Value) is { } cachedCrc
-        )
-        {
-            crc = cachedCrc;
-            trimmedCrc = cache.GetTrimmedCrc(content.FilePath, fileSize!.Value, lastModified!.Value);
-        }
+        if (fileSize.HasValue && fileSize.Value <= TrimDetectionThresholdBytes)
+            (crc, trimmedCrc) = await ComputeCrcsBufferedAsync(stream, cancellationToken).ConfigureAwait(false);
         else
         {
-            Stream stream = await content.OpenStreamAsync(cancellationToken).ConfigureAwait(false);
-
-            if (fileSize.HasValue && fileSize.Value <= TrimDetectionThresholdBytes)
-                (crc, trimmedCrc) = await ComputeCrcsBufferedAsync(stream, cancellationToken).ConfigureAwait(false);
-            else
-            {
-                crc = await ComputeCrc32StreamedAsync(stream, cancellationToken).ConfigureAwait(false);
-                trimmedCrc = null;
-            }
-
-            if (cache is not null && hasMeta)
-                cache.Set(content.FilePath, fileSize!.Value, lastModified!.Value, crc, trimmedCrc);
+            crc = await ComputeCrc32StreamedAsync(stream, cancellationToken).ConfigureAwait(false);
+            trimmedCrc = null;
         }
+
+        if (cache is not null && fileSize.HasValue && lastModified.HasValue)
+            cache.Set(content.FilePath, fileSize.Value, lastModified.Value, crc, trimmedCrc);
 
         return new ScannedRom
         {
@@ -95,6 +114,7 @@ public static class RomScanner
             RomExtension = content.RomExtension,
             Crc = crc,
             TrimmedCrc = trimmedCrc,
+            LastModified = content.LastModified,
         };
     }
 

@@ -2,12 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using RomForge.Core.IO;
 using RomForge.Core.Matching;
 using RomForge.Core.Models;
 using RomForge.Core.Scanning;
+using RomForge.UI.Converters;
 
 namespace RomForge.UI.ViewModels;
 
@@ -50,6 +52,11 @@ public sealed partial class GameRowVM : ObservableObject, IDisposable
 
     public Game Game => _result.Game;
     public MatchStatus Status => _result.Status;
+    public bool IsIncorrectlyNamed => _result.IsIncorrectlyNamed;
+    public bool IsWrongArchiveType => _result.IsWrongArchiveType;
+    public bool IsUntrimmed => _result.IsUntrimmed;
+    public bool IsReArchived => _result.IsReArchived;
+    public bool IsGood => _result.IsGood;
     public ScannedRom? ScannedRom => _result.ScannedRom;
 
     public int ReleaseNumber => _result.Game.ReleaseNumber;
@@ -63,19 +70,52 @@ public sealed partial class GameRowVM : ObservableObject, IDisposable
     public int ScreenshotsWidth { get; }
     public int ScreenshotsHeight { get; }
 
-    public string StatusText =>
-        _result.Status switch
+    public string StatusText
+    {
+        get
         {
-            MatchStatus.Verified => "Verified",
-            MatchStatus.Missing => "Missing",
-            MatchStatus.IncorrectlyNamed => "Incorrectly Named",
-            MatchStatus.WrongArchiveType => "Wrong Archive Type",
-            MatchStatus.Untrimmed => "Untrimmed",
-            _ => _result.Status.ToString(),
-        };
+            if (_result.Status == MatchStatus.Missing) return "Missing";
+            if (_result.IsUntrimmed) return "Untrimmed";
+            if (_result.IsWrongArchiveType) return "Wrong Archive";
+            if (_result.IsIncorrectlyNamed) return "Incorrectly Named";
+            if (_result.IsReArchived) return "Good";
+            return "Verified";
+        }
+    }
+
+    public IBrush StatusBrush
+    {
+        get
+        {
+            if (_result.Status == MatchStatus.Missing) return StatusColors.Missing;
+            if (_result.IsUntrimmed) return StatusColors.Untrimmed;
+            if (_result.IsWrongArchiveType) return StatusColors.WrongArchiveType;
+            if (_result.IsIncorrectlyNamed) return StatusColors.IncorrectlyNamed;
+            if (_result.IsReArchived) return StatusColors.Good;
+            return StatusColors.Verified;
+        }
+    }
+
+    /// <summary>
+    /// Numeric key for status-column sorting. Lower = higher priority issue.
+    /// </summary>
+    internal int StatusSortKey
+    {
+        get
+        {
+            if (_result.Status == MatchStatus.Missing) return 0;
+            if (_result.IsUntrimmed) return 1;
+            if (_result.IsWrongArchiveType) return 2;
+            if (_result.IsIncorrectlyNamed) return 3;
+            if (_result.IsReArchived) return 5;
+            return 4;
+        }
+    }
+
+    public string ReArchivedText => _result.IsReArchived ? "✓" : "–";
 
     public string? ExpectedFileName =>
-        _result.Status == MatchStatus.IncorrectlyNamed && !string.IsNullOrEmpty(_namingMask)
+        _result.IsIncorrectlyNamed && !string.IsNullOrEmpty(_namingMask)
             ? NamingMask.Expand(_namingMask, _result.Game)
             : null;
 

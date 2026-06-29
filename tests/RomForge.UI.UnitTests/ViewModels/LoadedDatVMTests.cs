@@ -32,16 +32,33 @@ public class LoadedDatVMTests
     private static Game MakeGame(int release, string title, string? publisher = null) =>
         new Game { ReleaseNumber = release, Title = title, Publisher = publisher };
 
+    private static GameRowVM MakeRow(MatchResult result) =>
+        new GameRowVM(result, string.Empty, new DatHeader(), []);
+
     private static LoadedDatVM MakeVmWithStatuses()
     {
         LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
 
-        void Add(Game g, MatchStatus s) =>
-            vm.Games.Add(new GameRowVM(new MatchResult { Game = g, Status = s }, "/imgs", new DatHeader(), []));
-
-        Add(new Game { ReleaseNumber = 1, Title = "A" }, MatchStatus.Verified);
-        Add(new Game { ReleaseNumber = 2, Title = "B" }, MatchStatus.Missing);
-        Add(new Game { ReleaseNumber = 3, Title = "C" }, MatchStatus.IncorrectlyNamed);
+        // A = Verified (no flags) → StatusSortKey 4
+        vm.Games.Add(new GameRowVM(
+            new MatchResult { Game = new Game { ReleaseNumber = 1, Title = "A" }, Status = MatchStatus.Verified },
+            "/imgs", new DatHeader(), []
+        ));
+        // B = Missing → StatusSortKey 0
+        vm.Games.Add(new GameRowVM(
+            new MatchResult { Game = new Game { ReleaseNumber = 2, Title = "B" }, Status = MatchStatus.Missing },
+            "/imgs", new DatHeader(), []
+        ));
+        // C = Verified + IncorrectlyNamed → StatusSortKey 3
+        vm.Games.Add(new GameRowVM(
+            new MatchResult
+            {
+                Game = new Game { ReleaseNumber = 3, Title = "C" },
+                Status = MatchStatus.Verified,
+                IsIncorrectlyNamed = true,
+            },
+            "/imgs", new DatHeader(), []
+        ));
         return vm;
     }
 
@@ -130,15 +147,15 @@ public class LoadedDatVMTests
     }
 
     [Test]
-    public void SortBy_Status_SortsAscending()
+    public void SortBy_Status_SortsAscendingByPriority()
     {
+        // Insertion order: A=Verified(4), B=Missing(0), C=IncorrectlyNamed(3)
+        // Ascending by StatusSortKey: B(0), C(3), A(4)
         LoadedDatVM vm = MakeVmWithStatuses();
 
         vm.SortByCommand.Execute("Status");
 
-        vm.FilteredGames.Select(g => g.Status)
-            .Should()
-            .ContainInOrder(MatchStatus.Verified, MatchStatus.IncorrectlyNamed, MatchStatus.Missing);
+        vm.FilteredGames.Select(g => g.Title).Should().ContainInOrder("B", "C", "A");
     }
 
     [Test]
@@ -170,6 +187,140 @@ public class LoadedDatVMTests
 
         vm.SortByCommand.Execute("ReleaseNumber");
         vm.ReleaseNumberSortIndicator.Should().Be(" ▼");
+    }
+
+    // --- StatusSummary ---
+
+    [Test]
+    public void StatusSummary_NoGames_ReturnsNoScanYet()
+    {
+        LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
+
+        vm.StatusSummary.Should().Be("No scan yet");
+    }
+
+    [Test]
+    public void StatusSummary_AllMissing_ContainsMissingCount()
+    {
+        LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
+        vm.Games.Add(MakeRow(new MatchResult { Game = new Game(), Status = MatchStatus.Missing }));
+        vm.Games.Add(MakeRow(new MatchResult { Game = new Game(), Status = MatchStatus.Missing }));
+
+        vm.StatusSummary.Should().Contain("2 missing");
+        vm.StatusSummary.Should().Contain("2 games");
+    }
+
+    [Test]
+    public void StatusSummary_GoodGame_ContainsGoodCount()
+    {
+        LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
+        vm.Games.Add(MakeRow(new MatchResult { Game = new Game(), Status = MatchStatus.Verified, IsReArchived = true }));
+
+        vm.StatusSummary.Should().Contain("1 good");
+    }
+
+    [Test]
+    public void StatusSummary_PreparedGameNoReArchived_CountsAsGood()
+    {
+        LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
+        vm.Games.Add(MakeRow(new MatchResult { Game = new Game(), Status = MatchStatus.Verified }));
+
+        vm.StatusSummary.Should().Contain("1 good");
+    }
+
+    [Test]
+    public void StatusSummary_MixedFlags_CountsMutuallyExclusive()
+    {
+        // A game that is both Untrimmed AND WrongArchiveType should count only as untrimmed.
+        LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
+        vm.Games.Add(MakeRow(new MatchResult
+        {
+            Game = new Game(),
+            Status = MatchStatus.Verified,
+            IsUntrimmed = true,
+            IsWrongArchiveType = true,
+        }));
+
+        vm.StatusSummary.Should().Contain("1 untrimmed");
+        vm.StatusSummary.Should().NotContain("wrong archive");
+    }
+
+    [Test]
+    public void StatusSummary_FilterActive_ShowsFilteredOf()
+    {
+        LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
+        vm.Games.Add(MakeRow(new MatchResult { Game = new Game(), Status = MatchStatus.Missing }));
+        vm.Games.Add(MakeRow(new MatchResult { Game = new Game(), Status = MatchStatus.Verified }));
+        vm.Games.Add(MakeRow(new MatchResult { Game = new Game(), Status = MatchStatus.Verified }));
+
+        vm.ShowMissing = false;
+
+        vm.StatusSummary.Should().StartWith("Showing 2 of 3");
+    }
+
+    // --- MatchesFilter ---
+
+    [Test]
+    public void ShowMissing_False_HidesMissingRows()
+    {
+        LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
+        vm.Games.Add(MakeRow(new MatchResult { Game = new Game { ReleaseNumber = 1 }, Status = MatchStatus.Missing }));
+        vm.Games.Add(MakeRow(new MatchResult { Game = new Game { ReleaseNumber = 2 }, Status = MatchStatus.Verified }));
+
+        vm.ShowMissing = false;
+
+        vm.FilteredGames.Should().HaveCount(1);
+        vm.FilteredGames[0].ReleaseNumber.Should().Be(2);
+    }
+
+    [Test]
+    public void ShowVerified_False_HidesPureVerifiedRows()
+    {
+        LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
+        vm.Games.Add(MakeRow(new MatchResult { Game = new Game { ReleaseNumber = 1 }, Status = MatchStatus.Verified }));
+        vm.Games.Add(MakeRow(new MatchResult { Game = new Game { ReleaseNumber = 2 }, Status = MatchStatus.Missing }));
+
+        vm.ShowVerified = false;
+
+        vm.FilteredGames.Should().HaveCount(1);
+        vm.FilteredGames[0].ReleaseNumber.Should().Be(2);
+    }
+
+    [Test]
+    public void TitleFilter_CaseInsensitive_FiltersRows()
+    {
+        LoadedDatVM vm = MakeVm(
+            MakeGame(1, "Mario Kart"),
+            MakeGame(2, "Zelda"),
+            MakeGame(3, "mario world")
+        );
+
+        vm.TitleFilter = "mario";
+
+        vm.FilteredGames.Should().HaveCount(2);
+        vm.FilteredGames.Select(g => g.ReleaseNumber).Should().BeEquivalentTo(new[] { 1, 3 });
+    }
+
+    [Test]
+    public void ShowUntrimmed_False_HidesUntrimmedRows()
+    {
+        LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
+        vm.Games.Add(MakeRow(new MatchResult
+        {
+            Game = new Game { ReleaseNumber = 1 },
+            Status = MatchStatus.Verified,
+            IsUntrimmed = true,
+        }));
+        vm.Games.Add(MakeRow(new MatchResult
+        {
+            Game = new Game { ReleaseNumber = 2 },
+            Status = MatchStatus.Verified,
+        }));
+
+        vm.ShowUntrimmed = false;
+
+        vm.FilteredGames.Should().HaveCount(1);
+        vm.FilteredGames[0].ReleaseNumber.Should().Be(2);
     }
 
     [Test]

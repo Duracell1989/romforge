@@ -11,15 +11,15 @@ namespace RomForge.Core.UnitTests.Operations;
 public sealed class RomRenamerTests
 {
     private static MatchResult MakeResult(
-        MatchStatus status,
+        bool isIncorrectlyNamed,
         string? filePath = "/roms/Wrong Name.7z",
         int release = 1,
         string title = "Correct Title"
     ) =>
-        new()
+        new MatchResult
         {
             Game = new Game { ReleaseNumber = release, Title = title },
-            Status = status,
+            Status = MatchStatus.Verified,
             ScannedRom = filePath is null
                 ? null
                 : new ScannedRom
@@ -28,12 +28,13 @@ public sealed class RomRenamerTests
                     FileExtension = "7z",
                     RomExtension = "gba",
                 },
+            IsIncorrectlyNamed = isIncorrectlyNamed,
         };
 
     [Test]
     public void GetRenameTarget_IncorrectlyNamed_ReturnsFromAndToPath()
     {
-        MatchResult result = MakeResult(MatchStatus.IncorrectlyNamed);
+        MatchResult result = MakeResult(isIncorrectlyNamed: true);
 
         (string From, string To)? target = RomRenamer.GetRenameTarget(result, "%u - %n");
 
@@ -42,12 +43,22 @@ public sealed class RomRenamerTests
         target.Value.To.Should().Be("/roms/0001 - Correct Title.7z");
     }
 
-    [TestCase(MatchStatus.Verified)]
-    [TestCase(MatchStatus.Missing)]
-    [TestCase(MatchStatus.WrongArchiveType)]
-    public void GetRenameTarget_NotIncorrectlyNamed_ReturnsNull(MatchStatus status)
+    [Test]
+    public void GetRenameTarget_NotIncorrectlyNamed_ReturnsNull()
     {
-        MatchResult result = MakeResult(status);
+        MatchResult result = MakeResult(isIncorrectlyNamed: false);
+
+        RomRenamer.GetRenameTarget(result, "%u - %n").Should().BeNull();
+    }
+
+    [Test]
+    public void GetRenameTarget_Missing_ReturnsNull()
+    {
+        MatchResult result = new MatchResult
+        {
+            Game = new Game { ReleaseNumber = 1, Title = "Correct Title" },
+            Status = MatchStatus.Missing,
+        };
 
         RomRenamer.GetRenameTarget(result, "%u - %n").Should().BeNull();
     }
@@ -55,7 +66,7 @@ public sealed class RomRenamerTests
     [Test]
     public void GetRenameTarget_EmptyMask_ReturnsNull()
     {
-        MatchResult result = MakeResult(MatchStatus.IncorrectlyNamed);
+        MatchResult result = MakeResult(isIncorrectlyNamed: true);
 
         RomRenamer.GetRenameTarget(result, string.Empty).Should().BeNull();
     }
@@ -63,7 +74,7 @@ public sealed class RomRenamerTests
     [Test]
     public void GetRenameTarget_NoScannedRom_ReturnsNull()
     {
-        MatchResult result = MakeResult(MatchStatus.IncorrectlyNamed, filePath: null);
+        MatchResult result = MakeResult(isIncorrectlyNamed: true, filePath: null);
 
         RomRenamer.GetRenameTarget(result, "%u - %n").Should().BeNull();
     }
@@ -71,16 +82,17 @@ public sealed class RomRenamerTests
     [Test]
     public void GetRenameTarget_PreservesArchiveExtension()
     {
-        MatchResult result = new()
+        MatchResult result = new MatchResult
         {
             Game = new Game { ReleaseNumber = 1, Title = "Game" },
-            Status = MatchStatus.IncorrectlyNamed,
+            Status = MatchStatus.Verified,
             ScannedRom = new ScannedRom
             {
                 FilePath = "/roms/old.zip",
                 FileExtension = "zip",
                 RomExtension = "gba",
             },
+            IsIncorrectlyNamed = true,
         };
 
         (string From, string To)? target = RomRenamer.GetRenameTarget(result, "%u - %n");

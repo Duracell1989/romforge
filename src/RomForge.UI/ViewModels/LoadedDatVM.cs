@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using RomForge.Core.Matching;
 using RomForge.Core.Models;
+using RomForge.Core.Scanning;
 
 namespace RomForge.UI.ViewModels;
 
@@ -17,7 +18,7 @@ namespace RomForge.UI.ViewModels;
 /// </summary>
 public partial class LoadedDatVM : VMBase
 {
-    private enum SortColumn { None, ReleaseNumber, Title, Publisher, Status }
+    private enum SortColumn { None, ReleaseNumber, Title, Publisher, Location, Language, ReArchived, Status }
 
     private readonly DatFile _datFile;
     private readonly string _imgsBasePath;
@@ -51,7 +52,16 @@ public partial class LoadedDatVM : VMBase
     public partial bool ShowUntrimmed { get; set; }
 
     [ObservableProperty]
+    public partial bool ShowGood { get; set; }
+
+    [ObservableProperty]
     public partial string TitleFilter { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UnmatchedCount))]
+    public partial IReadOnlyList<ScannedRom> UnmatchedRoms { get; set; }
+
+    public int UnmatchedCount => UnmatchedRoms.Count;
 
     public LoadedDatVM(DatFile datFile, string datFilePath, DatConfig? config = null)
     {
@@ -60,11 +70,13 @@ public partial class LoadedDatVM : VMBase
         _config = config;
         _imgsBasePath = ResolveImgsBasePath(datFilePath);
         Games = new ObservableCollection<GameRowVM>();
+        UnmatchedRoms = [];
         ShowVerified = true;
         ShowMissing = true;
         ShowIncorrectlyNamed = true;
         ShowWrongArchiveType = true;
         ShowUntrimmed = true;
+        ShowGood = true;
         TitleFilter = string.Empty;
     }
 
@@ -88,25 +100,22 @@ public partial class LoadedDatVM : VMBase
             if (Games.Count == 0)
                 return "No scan yet";
 
-            int verified = Games.Count(g => g.Status == MatchStatus.Verified);
-            int incorrectlyNamed = Games.Count(g => g.Status == MatchStatus.IncorrectlyNamed);
-            int wrongArchiveType = Games.Count(g => g.Status == MatchStatus.WrongArchiveType);
-            int untrimmed = Games.Count(g => g.Status == MatchStatus.Untrimmed);
+            int good = Games.Count(g => g.IsGood);
+            int untrimmed = Games.Count(g => g.IsUntrimmed);
+            int wrongArchiveType = Games.Count(g => !g.IsUntrimmed && g.IsWrongArchiveType);
+            int incorrectlyNamed = Games.Count(g => !g.IsUntrimmed && !g.IsWrongArchiveType && g.IsIncorrectlyNamed);
             int missing = Games.Count(g => g.Status == MatchStatus.Missing);
 
-            List<string> segments = new List<string>
-            {
-                $"{Games.Count} games",
-                $"{verified} verified",
-            };
+            List<string> segments = new List<string> { $"{Games.Count} games" };
 
+            if (good > 0)
+                segments.Add($"{good} good");
             if (incorrectlyNamed > 0)
                 segments.Add($"{incorrectlyNamed} incorrectly named");
             if (wrongArchiveType > 0)
-                segments.Add($"{wrongArchiveType} wrong archive type");
+                segments.Add($"{wrongArchiveType} wrong archive");
             if (untrimmed > 0)
                 segments.Add($"{untrimmed} untrimmed");
-
             segments.Add($"{missing} missing");
 
             string summary = string.Join("  •  ", segments);
@@ -121,6 +130,7 @@ public partial class LoadedDatVM : VMBase
         || !ShowIncorrectlyNamed
         || !ShowWrongArchiveType
         || !ShowUntrimmed
+        || !ShowGood
         || !string.IsNullOrEmpty(TitleFilter);
 
     private static string ResolveImgsBasePath(string datFilePath)
@@ -134,6 +144,9 @@ public partial class LoadedDatVM : VMBase
     public string ReleaseNumberSortIndicator => GetSortIndicator(SortColumn.ReleaseNumber);
     public string TitleSortIndicator => GetSortIndicator(SortColumn.Title);
     public string PublisherSortIndicator => GetSortIndicator(SortColumn.Publisher);
+    public string LocationSortIndicator => GetSortIndicator(SortColumn.Location);
+    public string LanguageSortIndicator => GetSortIndicator(SortColumn.Language);
+    public string ReArchivedSortIndicator => GetSortIndicator(SortColumn.ReArchived);
     public string StatusSortIndicator => GetSortIndicator(SortColumn.Status);
 
     [RelayCommand]
@@ -144,6 +157,9 @@ public partial class LoadedDatVM : VMBase
             "ReleaseNumber" => SortColumn.ReleaseNumber,
             "Title" => SortColumn.Title,
             "Publisher" => SortColumn.Publisher,
+            "Location" => SortColumn.Location,
+            "Language" => SortColumn.Language,
+            "ReArchived" => SortColumn.ReArchived,
             "Status" => SortColumn.Status,
             _ => SortColumn.None,
         };
@@ -160,6 +176,9 @@ public partial class LoadedDatVM : VMBase
         OnPropertyChanged(nameof(ReleaseNumberSortIndicator));
         OnPropertyChanged(nameof(TitleSortIndicator));
         OnPropertyChanged(nameof(PublisherSortIndicator));
+        OnPropertyChanged(nameof(LocationSortIndicator));
+        OnPropertyChanged(nameof(LanguageSortIndicator));
+        OnPropertyChanged(nameof(ReArchivedSortIndicator));
         OnPropertyChanged(nameof(StatusSortIndicator));
     }
 
@@ -188,9 +207,18 @@ public partial class LoadedDatVM : VMBase
                     g => g.Publisher ?? string.Empty,
                     System.StringComparer.CurrentCultureIgnoreCase
                 ),
+            SortColumn.Location => _sortDescending
+                ? items.OrderByDescending(g => g.Location, System.StringComparer.CurrentCultureIgnoreCase)
+                : items.OrderBy(g => g.Location, System.StringComparer.CurrentCultureIgnoreCase),
+            SortColumn.Language => _sortDescending
+                ? items.OrderByDescending(g => g.Language, System.StringComparer.CurrentCultureIgnoreCase)
+                : items.OrderBy(g => g.Language, System.StringComparer.CurrentCultureIgnoreCase),
+            SortColumn.ReArchived => _sortDescending
+                ? items.OrderByDescending(g => g.IsReArchived)
+                : items.OrderBy(g => g.IsReArchived),
             SortColumn.Status => _sortDescending
-                ? items.OrderByDescending(g => g.Status)
-                : items.OrderBy(g => g.Status),
+                ? items.OrderByDescending(g => g.StatusSortKey)
+                : items.OrderBy(g => g.StatusSortKey),
             _ => items,
         };
 
@@ -207,6 +235,7 @@ public partial class LoadedDatVM : VMBase
                 or nameof(ShowIncorrectlyNamed)
                 or nameof(ShowWrongArchiveType)
                 or nameof(ShowUntrimmed)
+                or nameof(ShowGood)
         )
             RefreshFilter();
     }
@@ -222,15 +251,17 @@ public partial class LoadedDatVM : VMBase
 
     private bool MatchesFilter(GameRowVM vm)
     {
-        if (!ShowVerified && vm.Status == MatchStatus.Verified)
+        if (vm.Status == MatchStatus.Missing && !ShowMissing)
             return false;
-        if (!ShowMissing && vm.Status == MatchStatus.Missing)
+        if (vm.IsUntrimmed && !ShowUntrimmed)
             return false;
-        if (!ShowIncorrectlyNamed && vm.Status == MatchStatus.IncorrectlyNamed)
+        if (!vm.IsUntrimmed && vm.IsWrongArchiveType && !ShowWrongArchiveType)
             return false;
-        if (!ShowWrongArchiveType && vm.Status == MatchStatus.WrongArchiveType)
+        if (!vm.IsUntrimmed && !vm.IsWrongArchiveType && vm.IsIncorrectlyNamed && !ShowIncorrectlyNamed)
             return false;
-        if (!ShowUntrimmed && vm.Status == MatchStatus.Untrimmed)
+        if (vm.IsGood && !ShowGood)
+            return false;
+        if (vm.IsGood && !vm.IsReArchived && !ShowVerified)
             return false;
         if (
             !string.IsNullOrEmpty(TitleFilter)

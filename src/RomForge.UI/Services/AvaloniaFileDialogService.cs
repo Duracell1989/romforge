@@ -38,7 +38,12 @@ internal sealed class AvaloniaFileDialogService : IFileDialogService
         return files.Count == 1 ? files[0].Path.LocalPath : null;
     }
 
-    public async Task<string?> PickRomFolderAsync()
+    public Task<string?> PickRomFolderAsync() => PickFolderAsync("Select ROM Folder");
+
+    public Task<string?> PickUnverifiedDestinationAsync() =>
+        PickFolderAsync("Move Unverified Files To…");
+
+    private async Task<string?> PickFolderAsync(string title)
     {
         Window? topLevel = _getWindow();
         if (topLevel is null)
@@ -46,7 +51,7 @@ internal sealed class AvaloniaFileDialogService : IFileDialogService
 
         IReadOnlyList<IStorageFolder> folders =
             await topLevel.StorageProvider.OpenFolderPickerAsync(
-                new FolderPickerOpenOptions { Title = "Select ROM Folder", AllowMultiple = false }
+                new FolderPickerOpenOptions { Title = title, AllowMultiple = false }
             );
 
         return folders.Count == 1 ? folders[0].Path.LocalPath : null;

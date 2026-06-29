@@ -19,33 +19,42 @@ public sealed class SharpCompressExtractor : IArchiveExtractor
             : tempDirectory;
     }
 
-    public async Task<Result<string>> ExtractToTempFileAsync(
+    public Task<Result<string>> ExtractToTempFileAsync(
         string archivePath,
         CancellationToken cancellationToken = default
-    )
-    {
-        try
-        {
-            using var archive = ArchiveFactory.OpenArchive(archivePath);
-            var entry = archive.Entries.FirstOrDefault(e => !e.IsDirectory);
-            if (entry is null)
-                return Result.Fail($"Archive contains no entries: {archivePath}");
+    ) =>
+        Task.Run(
+            () =>
+            {
+                try
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    using IArchive archive = ArchiveFactory.OpenArchive(archivePath);
+                    IArchiveEntry? entry = archive.Entries.FirstOrDefault(e => !e.IsDirectory);
+                    if (entry is null)
+                        return Result.Fail($"Archive contains no entries: {archivePath}");
 
-            var ext = Path.GetExtension(entry.Key ?? string.Empty);
-            var tempFile = Path.Combine(_tempDirectory, Path.GetRandomFileName() + ext);
+                    string ext = Path.GetExtension(entry.Key ?? string.Empty);
+                    string tempFile = Path.Combine(
+                        _tempDirectory,
+                        Path.GetRandomFileName() + ext
+                    );
 
-            await using var dest = File.Create(tempFile);
-            await using var src = await entry
-                .OpenEntryStreamAsync(cancellationToken)
-                .ConfigureAwait(false);
-            await src.CopyToAsync(dest, cancellationToken).ConfigureAwait(false);
-
-            return Result.Ok(tempFile);
-        }
-        catch (Exception ex)
-            when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
-        {
-            return Result.Fail(new ExceptionalError(ex));
-        }
-    }
+                    using FileStream dest = File.Create(tempFile);
+                    using Stream src = entry.OpenEntryStream();
+                    src.CopyTo(dest);
+                    return Result.Ok(tempFile);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                    when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+                {
+                    return Result.Fail(new ExceptionalError(ex));
+                }
+            },
+            cancellationToken
+        );
 }

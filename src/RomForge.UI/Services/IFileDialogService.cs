@@ -6,4 +6,5 @@ public interface IFileDialogService
 {
     Task<string?> PickDatFileAsync();
     Task<string?> PickRomFolderAsync();
+    Task<string?> PickUnverifiedDestinationAsync();
 }

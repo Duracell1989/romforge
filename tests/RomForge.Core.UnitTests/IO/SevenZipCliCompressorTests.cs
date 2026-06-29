@@ -59,9 +59,11 @@ public sealed class SevenZipCliCompressorTests
         args.Should().Contain("-mmf=bt5");
         args.Should().Contain("-mfb=273");
         args.Should().Contain("-md=32m");
-        args.Should().Contain("-mlc=0");
-        args.Should().Contain("-mlp=2");
+        args.Should().Contain("-mlc=3");
+        args.Should().Contain("-mlp=0");
         args.Should().Contain("-mpb=2");
+        args.Should().Contain("-mhc=on");
+        args.Should().Contain("-ms=on");
     }
 
     [Test]

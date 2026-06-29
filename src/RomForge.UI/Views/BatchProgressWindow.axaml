@@ -1,0 +1,58 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:RomForge.UI.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        x:Class="RomForge.UI.Views.BatchProgressWindow"
+        x:DataType="vm:BatchProgressWindowVM"
+        Width="440"
+        SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+
+    <StackPanel Margin="16" Spacing="8">
+
+        <!-- Per-slot rows — each collapses when the slot is idle -->
+        <ItemsControl ItemsSource="{Binding Slots}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:BatchSlotVM">
+                    <StackPanel Spacing="3"
+                                Margin="0,0,0,4"
+                                IsVisible="{Binding IsActive}">
+                        <TextBlock Text="{Binding FileName}"
+                                   FontSize="12"
+                                   Opacity="0.75"
+                                   TextTrimming="CharacterEllipsis"/>
+                        <ProgressBar Minimum="0" Maximum="100"
+                                     Value="{Binding Progress}"
+                                     Height="8"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <Separator/>
+
+        <!-- Overall progress -->
+        <ProgressBar Minimum="0"
+                     Maximum="{Binding Total}"
+                     Value="{Binding Completed}"
+                     Height="16"/>
+
+        <!-- Count + Cancel -->
+        <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Grid.Column="0"
+                       Text="{Binding CountText}"
+                       VerticalAlignment="Center"
+                       FontSize="12"/>
+            <Button Grid.Column="1"
+                    Content="Cancel"
+                    Command="{Binding CancelCommand}"
+                    IsVisible="{Binding IsCancellable}"
+                    Padding="12,4"/>
+        </Grid>
+
+    </StackPanel>
+</Window>

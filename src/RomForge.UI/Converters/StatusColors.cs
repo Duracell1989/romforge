@@ -4,6 +4,7 @@ namespace RomForge.UI.Converters;
 
 internal static class StatusColors
 {
+    internal static readonly IBrush Good = new SolidColorBrush(Color.FromRgb(0x00, 0xE6, 0x76));
     internal static readonly IBrush Verified = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50));
     internal static readonly IBrush Missing = new SolidColorBrush(Color.FromRgb(0xF4, 0x43, 0x36));
     internal static readonly IBrush IncorrectlyNamed = new SolidColorBrush(

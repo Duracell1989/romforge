@@ -17,13 +17,22 @@ public sealed partial class ProgressWindowVM : VMBase
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CountText))]
+    [NotifyPropertyChangedFor(nameof(IsIndeterminate))]
     public partial int Total { get; set; }
+
+    public bool IsIndeterminate => Total == 0;
 
     [ObservableProperty]
     public partial int Progress { get; set; }
 
     [ObservableProperty]
     public partial string? CurrentFile { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasPhase))]
+    public partial string Phase { get; set; }
+
+    public bool HasPhase => !string.IsNullOrEmpty(Phase);
 
     public string CountText => $"{Current} of {Total}";
 
@@ -32,6 +41,7 @@ public sealed partial class ProgressWindowVM : VMBase
         _cts = isCancellable ? new CancellationTokenSource() : null;
         Total = total;
         IsCancellable = isCancellable;
+        Phase = string.Empty;
     }
 
     [RelayCommand]

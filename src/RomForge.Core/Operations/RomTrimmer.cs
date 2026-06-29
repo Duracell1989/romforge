@@ -7,8 +7,7 @@ public static class RomTrimmer
 {
     /// <summary>
     /// Returns the source archive and target archive paths for a trim operation,
-    /// or null if the result is not eligible (status is not <see cref="MatchStatus.Untrimmed"/>
-    /// or no scanned ROM is available).
+    /// or null if the result is not eligible (ROM is not untrimmed or no scanned ROM is available).
     /// </summary>
     /// <remarks>
     /// Unlike <see cref="RomReArchiver.GetReArchiveTarget"/>, this method never returns null
@@ -21,7 +20,7 @@ public static class RomTrimmer
         string targetExtension = "7z"
     )
     {
-        if (result.Status != MatchStatus.Untrimmed || result.ScannedRom is null)
+        if (!result.IsUntrimmed || result.ScannedRom is null)
             return null;
 
         string stem = string.IsNullOrEmpty(namingMask)
