@@ -32,6 +32,7 @@ public partial class App : Application
             IServiceProvider services = ConfigureServices(() => mainWindow);
 
             MainWindowVM vm = services.GetRequiredService<MainWindowVM>();
+            DataContext = vm;
             MainWindow window = new MainWindow { DataContext = vm };
             mainWindow = window;
             desktop.MainWindow = window;

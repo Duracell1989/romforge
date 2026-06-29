@@ -2,14 +2,39 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="RomForge.UI.App"
              xmlns:local="using:RomForge.UI"
+             xmlns:vm="using:RomForge.UI.ViewModels"
+             x:DataType="vm:MainWindowVM"
              RequestedThemeVariant="Default">
              <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
     <Application.DataTemplates>
         <local:ViewLocator/>
     </Application.DataTemplates>
-  
+
     <Application.Styles>
         <FluentTheme />
     </Application.Styles>
+
+    <NativeMenu.Menu>
+        <NativeMenu>
+            <NativeMenuItem Header="File">
+                <NativeMenuItem.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="Import DAT…" Command="{Binding ImportDatCommand}"/>
+                        <NativeMenuItem Header="Remove DAT" Command="{Binding RemoveDatCommand}"/>
+                        <NativeMenuItemSeparator/>
+                        <NativeMenuItem Header="Quit RomForge" Command="{Binding QuitCommand}" Gesture="Meta+Q"/>
+                    </NativeMenu>
+                </NativeMenuItem.Menu>
+            </NativeMenuItem>
+            <NativeMenuItem Header="DAT">
+                <NativeMenuItem.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="Check for Update" Command="{Binding CheckDatUpdateCommand}"/>
+                    </NativeMenu>
+                </NativeMenuItem.Menu>
+            </NativeMenuItem>
+        </NativeMenu>
+    </NativeMenu.Menu>
+
 </Application>

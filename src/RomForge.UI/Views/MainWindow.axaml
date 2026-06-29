@@ -27,6 +27,51 @@ xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         <Style Selector="Button.col-header:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="#18808080"/>
         </Style>
+
+        <!-- Filter chip base -->
+        <Style Selector="ToggleButton.filter-chip">
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="10,3"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="#40808080"/>
+            <Setter Property="Opacity" Value="0.5"/>
+        </Style>
+        <Style Selector="ToggleButton.filter-chip:checked">
+            <Setter Property="Opacity" Value="1"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="ToggleButton.filter-chip:pointerover /template/ ContentPresenter">
+            <Setter Property="Opacity" Value="0.85"/>
+        </Style>
+
+        <!-- Per-status checked colours -->
+        <Style Selector="ToggleButton.filter-chip.status-good:checked">
+            <Setter Property="Background" Value="#00E676"/>
+            <Setter Property="BorderBrush" Value="#00E676"/>
+        </Style>
+        <Style Selector="ToggleButton.filter-chip.status-verified:checked">
+            <Setter Property="Background" Value="#4CAF50"/>
+            <Setter Property="BorderBrush" Value="#4CAF50"/>
+        </Style>
+        <Style Selector="ToggleButton.filter-chip.status-missing:checked">
+            <Setter Property="Background" Value="#F44336"/>
+            <Setter Property="BorderBrush" Value="#F44336"/>
+        </Style>
+        <Style Selector="ToggleButton.filter-chip.status-incorrectly-named:checked">
+            <Setter Property="Background" Value="#FF9800"/>
+            <Setter Property="BorderBrush" Value="#FF9800"/>
+        </Style>
+        <Style Selector="ToggleButton.filter-chip.status-wrong-archive:checked">
+            <Setter Property="Background" Value="#2196F3"/>
+            <Setter Property="BorderBrush" Value="#2196F3"/>
+        </Style>
+        <Style Selector="ToggleButton.filter-chip.status-untrimmed:checked">
+            <Setter Property="Background" Value="#AB47BC"/>
+            <Setter Property="BorderBrush" Value="#AB47BC"/>
+        </Style>
     </Window.Styles>
 
 <Design.DataContext>
@@ -40,10 +85,6 @@ xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                 BorderThickness="0,0,0,1"
                 Padding="6,4">
             <StackPanel Orientation="Horizontal" Spacing="4">
-                <Button Command="{Binding ImportDatCommand}" Content="Import DAT…"/>
-                <Button Command="{Binding RemoveDatCommand}" Content="Remove DAT"/>
-                <Button Command="{Binding CheckDatUpdateCommand}" Content="Check for Update"/>
-                <Separator Width="1" Height="18" Margin="4,0"/>
                 <ComboBox ItemsSource="{Binding LoadedDats}"
                           SelectedItem="{Binding ActiveDat, Mode=TwoWay}"
                           MinWidth="200"
@@ -58,18 +99,14 @@ xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                 <Separator Width="1" Height="18" Margin="4,0" IsVisible="{Binding IsDatLoaded}"/>
                 <Button Command="{Binding ScanFolderCommand}" Content="Scan Folder…"/>
                 <Button Command="{Binding MoveUnverifiedCommand}" Content="{Binding MoveUnverifiedLabel}"/>
-                <Button Command="{Binding RenameSelectedCommand}" Content="Rename"/>
-                <Button Command="{Binding RenameAllCommand}" Content="Rename All"/>
                 <Separator Width="1" Height="18" Margin="4,0" IsVisible="{Binding IsDatLoaded}"/>
                 <TextBlock Text="Format:" VerticalAlignment="Center" Opacity="0.7" IsVisible="{Binding IsDatLoaded}"/>
                 <ComboBox ItemsSource="{Binding ArchiveFormats}"
                           SelectedItem="{Binding ArchiveFormat, Mode=TwoWay}"
                           MinWidth="70"
                           IsVisible="{Binding IsDatLoaded}"/>
-                <Button Command="{Binding ReArchiveSelectedCommand}" Content="{Binding ReArchiveButtonLabel}"/>
+                <Button Command="{Binding RenameAllCommand}" Content="Rename All"/>
                 <Button Command="{Binding ReArchiveAllCommand}" Content="{Binding ReArchiveAllButtonLabel}"/>
-                <Separator Width="1" Height="18" Margin="4,0" IsVisible="{Binding IsDatLoaded}"/>
-                <Button Command="{Binding TrimSelectedCommand}" Content="Trim"/>
                 <Button Command="{Binding TrimAllCommand}" Content="Trim All"/>
             </StackPanel>
         </Border>
@@ -113,20 +150,26 @@ xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                                          Margin="0,0,8,0"/>
                                 <StackPanel Grid.Column="1"
                                             Orientation="Horizontal"
-                                            Spacing="12"
+                                            Spacing="6"
                                             VerticalAlignment="Center">
-                                    <CheckBox Content="Verified"
-                                              IsChecked="{Binding ActiveDat.ShowVerified}"/>
-                                    <CheckBox Content="Missing"
-                                              IsChecked="{Binding ActiveDat.ShowMissing}"/>
-                                    <CheckBox Content="Incorrectly Named"
-                                              IsChecked="{Binding ActiveDat.ShowIncorrectlyNamed}"/>
-                                    <CheckBox Content="Wrong Archive"
-                                              IsChecked="{Binding ActiveDat.ShowWrongArchiveType}"/>
-                                    <CheckBox Content="Untrimmed"
-                                              IsChecked="{Binding ActiveDat.ShowUntrimmed}"/>
-                                    <CheckBox Content="Good"
-                                              IsChecked="{Binding ActiveDat.ShowGood}"/>
+                                    <ToggleButton Classes="filter-chip status-verified"
+                                                  Content="Verified"
+                                                  IsChecked="{Binding ActiveDat.ShowVerified, Mode=TwoWay}"/>
+                                    <ToggleButton Classes="filter-chip status-missing"
+                                                  Content="Missing"
+                                                  IsChecked="{Binding ActiveDat.ShowMissing, Mode=TwoWay}"/>
+                                    <ToggleButton Classes="filter-chip status-incorrectly-named"
+                                                  Content="Incorrectly Named"
+                                                  IsChecked="{Binding ActiveDat.ShowIncorrectlyNamed, Mode=TwoWay}"/>
+                                    <ToggleButton Classes="filter-chip status-wrong-archive"
+                                                  Content="Wrong Archive"
+                                                  IsChecked="{Binding ActiveDat.ShowWrongArchiveType, Mode=TwoWay}"/>
+                                    <ToggleButton Classes="filter-chip status-untrimmed"
+                                                  Content="Untrimmed"
+                                                  IsChecked="{Binding ActiveDat.ShowUntrimmed, Mode=TwoWay}"/>
+                                    <ToggleButton Classes="filter-chip status-good"
+                                                  Content="Good"
+                                                  IsChecked="{Binding ActiveDat.ShowGood, Mode=TwoWay}"/>
                                 </StackPanel>
                             </Grid>
                         </Border>
@@ -206,6 +249,16 @@ xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                         <ListBox ItemsSource="{Binding ActiveDat.FilteredGames}"
                                  SelectedItem="{Binding SelectedGame}"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Rename"
+                                              Command="{Binding $parent[Window].DataContext.RenameSelectedCommand}"/>
+                                    <MenuItem Header="Re-archive"
+                                              Command="{Binding $parent[Window].DataContext.ReArchiveSelectedCommand}"/>
+                                    <MenuItem Header="Trim"
+                                              Command="{Binding $parent[Window].DataContext.TrimSelectedCommand}"/>
+                                </ContextMenu>
+                            </ListBox.ContextMenu>
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="vm:GameRowVM">
                                     <Grid ColumnDefinitions="60,*,150,60,80,80,130" Margin="0,1">
