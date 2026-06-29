@@ -75,4 +75,71 @@ public class ProgressWindowVMTests
 
         raised.Should().Contain(nameof(ProgressWindowVM.HasPhase));
     }
+
+    // --- Cancellation ---
+
+    [Test]
+    public void CancellationToken_WhenNotCancellable_IsNone()
+    {
+        ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: false);
+
+        vm.CancellationToken.Should().Be(System.Threading.CancellationToken.None);
+    }
+
+    [Test]
+    public void CancellationToken_WhenCancellable_IsNotNone()
+    {
+        ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: true);
+
+        vm.CancellationToken.Should().NotBe(System.Threading.CancellationToken.None);
+    }
+
+    [Test]
+    public void CancelCommand_WhenCancellable_SetsCancellationRequested()
+    {
+        ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: true);
+
+        vm.CancelCommand.Execute(null);
+
+        vm.CancellationToken.IsCancellationRequested.Should().BeTrue();
+    }
+
+    [Test]
+    public void IsCancellable_WhenConstructedWithTrue_IsTrue()
+    {
+        ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: true);
+
+        vm.IsCancellable.Should().BeTrue();
+    }
+
+    [Test]
+    public void IsCancellable_WhenConstructedWithFalse_IsFalse()
+    {
+        ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: false);
+
+        vm.IsCancellable.Should().BeFalse();
+    }
+
+    // --- CountText ---
+
+    [Test]
+    public void CountText_ReflectsCurrentAndTotal()
+    {
+        ProgressWindowVM vm = new ProgressWindowVM(100, isCancellable: false);
+        vm.Current = 42;
+
+        vm.CountText.Should().Be("42 of 100");
+    }
+
+    [Test]
+    public void CountText_RaisesPropertyChanged_WhenCurrentChanges()
+    {
+        ProgressWindowVM vm = new ProgressWindowVM(10, isCancellable: false);
+        List<string?> raised = [];
+        vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        vm.Current = 5;
+
+        raised.Should().Contain(nameof(ProgressWindowVM.CountText));
+    }
 }

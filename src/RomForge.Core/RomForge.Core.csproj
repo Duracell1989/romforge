@@ -9,6 +9,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="$(MSBuildProjectName).UnitTests" />
     <InternalsVisibleTo Include="$(MSBuildProjectName).IntegrationTests" />
+    <InternalsVisibleTo Include="RomForge.UI.UnitTests" />
   </ItemGroup>
 
   <ItemGroup>
