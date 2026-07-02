@@ -36,6 +36,10 @@ public sealed partial class ProgressWindowVM : VMBase
 
     public string CountText => $"{Current} of {Total}";
 
+    public ProgressWindowVM() : this(100, false)
+    {
+    }
+
     public ProgressWindowVM(int total, bool isCancellable)
     {
         _cts = isCancellable ? new CancellationTokenSource() : null;

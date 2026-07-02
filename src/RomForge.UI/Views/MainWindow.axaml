@@ -74,10 +74,6 @@ xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         </Style>
     </Window.Styles>
 
-<Design.DataContext>
-        <vm:MainWindowVM/>
-    </Design.DataContext>
-
     <DockPanel>
 
         <!-- Toolbar -->
