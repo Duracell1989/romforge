@@ -8,12 +8,118 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Set version
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Update Info.plist version
+        run: |
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" packaging/macos/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" packaging/macos/Info.plist
+
+      - name: Publish
+        run: |
+          dotnet publish src/RomForge.UI/RomForge.UI.csproj \
+            -c Release \
+            -r osx-arm64 \
+            --self-contained true \
+            -o artifacts/publish/osx-arm64
+
+      # CreateMacOSBundle MSBuild target fires automatically on publish for osx-* RIDs.
+      # It assembles artifacts/RomForge.app and chmod +x the binary.
+
+      - name: Import signing certificate
+        if: ${{ secrets.MACOS_CERT_P12 != '' }}
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          echo "$MACOS_CERT_P12" | base64 --decode > /tmp/cert.p12
+          security create-keychain -p "build" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "build" build.keychain
+          security import /tmp/cert.p12 -k build.keychain -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "build" build.keychain
+          rm /tmp/cert.p12
+
+      - name: Sign .app
+        if: ${{ secrets.MACOS_CERT_P12 != '' }}
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          codesign --deep --force --verify --verbose \
+            --sign "Developer ID Application: Ben de Bruijn ($APPLE_TEAM_ID)" \
+            --options runtime \
+            --entitlements packaging/macos/entitlements.plist \
+            artifacts/RomForge.app
+
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Create DMG
+        run: |
+          mkdir -p artifacts/dmg-staging
+          cp -R artifacts/RomForge.app artifacts/dmg-staging/
+          create-dmg \
+            --volname "RomForge" \
+            --volicon "packaging/macos/icon.icns" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "RomForge.app" 160 195 \
+            --hide-extension "RomForge.app" \
+            --app-drop-link 430 195 \
+            "RomForge-macOS-arm64.dmg" \
+            "artifacts/dmg-staging"
+
+      - name: Sign DMG
+        if: ${{ secrets.MACOS_CERT_P12 != '' }}
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          codesign \
+            --sign "Developer ID Application: Ben de Bruijn ($APPLE_TEAM_ID)" \
+            "RomForge-macOS-arm64.dmg"
+
+      - name: Notarize DMG
+        if: ${{ secrets.APPLE_ID != '' }}
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          xcrun notarytool submit "RomForge-macOS-arm64.dmg" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+
+      - name: Staple DMG
+        if: ${{ secrets.APPLE_ID != '' }}
+        run: xcrun stapler staple "RomForge-macOS-arm64.dmg"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RomForge-macOS-arm64.dmg
+          path: RomForge-macOS-arm64.dmg
+
+  build-cross:
     strategy:
       matrix:
         include:
-          - rid: osx-arm64
-            archive: RomForge-macOS-arm64.tar.gz
           - rid: win-x64
             archive: RomForge-Windows-x64.zip
           - rid: linux-x64
@@ -37,12 +143,6 @@ jobs:
             --self-contained true \
             -o artifacts/publish/${{ matrix.rid }}
 
-      # CreateMacOSBundle MSBuild target fires automatically on publish for osx-* RIDs.
-      # It assembles artifacts/RomForge.app and chmod +x the binary.
-      - name: Package (macOS)
-        if: startsWith(matrix.rid, 'osx-')
-        run: tar czf ${{ matrix.archive }} -C artifacts RomForge.app
-
       - name: Package (Windows)
         if: matrix.rid == 'win-x64'
         run: |
@@ -59,7 +159,7 @@ jobs:
           path: ${{ matrix.archive }}
 
   release:
-    needs: build
+    needs: [build-macos, build-cross]
     runs-on: ubuntu-latest
 
     steps:
