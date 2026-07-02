@@ -10,6 +10,12 @@ permissions:
 jobs:
   build-macos:
     runs-on: macos-latest
+    env:
+      MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+      MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
 
     steps:
       - uses: actions/checkout@v4
@@ -42,10 +48,7 @@ jobs:
       # It assembles artifacts/RomForge.app and chmod +x the binary.
 
       - name: Import signing certificate
-        if: secrets.MACOS_CERT_P12 != ''
-        env:
-          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
-          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        if: env.MACOS_CERT_P12 != ''
         run: |
           echo "$MACOS_CERT_P12" | base64 --decode > /tmp/cert.p12
           security create-keychain -p "build" build.keychain
@@ -56,9 +59,7 @@ jobs:
           rm /tmp/cert.p12
 
       - name: Sign .app
-        if: secrets.MACOS_CERT_P12 != ''
-        env:
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        if: env.MACOS_CERT_P12 != ''
         run: |
           codesign --deep --force --verify --verbose \
             --sign "Developer ID Application: Ben de Bruijn ($APPLE_TEAM_ID)" \
@@ -86,20 +87,14 @@ jobs:
             "artifacts/dmg-staging"
 
       - name: Sign DMG
-        if: secrets.MACOS_CERT_P12 != ''
-        env:
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        if: env.MACOS_CERT_P12 != ''
         run: |
           codesign \
             --sign "Developer ID Application: Ben de Bruijn ($APPLE_TEAM_ID)" \
             "RomForge-macOS-arm64.dmg"
 
       - name: Notarize DMG
-        if: secrets.APPLE_ID != ''
-        env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        if: env.APPLE_ID != ''
         run: |
           xcrun notarytool submit "RomForge-macOS-arm64.dmg" \
             --apple-id "$APPLE_ID" \
@@ -108,7 +103,7 @@ jobs:
             --wait
 
       - name: Staple DMG
-        if: secrets.APPLE_ID != ''
+        if: env.APPLE_ID != ''
         run: xcrun stapler staple "RomForge-macOS-arm64.dmg"
 
       - uses: actions/upload-artifact@v4
