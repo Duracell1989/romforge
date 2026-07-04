@@ -14,7 +14,7 @@ public interface IArchiveCompressor
         string destArchive,
         long romSize,
         IProgress<int>? progress = null,
-        CancellationToken cancellationToken = default,
-        string format = "7z"
+        string format = "7z",
+        CancellationToken cancellationToken = default
     );
 }

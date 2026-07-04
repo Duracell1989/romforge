@@ -154,20 +154,23 @@ public class RomScannerTests
             .Returns((uint?)null);
 
         IReadOnlyList<ScannedRom> results = await RomScanner.ScanAsync(
-            source, "/roms", cacheMock.Object
+            source,
+            "/roms",
+            cacheMock.Object
         );
 
         streamOpened.Should().BeFalse();
         results.Should().HaveCount(1);
         results[0].Crc.Should().Be(expectedCrc);
         cacheMock.Verify(
-            c => c.Set(
-                It.IsAny<string>(),
-                It.IsAny<long>(),
-                It.IsAny<DateTime>(),
-                It.IsAny<uint>(),
-                It.IsAny<uint?>()
-            ),
+            c =>
+                c.Set(
+                    It.IsAny<string>(),
+                    It.IsAny<long>(),
+                    It.IsAny<DateTime>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint?>()
+                ),
             Times.Never
         );
     }
@@ -197,12 +200,17 @@ public class RomScannerTests
             .Returns((uint?)null);
 
         IReadOnlyList<ScannedRom> results = await RomScanner.ScanAsync(
-            source, "/roms", cacheMock.Object
+            source,
+            "/roms",
+            cacheMock.Object
         );
 
         uint expectedCrc = Crc32Of(content);
         results[0].Crc.Should().Be(expectedCrc);
-        cacheMock.Verify(c => c.Set("/roms/game.gba", size, lastModified, expectedCrc, null), Times.Once);
+        cacheMock.Verify(
+            c => c.Set("/roms/game.gba", size, lastModified, expectedCrc, null),
+            Times.Once
+        );
     }
 
     [Test]
@@ -296,7 +304,9 @@ public class RomScannerTests
             .Returns(cachedTrimmedCrc);
 
         IReadOnlyList<ScannedRom> results = await RomScanner.ScanAsync(
-            source, "/roms", cacheMock.Object
+            source,
+            "/roms",
+            cacheMock.Object
         );
 
         results[0].Crc.Should().Be(cachedCrc);
@@ -347,19 +357,51 @@ public class RomScannerTests
         byte[] e = [0x05];
 
         IRomSource source = StubSource([
-            new RomContent { FilePath = "/roms/a.7z", FileExtension = "7z", RomExtension = "gba", OpenStreamAsync = _ => new ValueTask<Stream>(new MemoryStream(a)) },
-            new RomContent { FilePath = "/roms/b.7z", FileExtension = "7z", RomExtension = "gba", OpenStreamAsync = _ => new ValueTask<Stream>(new MemoryStream(b)) },
-            new RomContent { FilePath = "/roms/c.7z", FileExtension = "7z", RomExtension = "gba", OpenStreamAsync = _ => new ValueTask<Stream>(new MemoryStream(c)) },
-            new RomContent { FilePath = "/roms/d.7z", FileExtension = "7z", RomExtension = "gba", OpenStreamAsync = _ => new ValueTask<Stream>(new MemoryStream(d)) },
-            new RomContent { FilePath = "/roms/e.7z", FileExtension = "7z", RomExtension = "gba", OpenStreamAsync = _ => new ValueTask<Stream>(new MemoryStream(e)) },
+            new RomContent
+            {
+                FilePath = "/roms/a.7z",
+                FileExtension = "7z",
+                RomExtension = "gba",
+                OpenStreamAsync = _ => new ValueTask<Stream>(new MemoryStream(a)),
+            },
+            new RomContent
+            {
+                FilePath = "/roms/b.7z",
+                FileExtension = "7z",
+                RomExtension = "gba",
+                OpenStreamAsync = _ => new ValueTask<Stream>(new MemoryStream(b)),
+            },
+            new RomContent
+            {
+                FilePath = "/roms/c.7z",
+                FileExtension = "7z",
+                RomExtension = "gba",
+                OpenStreamAsync = _ => new ValueTask<Stream>(new MemoryStream(c)),
+            },
+            new RomContent
+            {
+                FilePath = "/roms/d.7z",
+                FileExtension = "7z",
+                RomExtension = "gba",
+                OpenStreamAsync = _ => new ValueTask<Stream>(new MemoryStream(d)),
+            },
+            new RomContent
+            {
+                FilePath = "/roms/e.7z",
+                FileExtension = "7z",
+                RomExtension = "gba",
+                OpenStreamAsync = _ => new ValueTask<Stream>(new MemoryStream(e)),
+            },
         ]);
 
         IReadOnlyList<ScannedRom> results = await RomScanner.ScanAsync(source, "/roms");
 
-        results.Select(r => r.FilePath)
+        results
+            .Select(r => r.FilePath)
             .Should()
             .ContainInOrder("/roms/a.7z", "/roms/b.7z", "/roms/c.7z", "/roms/d.7z", "/roms/e.7z");
-        results.Select(r => r.Crc)
+        results
+            .Select(r => r.Crc)
             .Should()
             .ContainInOrder(Crc32Of(a), Crc32Of(b), Crc32Of(c), Crc32Of(d), Crc32Of(e));
     }
@@ -369,8 +411,20 @@ public class RomScannerTests
     {
         byte[] content = [0x01, 0x02];
         IRomSource source = StubSource([
-            new RomContent { FilePath = "/roms/a.gba", FileExtension = "gba", RomExtension = "gba", OpenStreamAsync = _ => new ValueTask<Stream>(new MemoryStream(content)) },
-            new RomContent { FilePath = "/roms/b.gba", FileExtension = "gba", RomExtension = "gba", OpenStreamAsync = _ => new ValueTask<Stream>(new MemoryStream(content)) },
+            new RomContent
+            {
+                FilePath = "/roms/a.gba",
+                FileExtension = "gba",
+                RomExtension = "gba",
+                OpenStreamAsync = _ => new ValueTask<Stream>(new MemoryStream(content)),
+            },
+            new RomContent
+            {
+                FilePath = "/roms/b.gba",
+                FileExtension = "gba",
+                RomExtension = "gba",
+                OpenStreamAsync = _ => new ValueTask<Stream>(new MemoryStream(content)),
+            },
         ]);
 
         List<ScanProgress> reports = [];
@@ -379,9 +433,16 @@ public class RomScannerTests
         await RomScanner.ScanAsync(source, "/roms", progress: progress);
 
         // Enumeration reports use the pre-counted total (2) from CountAsync, so Total > 0 from the first report
-        reports.Should().Contain(p => p.Total == 2 && p.Completed == 1, "first enumeration report must show 1 of pre-counted 2");
+        reports
+            .Should()
+            .Contain(
+                p => p.Total == 2 && p.Completed == 1,
+                "first enumeration report must show 1 of pre-counted 2"
+            );
         // Processing reports also have Total == 2
-        reports.Should().Contain(p => p.Total == 2 && p.Completed == 2, "all files must be reported processed");
+        reports
+            .Should()
+            .Contain(p => p.Total == 2 && p.Completed == 2, "all files must be reported processed");
     }
 
     [Test]
@@ -393,16 +454,42 @@ public class RomScannerTests
         uint cachedCrc = 0xDEADBEEF;
 
         IRomSource source = StubSource([
-            new RomContent { FilePath = "/roms/a.gba", FileExtension = "gba", RomExtension = "gba", FileSize = size, LastModified = lastModified, OpenStreamAsync = _ => new ValueTask<Stream>(new MemoryStream(content)) },
-            new RomContent { FilePath = "/roms/b.gba", FileExtension = "gba", RomExtension = "gba", FileSize = size, LastModified = lastModified, OpenStreamAsync = _ => new ValueTask<Stream>(new MemoryStream(content)) },
-            new RomContent { FilePath = "/roms/c.gba", FileExtension = "gba", RomExtension = "gba", FileSize = size, LastModified = lastModified, OpenStreamAsync = _ => new ValueTask<Stream>(new MemoryStream(content)) },
+            new RomContent
+            {
+                FilePath = "/roms/a.gba",
+                FileExtension = "gba",
+                RomExtension = "gba",
+                FileSize = size,
+                LastModified = lastModified,
+                OpenStreamAsync = _ => new ValueTask<Stream>(new MemoryStream(content)),
+            },
+            new RomContent
+            {
+                FilePath = "/roms/b.gba",
+                FileExtension = "gba",
+                RomExtension = "gba",
+                FileSize = size,
+                LastModified = lastModified,
+                OpenStreamAsync = _ => new ValueTask<Stream>(new MemoryStream(content)),
+            },
+            new RomContent
+            {
+                FilePath = "/roms/c.gba",
+                FileExtension = "gba",
+                RomExtension = "gba",
+                FileSize = size,
+                LastModified = lastModified,
+                OpenStreamAsync = _ => new ValueTask<Stream>(new MemoryStream(content)),
+            },
         ]);
 
         Mock<IRomScanCache> cacheMock = new Mock<IRomScanCache>();
         cacheMock.Setup(c => c.GetCrc("/roms/a.gba", size, lastModified)).Returns(cachedCrc);
         cacheMock.Setup(c => c.GetCrc("/roms/b.gba", size, lastModified)).Returns(cachedCrc);
         cacheMock.Setup(c => c.GetCrc("/roms/c.gba", size, lastModified)).Returns((uint?)null);
-        cacheMock.Setup(c => c.GetTrimmedCrc(It.IsAny<string>(), It.IsAny<long>(), It.IsAny<DateTime>())).Returns((uint?)null);
+        cacheMock
+            .Setup(c => c.GetTrimmedCrc(It.IsAny<string>(), It.IsAny<long>(), It.IsAny<DateTime>()))
+            .Returns((uint?)null);
 
         List<ScanProgress> reports = [];
         IProgress<ScanProgress> progress = new SyncProgress<ScanProgress>(p => reports.Add(p));
@@ -411,8 +498,12 @@ public class RomScannerTests
 
         List<ScanProgress> crcReports = reports.Where(p => p.Phase == "Computing CRCs...").ToList();
         crcReports.Should().NotBeEmpty();
-        crcReports.Should().AllSatisfy(p => p.Total.Should().Be(1), "only 1 of 3 files is a cache miss");
-        crcReports.Should().Contain(p => p.Completed == 1, "the single miss must be reported as completed");
+        crcReports
+            .Should()
+            .AllSatisfy(p => p.Total.Should().Be(1), "only 1 of 3 files is a cache miss");
+        crcReports
+            .Should()
+            .Contain(p => p.Completed == 1, "the single miss must be reported as completed");
     }
 
     [Test]
@@ -448,7 +539,7 @@ public class RomScannerTests
         trimmedCrc.Should().BeNull();
     }
 
-    private static IRomSource StubSource(IReadOnlyList<RomContent> items) =>
+    private static StubRomSource StubSource(IReadOnlyList<RomContent> items) =>
         new StubRomSource(items);
 
     private sealed class StubRomSource : IRomSource
@@ -460,8 +551,10 @@ public class RomScannerTests
             _items = items;
         }
 
-        public Task<int> CountAsync(string folderPath, CancellationToken cancellationToken = default)
-            => Task.FromResult(_items.Count);
+        public Task<int> CountAsync(
+            string folderPath,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(_items.Count);
 
         public async IAsyncEnumerable<RomContent> EnumerateAsync(
             string folderPath,
@@ -480,7 +573,9 @@ public class RomScannerTests
     private sealed class SyncProgress<T> : IProgress<T>
     {
         private readonly Action<T> _callback;
+
         internal SyncProgress(Action<T> callback) => _callback = callback;
+
         public void Report(T value) => _callback(value);
     }
 

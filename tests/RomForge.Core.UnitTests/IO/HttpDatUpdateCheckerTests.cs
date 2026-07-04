@@ -9,6 +9,7 @@ using Moq.Protected;
 using NUnit.Framework;
 using RomForge.Core.IO;
 using Serilog;
+using Serilog.Core;
 
 namespace RomForge.Core.UnitTests.IO;
 
@@ -111,5 +112,5 @@ public sealed class HttpDatUpdateCheckerTests
         return new HttpClient(handlerMock.Object);
     }
 
-    private static ILogger NullLogger() => new LoggerConfiguration().CreateLogger();
+    private static Logger NullLogger() => new LoggerConfiguration().CreateLogger();
 }

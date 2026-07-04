@@ -11,8 +11,14 @@ namespace RomForge.UI.UnitTests.ViewModels;
 [TestOf(typeof(LoadedDatVM))]
 public class LoadedDatVMTests
 {
+    private static readonly int[] FilteredReleaseNumbers = [1, 3];
+
     private static DatFile MakeDat() =>
-        new DatFile { Header = new DatHeader { DatName = "Test", System = "Test" }, Games = [] };
+        new DatFile
+        {
+            Header = new DatHeader { DatName = "Test", System = "Test" },
+            Games = [],
+        };
 
     private static LoadedDatVM MakeVm(params Game[] games)
     {
@@ -30,7 +36,12 @@ public class LoadedDatVMTests
     }
 
     private static Game MakeGame(int release, string title, string? publisher = null) =>
-        new Game { ReleaseNumber = release, Title = title, Publisher = publisher };
+        new Game
+        {
+            ReleaseNumber = release,
+            Title = title,
+            Publisher = publisher,
+        };
 
     private static GameRowVM MakeRow(MatchResult result) =>
         new GameRowVM(result, string.Empty, new DatHeader(), []);
@@ -40,36 +51,52 @@ public class LoadedDatVMTests
         LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
 
         // A = Verified (no flags) → StatusSortKey 4
-        vm.Games.Add(new GameRowVM(
-            new MatchResult { Game = new Game { ReleaseNumber = 1, Title = "A" }, Status = MatchStatus.Verified },
-            "/imgs", new DatHeader(), []
-        ));
+        vm.Games.Add(
+            new GameRowVM(
+                new MatchResult
+                {
+                    Game = new Game { ReleaseNumber = 1, Title = "A" },
+                    Status = MatchStatus.Verified,
+                },
+                "/imgs",
+                new DatHeader(),
+                []
+            )
+        );
         // B = Missing → StatusSortKey 0
-        vm.Games.Add(new GameRowVM(
-            new MatchResult { Game = new Game { ReleaseNumber = 2, Title = "B" }, Status = MatchStatus.Missing },
-            "/imgs", new DatHeader(), []
-        ));
+        vm.Games.Add(
+            new GameRowVM(
+                new MatchResult
+                {
+                    Game = new Game { ReleaseNumber = 2, Title = "B" },
+                    Status = MatchStatus.Missing,
+                },
+                "/imgs",
+                new DatHeader(),
+                []
+            )
+        );
         // C = Verified + IncorrectlyNamed → StatusSortKey 3
-        vm.Games.Add(new GameRowVM(
-            new MatchResult
-            {
-                Game = new Game { ReleaseNumber = 3, Title = "C" },
-                Status = MatchStatus.Verified,
-                IsIncorrectlyNamed = true,
-            },
-            "/imgs", new DatHeader(), []
-        ));
+        vm.Games.Add(
+            new GameRowVM(
+                new MatchResult
+                {
+                    Game = new Game { ReleaseNumber = 3, Title = "C" },
+                    Status = MatchStatus.Verified,
+                    IsIncorrectlyNamed = true,
+                },
+                "/imgs",
+                new DatHeader(),
+                []
+            )
+        );
         return vm;
     }
 
     [Test]
     public void FilteredGames_DefaultOrder_MatchesInsertionOrder()
     {
-        LoadedDatVM vm = MakeVm(
-            MakeGame(3, "Zelda"),
-            MakeGame(1, "Mario"),
-            MakeGame(2, "Metroid")
-        );
+        LoadedDatVM vm = MakeVm(MakeGame(3, "Zelda"), MakeGame(1, "Mario"), MakeGame(2, "Metroid"));
 
         vm.FilteredGames.Select(g => g.ReleaseNumber).Should().ContainInOrder(3, 1, 2);
     }
@@ -77,11 +104,7 @@ public class LoadedDatVMTests
     [Test]
     public void SortBy_ReleaseNumber_SortsAscending()
     {
-        LoadedDatVM vm = MakeVm(
-            MakeGame(3, "Zelda"),
-            MakeGame(1, "Mario"),
-            MakeGame(2, "Metroid")
-        );
+        LoadedDatVM vm = MakeVm(MakeGame(3, "Zelda"), MakeGame(1, "Mario"), MakeGame(2, "Metroid"));
 
         vm.SortByCommand.Execute("ReleaseNumber");
 
@@ -91,11 +114,7 @@ public class LoadedDatVMTests
     [Test]
     public void SortBy_ReleaseNumberTwice_SortsDescending()
     {
-        LoadedDatVM vm = MakeVm(
-            MakeGame(3, "Zelda"),
-            MakeGame(1, "Mario"),
-            MakeGame(2, "Metroid")
-        );
+        LoadedDatVM vm = MakeVm(MakeGame(3, "Zelda"), MakeGame(1, "Mario"), MakeGame(2, "Metroid"));
 
         vm.SortByCommand.Execute("ReleaseNumber");
         vm.SortByCommand.Execute("ReleaseNumber");
@@ -106,11 +125,7 @@ public class LoadedDatVMTests
     [Test]
     public void SortBy_Title_SortsAlphabeticallyAscending()
     {
-        LoadedDatVM vm = MakeVm(
-            MakeGame(1, "Zelda"),
-            MakeGame(2, "Mario"),
-            MakeGame(3, "Metroid")
-        );
+        LoadedDatVM vm = MakeVm(MakeGame(1, "Zelda"), MakeGame(2, "Mario"), MakeGame(3, "Metroid"));
 
         vm.SortByCommand.Execute("Title");
 
@@ -120,11 +135,7 @@ public class LoadedDatVMTests
     [Test]
     public void SortBy_TitleDescending_SortsReverseAlphabetically()
     {
-        LoadedDatVM vm = MakeVm(
-            MakeGame(1, "Zelda"),
-            MakeGame(2, "Mario"),
-            MakeGame(3, "Metroid")
-        );
+        LoadedDatVM vm = MakeVm(MakeGame(1, "Zelda"), MakeGame(2, "Mario"), MakeGame(3, "Metroid"));
 
         vm.SortByCommand.Execute("Title");
         vm.SortByCommand.Execute("Title");
@@ -143,7 +154,9 @@ public class LoadedDatVMTests
 
         vm.SortByCommand.Execute("Publisher");
 
-        vm.FilteredGames.Select(g => g.Publisher).Should().ContainInOrder("Acclaim", "Capcom", "Nintendo");
+        vm.FilteredGames.Select(g => g.Publisher)
+            .Should()
+            .ContainInOrder("Acclaim", "Capcom", "Nintendo");
     }
 
     [Test]
@@ -161,11 +174,7 @@ public class LoadedDatVMTests
     [Test]
     public void SortBy_DifferentColumn_ResetsToAscending()
     {
-        LoadedDatVM vm = MakeVm(
-            MakeGame(3, "Zelda"),
-            MakeGame(1, "Mario"),
-            MakeGame(2, "Metroid")
-        );
+        LoadedDatVM vm = MakeVm(MakeGame(3, "Zelda"), MakeGame(1, "Mario"), MakeGame(2, "Metroid"));
 
         vm.SortByCommand.Execute("ReleaseNumber");
         vm.SortByCommand.Execute("ReleaseNumber");
@@ -214,7 +223,16 @@ public class LoadedDatVMTests
     public void StatusSummary_GoodGame_ContainsGoodCount()
     {
         LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
-        vm.Games.Add(MakeRow(new MatchResult { Game = new Game(), Status = MatchStatus.Verified, IsReArchived = true }));
+        vm.Games.Add(
+            MakeRow(
+                new MatchResult
+                {
+                    Game = new Game(),
+                    Status = MatchStatus.Verified,
+                    IsReArchived = true,
+                }
+            )
+        );
 
         vm.StatusSummary.Should().Contain("1 good");
     }
@@ -233,13 +251,17 @@ public class LoadedDatVMTests
     {
         // A game that is both Untrimmed AND WrongArchiveType should count only as untrimmed.
         LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
-        vm.Games.Add(MakeRow(new MatchResult
-        {
-            Game = new Game(),
-            Status = MatchStatus.Verified,
-            IsUntrimmed = true,
-            IsWrongArchiveType = true,
-        }));
+        vm.Games.Add(
+            MakeRow(
+                new MatchResult
+                {
+                    Game = new Game(),
+                    Status = MatchStatus.Verified,
+                    IsUntrimmed = true,
+                    IsWrongArchiveType = true,
+                }
+            )
+        );
 
         vm.StatusSummary.Should().Contain("1 untrimmed");
         vm.StatusSummary.Should().NotContain("wrong archive");
@@ -264,8 +286,24 @@ public class LoadedDatVMTests
     public void ShowMissing_False_HidesMissingRows()
     {
         LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
-        vm.Games.Add(MakeRow(new MatchResult { Game = new Game { ReleaseNumber = 1 }, Status = MatchStatus.Missing }));
-        vm.Games.Add(MakeRow(new MatchResult { Game = new Game { ReleaseNumber = 2 }, Status = MatchStatus.Verified }));
+        vm.Games.Add(
+            MakeRow(
+                new MatchResult
+                {
+                    Game = new Game { ReleaseNumber = 1 },
+                    Status = MatchStatus.Missing,
+                }
+            )
+        );
+        vm.Games.Add(
+            MakeRow(
+                new MatchResult
+                {
+                    Game = new Game { ReleaseNumber = 2 },
+                    Status = MatchStatus.Verified,
+                }
+            )
+        );
 
         vm.ShowMissing = false;
 
@@ -277,8 +315,24 @@ public class LoadedDatVMTests
     public void ShowVerified_False_HidesPureVerifiedRows()
     {
         LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
-        vm.Games.Add(MakeRow(new MatchResult { Game = new Game { ReleaseNumber = 1 }, Status = MatchStatus.Verified }));
-        vm.Games.Add(MakeRow(new MatchResult { Game = new Game { ReleaseNumber = 2 }, Status = MatchStatus.Missing }));
+        vm.Games.Add(
+            MakeRow(
+                new MatchResult
+                {
+                    Game = new Game { ReleaseNumber = 1 },
+                    Status = MatchStatus.Verified,
+                }
+            )
+        );
+        vm.Games.Add(
+            MakeRow(
+                new MatchResult
+                {
+                    Game = new Game { ReleaseNumber = 2 },
+                    Status = MatchStatus.Missing,
+                }
+            )
+        );
 
         vm.ShowVerified = false;
 
@@ -298,24 +352,34 @@ public class LoadedDatVMTests
         vm.TitleFilter = "mario";
 
         vm.FilteredGames.Should().HaveCount(2);
-        vm.FilteredGames.Select(g => g.ReleaseNumber).Should().BeEquivalentTo(new[] { 1, 3 });
+        vm.FilteredGames.Select(g => g.ReleaseNumber)
+            .Should()
+            .BeEquivalentTo(FilteredReleaseNumbers);
     }
 
     [Test]
     public void ShowUntrimmed_False_HidesUntrimmedRows()
     {
         LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
-        vm.Games.Add(MakeRow(new MatchResult
-        {
-            Game = new Game { ReleaseNumber = 1 },
-            Status = MatchStatus.Verified,
-            IsUntrimmed = true,
-        }));
-        vm.Games.Add(MakeRow(new MatchResult
-        {
-            Game = new Game { ReleaseNumber = 2 },
-            Status = MatchStatus.Verified,
-        }));
+        vm.Games.Add(
+            MakeRow(
+                new MatchResult
+                {
+                    Game = new Game { ReleaseNumber = 1 },
+                    Status = MatchStatus.Verified,
+                    IsUntrimmed = true,
+                }
+            )
+        );
+        vm.Games.Add(
+            MakeRow(
+                new MatchResult
+                {
+                    Game = new Game { ReleaseNumber = 2 },
+                    Status = MatchStatus.Verified,
+                }
+            )
+        );
 
         vm.ShowUntrimmed = false;
 
@@ -327,18 +391,42 @@ public class LoadedDatVMTests
     public void SortBy_PreservesActiveFilter()
     {
         LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
-        vm.Games.Add(new GameRowVM(
-            new MatchResult { Game = new Game { ReleaseNumber = 3, Title = "Zelda" }, Status = MatchStatus.Verified },
-            "/imgs", new DatHeader(), []
-        ));
-        vm.Games.Add(new GameRowVM(
-            new MatchResult { Game = new Game { ReleaseNumber = 1, Title = "Mario" }, Status = MatchStatus.Missing },
-            "/imgs", new DatHeader(), []
-        ));
-        vm.Games.Add(new GameRowVM(
-            new MatchResult { Game = new Game { ReleaseNumber = 2, Title = "Metroid" }, Status = MatchStatus.Verified },
-            "/imgs", new DatHeader(), []
-        ));
+        vm.Games.Add(
+            new GameRowVM(
+                new MatchResult
+                {
+                    Game = new Game { ReleaseNumber = 3, Title = "Zelda" },
+                    Status = MatchStatus.Verified,
+                },
+                "/imgs",
+                new DatHeader(),
+                []
+            )
+        );
+        vm.Games.Add(
+            new GameRowVM(
+                new MatchResult
+                {
+                    Game = new Game { ReleaseNumber = 1, Title = "Mario" },
+                    Status = MatchStatus.Missing,
+                },
+                "/imgs",
+                new DatHeader(),
+                []
+            )
+        );
+        vm.Games.Add(
+            new GameRowVM(
+                new MatchResult
+                {
+                    Game = new Game { ReleaseNumber = 2, Title = "Metroid" },
+                    Status = MatchStatus.Verified,
+                },
+                "/imgs",
+                new DatHeader(),
+                []
+            )
+        );
         vm.ShowMissing = false;
 
         vm.SortByCommand.Execute("ReleaseNumber");

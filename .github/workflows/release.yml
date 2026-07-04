@@ -4,9 +4,6 @@ on:
   push:
     tags: ['v*']
 
-permissions:
-  contents: write
-
 jobs:
   build-macos:
     runs-on: macos-latest
@@ -156,6 +153,8 @@ jobs:
   release:
     needs: [build-macos, build-cross]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/download-artifact@v4

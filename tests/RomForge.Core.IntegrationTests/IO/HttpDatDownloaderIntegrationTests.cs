@@ -137,13 +137,8 @@ public sealed class HttpDatDownloaderIntegrationTests
         await cts.CancelAsync();
         HttpDatDownloader downloader = MakeDownloader(HttpStatusCode.OK, []);
 
-        Func<Task> act = () => downloader.DownloadDatAsync(
-            "http://fake/gba.zip",
-            _destDir,
-            null,
-            null,
-            cts.Token
-        );
+        Func<Task> act = () =>
+            downloader.DownloadDatAsync("http://fake/gba.zip", _destDir, null, null, cts.Token);
 
         await act.Should().ThrowAsync<OperationCanceledException>();
         Directory.GetFiles(_appData.TempPath).Should().BeEmpty();
@@ -227,14 +222,27 @@ public sealed class HttpDatDownloaderIntegrationTests
         await cts.CancelAsync();
         HttpDatDownloader downloader = MakeDownloader(HttpStatusCode.OK, []);
 
-        Func<Task> act = () => downloader.DownloadImagesAsync(
-            "http://fake/imgs.zip",
-            _destDir,
-            null,
-            cts.Token
-        );
+        Func<Task> act = () =>
+            downloader.DownloadImagesAsync("http://fake/imgs.zip", _destDir, null, cts.Token);
 
         await act.Should().ThrowAsync<OperationCanceledException>();
         Directory.GetFiles(_appData.TempPath).Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task DownloadImagesAsync_ZipSlipEntry_ReturnsFailed()
+    {
+        byte[] zip = CreateZip([("../evil.txt", "pwned")]);
+        HttpDatDownloader downloader = MakeDownloader(HttpStatusCode.OK, zip);
+
+        FluentResults.Result result = await downloader.DownloadImagesAsync(
+            "http://fake/imgs.zip",
+            _destDir,
+            null,
+            CancellationToken.None
+        );
+
+        result.IsFailed.Should().BeTrue();
+        File.Exists(Path.Combine(Path.GetDirectoryName(_destDir)!, "evil.txt")).Should().BeFalse();
     }
 }
