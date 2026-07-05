@@ -72,6 +72,8 @@ public partial class App : Application
         services.AddSingleton<ILogger>(Log.Logger);
         services.AddSingleton<IFileDialogService>(_ => new AvaloniaFileDialogService(getWindow));
         services.AddSingleton<IUserNotifier>(_ => new AvaloniaUserNotifier(getWindow));
+        services.AddSingleton<IUiDispatcher, AvaloniaUiDispatcher>();
+        services.AddSingleton<IAppLifetime, AvaloniaAppLifetime>();
         services.AddSingleton<IRomSource, FileSystemRomSource>();
         services.AddSingleton<IRomFileOperations, LocalRomFileOperations>();
         services.AddSingleton<IArchiveCompressor, SevenZipCliCompressor>();

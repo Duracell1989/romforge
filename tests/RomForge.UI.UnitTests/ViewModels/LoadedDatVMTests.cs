@@ -1,9 +1,11 @@
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using AwesomeAssertions;
 using NUnit.Framework;
 using RomForge.Core.Matching;
 using RomForge.Core.Models;
+using RomForge.Core.Scanning;
 using RomForge.UI.ViewModels;
 
 namespace RomForge.UI.UnitTests.ViewModels;
@@ -433,5 +435,283 @@ public class LoadedDatVMTests
 
         vm.FilteredGames.Should().HaveCount(2);
         vm.FilteredGames.Select(g => g.ReleaseNumber).Should().ContainInOrder(2, 3);
+    }
+
+    // --- Additional filter chip tests ---
+
+    [Test]
+    public void ShowIncorrectlyNamed_False_HidesIncorrectlyNamedRows()
+    {
+        LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
+        vm.Games.Add(
+            MakeRow(
+                new MatchResult
+                {
+                    Game = new Game { ReleaseNumber = 1 },
+                    Status = MatchStatus.Verified,
+                    IsIncorrectlyNamed = true,
+                }
+            )
+        );
+        vm.Games.Add(
+            MakeRow(
+                new MatchResult
+                {
+                    Game = new Game { ReleaseNumber = 2 },
+                    Status = MatchStatus.Verified,
+                }
+            )
+        );
+
+        vm.ShowIncorrectlyNamed = false;
+
+        vm.FilteredGames.Should().HaveCount(1);
+        vm.FilteredGames[0].ReleaseNumber.Should().Be(2);
+    }
+
+    [Test]
+    public void ShowWrongArchiveType_False_HidesWrongArchiveTypeRows()
+    {
+        LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
+        vm.Games.Add(
+            MakeRow(
+                new MatchResult
+                {
+                    Game = new Game { ReleaseNumber = 1 },
+                    Status = MatchStatus.Verified,
+                    IsWrongArchiveType = true,
+                }
+            )
+        );
+        vm.Games.Add(
+            MakeRow(
+                new MatchResult
+                {
+                    Game = new Game { ReleaseNumber = 2 },
+                    Status = MatchStatus.Verified,
+                }
+            )
+        );
+
+        vm.ShowWrongArchiveType = false;
+
+        vm.FilteredGames.Should().HaveCount(1);
+        vm.FilteredGames[0].ReleaseNumber.Should().Be(2);
+    }
+
+    [Test]
+    public void ShowGood_False_HidesReArchivedRows()
+    {
+        LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
+        vm.Games.Add(
+            MakeRow(
+                new MatchResult
+                {
+                    Game = new Game { ReleaseNumber = 1 },
+                    Status = MatchStatus.Verified,
+                    IsReArchived = true,
+                }
+            )
+        );
+        vm.Games.Add(
+            MakeRow(
+                new MatchResult
+                {
+                    Game = new Game { ReleaseNumber = 2 },
+                    Status = MatchStatus.Missing,
+                }
+            )
+        );
+
+        vm.ShowGood = false;
+
+        vm.FilteredGames.Should().HaveCount(1);
+        vm.FilteredGames[0].ReleaseNumber.Should().Be(2);
+    }
+
+    // --- Additional sort column tests ---
+
+    [Test]
+    public void SortBy_Location_SortsAscending()
+    {
+        LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
+        vm.Games.Add(
+            MakeRow(
+                new MatchResult
+                {
+                    Game = new Game { ReleaseNumber = 1, Location = 2 }, // "(US)"
+                    Status = MatchStatus.Verified,
+                }
+            )
+        );
+        vm.Games.Add(
+            MakeRow(
+                new MatchResult
+                {
+                    Game = new Game { ReleaseNumber = 2, Location = 1 }, // "(EU)"
+                    Status = MatchStatus.Verified,
+                }
+            )
+        );
+
+        vm.SortByCommand.Execute("Location");
+
+        // "(EU)" sorts before "(US)"
+        vm.FilteredGames.Select(g => g.ReleaseNumber).Should().ContainInOrder(2, 1);
+    }
+
+    [Test]
+    public void SortBy_Language_SortsAscending()
+    {
+        LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
+        vm.Games.Add(
+            MakeRow(
+                new MatchResult
+                {
+                    Game = new Game { ReleaseNumber = 1, Language = 5 }, // "5"
+                    Status = MatchStatus.Verified,
+                }
+            )
+        );
+        vm.Games.Add(
+            MakeRow(
+                new MatchResult
+                {
+                    Game = new Game { ReleaseNumber = 2, Language = 0 }, // ""
+                    Status = MatchStatus.Verified,
+                }
+            )
+        );
+
+        vm.SortByCommand.Execute("Language");
+
+        // "" sorts before "5"
+        vm.FilteredGames.Select(g => g.ReleaseNumber).Should().ContainInOrder(2, 1);
+    }
+
+    [Test]
+    public void SortBy_ReArchived_SortsAscending()
+    {
+        LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
+        vm.Games.Add(
+            MakeRow(
+                new MatchResult
+                {
+                    Game = new Game { ReleaseNumber = 1 },
+                    Status = MatchStatus.Verified,
+                    IsReArchived = true,
+                }
+            )
+        );
+        vm.Games.Add(
+            MakeRow(
+                new MatchResult
+                {
+                    Game = new Game { ReleaseNumber = 2 },
+                    Status = MatchStatus.Verified,
+                    IsReArchived = false,
+                }
+            )
+        );
+
+        vm.SortByCommand.Execute("ReArchived");
+
+        // false sorts before true ascending
+        vm.FilteredGames.Select(g => g.IsReArchived).Should().ContainInOrder(false, true);
+    }
+
+    // --- DisplaySubtitle ---
+
+    [Test]
+    public void DisplaySubtitle_WhenNoFolder_ContainsNoFolder()
+    {
+        LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
+
+        vm.DisplaySubtitle.Should().Contain("No folder");
+    }
+
+    [Test]
+    public void DisplaySubtitle_WhenFolderSet_ContainsFolderName()
+    {
+        LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
+        vm.RomFolder = "/roms/gba";
+
+        vm.DisplaySubtitle.Should().Contain("gba");
+    }
+
+    // --- GameCount / FilteredCount ---
+
+    [Test]
+    public void GameCount_ReflectsGamesCollection()
+    {
+        LoadedDatVM vm = MakeVm(MakeGame(1, "A"), MakeGame(2, "B"));
+
+        vm.GameCount.Should().Be(2);
+    }
+
+    [Test]
+    public void FilteredCount_ReflectsFilteredGames()
+    {
+        LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
+        vm.Games.Add(MakeRow(new MatchResult { Game = new Game(), Status = MatchStatus.Missing }));
+        vm.Games.Add(MakeRow(new MatchResult { Game = new Game(), Status = MatchStatus.Verified }));
+        vm.ShowMissing = false;
+
+        vm.FilteredCount.Should().Be(1);
+    }
+
+    // --- UnmatchedCount ---
+
+    [Test]
+    public void UnmatchedCount_ReflectsUnmatchedRomsList()
+    {
+        LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
+        vm.UnmatchedRoms =
+        [
+            new ScannedRom { FilePath = "/roms/a.zip" },
+            new ScannedRom { FilePath = "/roms/b.zip" },
+        ];
+
+        vm.UnmatchedCount.Should().Be(2);
+    }
+
+    // --- BuildGameRow ---
+
+    [Test]
+    public void BuildGameRow_ReturnsRowWithCorrectTitleAndStatus()
+    {
+        LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
+        MatchResult result = new MatchResult
+        {
+            Game = new Game { Title = "Mario" },
+            Status = MatchStatus.Missing,
+        };
+
+        GameRowVM row = vm.BuildGameRow(result);
+
+        row.Title.Should().Be("Mario");
+        row.Status.Should().Be(MatchStatus.Missing);
+    }
+
+    // --- Games replacement (OnGamesChanged with non-null old value) ---
+
+    [Test]
+    public void Games_WhenReplaced_RefreshesFilteredGames()
+    {
+        LoadedDatVM vm = MakeVm(MakeGame(1, "Mario"));
+
+        vm.Games = new ObservableCollection<GameRowVM>
+        {
+            MakeRow(
+                new MatchResult
+                {
+                    Game = new Game { Title = "Zelda" },
+                    Status = MatchStatus.Verified,
+                }
+            ),
+        };
+
+        vm.FilteredGames.Should().HaveCount(1);
+        vm.FilteredGames[0].Title.Should().Be("Zelda");
     }
 }

@@ -1,8 +1,11 @@
+using System;
 using System.Collections.Generic;
 using AwesomeAssertions;
 using NUnit.Framework;
 using RomForge.Core.Matching;
 using RomForge.Core.Models;
+using RomForge.Core.Scanning;
+using RomForge.UI.Converters;
 using RomForge.UI.ViewModels;
 
 namespace RomForge.UI.UnitTests.ViewModels;
@@ -14,8 +17,7 @@ public sealed class GameRowVMTests
         MatchResult result,
         DatHeader? header = null,
         IReadOnlyList<LanguageBit>? bits = null
-    ) =>
-        new GameRowVM(result, string.Empty, header ?? new DatHeader(), bits ?? []);
+    ) => new GameRowVM(result, string.Empty, header ?? new DatHeader(), bits ?? []);
 
     private static MatchResult MakeVerified(
         bool incorrectlyNamed = false,
@@ -176,11 +178,7 @@ public sealed class GameRowVMTests
     [Test]
     public void Language_MultipleBitsSet_ReturnsJoinedLabels()
     {
-        IReadOnlyList<LanguageBit> bits =
-        [
-            new LanguageBit(0, "EN"),
-            new LanguageBit(1, "FR"),
-        ];
+        IReadOnlyList<LanguageBit> bits = [new LanguageBit(0, "EN"), new LanguageBit(1, "FR")];
         GameRowVM vm = MakeRow(MakeVerified(language: 3), bits: bits);
 
         vm.Language.Should().Be("EN FR");
@@ -198,10 +196,23 @@ public sealed class GameRowVMTests
 
     // --- Location ---
 
+    [TestCase(0, "(Unknown)")]
     [TestCase(1, "(EU)")]
     [TestCase(2, "(US)")]
+    [TestCase(3, "(DE)")]
+    [TestCase(4, "(Others)")]
+    [TestCase(5, "(ES)")]
+    [TestCase(6, "(FR)")]
     [TestCase(7, "(JP)")]
+    [TestCase(8, "(AU)")]
+    [TestCase(9, "(IT)")]
+    [TestCase(10, "(HK)")]
+    [TestCase(11, "(NL)")]
+    [TestCase(12, "(KR)")]
+    [TestCase(13, "(BR)")]
     [TestCase(16, "(CN)")]
+    [TestCase(18, "(SE)")]
+    [TestCase(19, "(CA)")]
     [TestCase(22, "(PT)")]
     public void Location_KnownCode_ReturnsExpectedString(int code, string expected)
     {
@@ -280,5 +291,111 @@ public sealed class GameRowVMTests
         );
 
         vm.ExpectedFileName.Should().Be("0001 Mario");
+    }
+
+    // --- StatusBrush ---
+
+    [Test]
+    public void StatusBrush_Missing_ReturnsMissingBrush()
+    {
+        GameRowVM vm = MakeRow(new MatchResult { Game = new Game(), Status = MatchStatus.Missing });
+
+        vm.StatusBrush.Should().BeSameAs(StatusColors.Missing);
+    }
+
+    [Test]
+    public void StatusBrush_Untrimmed_ReturnsUntrimmedBrush()
+    {
+        GameRowVM vm = MakeRow(MakeVerified(untrimmed: true));
+
+        vm.StatusBrush.Should().BeSameAs(StatusColors.Untrimmed);
+    }
+
+    [Test]
+    public void StatusBrush_WrongArchiveType_ReturnsWrongArchiveTypeBrush()
+    {
+        GameRowVM vm = MakeRow(MakeVerified(wrongArchiveType: true));
+
+        vm.StatusBrush.Should().BeSameAs(StatusColors.WrongArchiveType);
+    }
+
+    [Test]
+    public void StatusBrush_IncorrectlyNamed_ReturnsIncorrectlyNamedBrush()
+    {
+        GameRowVM vm = MakeRow(MakeVerified(incorrectlyNamed: true));
+
+        vm.StatusBrush.Should().BeSameAs(StatusColors.IncorrectlyNamed);
+    }
+
+    [Test]
+    public void StatusBrush_ReArchived_ReturnsGoodBrush()
+    {
+        GameRowVM vm = MakeRow(MakeVerified(reArchived: true));
+
+        vm.StatusBrush.Should().BeSameAs(StatusColors.Good);
+    }
+
+    [Test]
+    public void StatusBrush_PlainVerified_ReturnsVerifiedBrush()
+    {
+        GameRowVM vm = MakeRow(MakeVerified());
+
+        vm.StatusBrush.Should().BeSameAs(StatusColors.Verified);
+    }
+
+    // --- ReArchivedText ---
+
+    [Test]
+    public void ReArchivedText_WhenReArchived_ReturnsCheckmark()
+    {
+        GameRowVM vm = MakeRow(MakeVerified(reArchived: true));
+
+        vm.ReArchivedText.Should().Be("✓");
+    }
+
+    [Test]
+    public void ReArchivedText_WhenNotReArchived_ReturnsDash()
+    {
+        GameRowVM vm = MakeRow(MakeVerified());
+
+        vm.ReArchivedText.Should().Be("–");
+    }
+
+    // --- FilePath ---
+
+    [Test]
+    public void FilePath_WhenNoScannedRom_ReturnsNull()
+    {
+        GameRowVM vm = MakeRow(MakeVerified());
+
+        vm.FilePath.Should().BeNull();
+    }
+
+    [Test]
+    public void FilePath_WhenScannedRomPresent_ReturnsPath()
+    {
+        GameRowVM vm = MakeRow(
+            new MatchResult
+            {
+                Game = new Game(),
+                Status = MatchStatus.Verified,
+                ScannedRom = new ScannedRom { FilePath = "/roms/mario.zip" },
+            }
+        );
+
+        vm.FilePath.Should().Be("/roms/mario.zip");
+    }
+
+    // --- Dispose ---
+
+    [Test]
+    public void Dispose_WhenCalledTwice_DoesNotThrow()
+    {
+        GameRowVM vm = MakeRow(MakeVerified());
+        vm.Dispose();
+
+        Action act = () => vm.Dispose();
+
+        act.Should().NotThrow();
     }
 }

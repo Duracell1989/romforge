@@ -8,9 +8,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Avalonia;
-using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FluentResults;
@@ -43,6 +40,8 @@ public partial class MainWindowVM : VMBase
     private readonly ScanResultStore _scanResultStore;
     private readonly ReArchiveStore _reArchiveStore;
     private readonly AppPreferencesService _preferencesService;
+    private readonly IUiDispatcher _uiDispatcher;
+    private readonly IAppLifetime _appLifetime;
 
     private ObservableCollection<GameRowVM>? _subscribedGames;
 
@@ -96,7 +95,9 @@ public partial class MainWindowVM : VMBase
         DatConfigService configService,
         ScanResultStore scanResultStore,
         ReArchiveStore reArchiveStore,
-        AppPreferencesService preferencesService
+        AppPreferencesService preferencesService,
+        IUiDispatcher uiDispatcher,
+        IAppLifetime appLifetime
     )
     {
         _fileDialogs = fileDialogs;
@@ -115,6 +116,8 @@ public partial class MainWindowVM : VMBase
         _scanResultStore = scanResultStore;
         _reArchiveStore = reArchiveStore;
         _preferencesService = preferencesService;
+        _uiDispatcher = uiDispatcher;
+        _appLifetime = appLifetime;
         LoadedDats = new ObservableCollection<LoadedDatVM>();
         ArchiveFormat = "7z";
     }
@@ -939,7 +942,7 @@ public partial class MainWindowVM : VMBase
                 }
 
                 int done = Interlocked.Increment(ref completed);
-                await Dispatcher.UIThread.InvokeAsync(() =>
+                await _uiDispatcher.InvokeAsync(() =>
                 {
                     progress.Completed = done;
                 });
@@ -1301,7 +1304,7 @@ public partial class MainWindowVM : VMBase
         MatchResult updated
     )
     {
-        await Dispatcher.UIThread.InvokeAsync(() =>
+        await _uiDispatcher.InvokeAsync(() =>
         {
             GameRowVM updatedRow = activeDat.BuildGameRow(updated);
             int index = activeDat.Games.IndexOf(original);
@@ -1484,15 +1487,6 @@ public partial class MainWindowVM : VMBase
         );
     }
 
-#pragma warning disable CA1822 // QuitCommand must be an instance property for XAML {Binding} to resolve against the DataContext
     [RelayCommand]
-    private void Quit()
-    {
-        if (
-            Application.Current?.ApplicationLifetime
-            is IClassicDesktopStyleApplicationLifetime lifetime
-        )
-            lifetime.Shutdown();
-    }
-#pragma warning restore CA1822
+    private void Quit() => _appLifetime.Shutdown();
 }
