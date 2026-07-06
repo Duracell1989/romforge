@@ -39,8 +39,8 @@ public sealed class SevenZipCliCompressor : IArchiveCompressor
         string destArchive,
         long romSize,
         IProgress<int>? progress = null,
-        CancellationToken cancellationToken = default,
-        string format = "7z"
+        string format = "7z",
+        CancellationToken cancellationToken = default
     )
     {
         if (_binaryPath is null)
@@ -119,19 +119,19 @@ public sealed class SevenZipCliCompressor : IArchiveCompressor
         // 7-Zip LZMA switch reference: https://7-zip.opensource.jp/chm/cmdline/switches/method.htm
         var args = new System.Text.StringBuilder();
         args.Append($"a \"{destArchive}\" \"{sourceFile}\"");
-        args.Append(" -t7z");                          // 7z format
-        args.Append(" -m0=LZMA");                      // LZMA compression method
-        args.Append(" -mx=9");                         // Ultra compression level
-        args.Append(" -mmf=bt5");                      // Match finder bt5 (best ratio)
-        args.Append(" -mmc=1000000000");               // Match cycles (maximum passes)
-        args.Append($" -md={dictMb}m");                // Dictionary sized to ROM
-        args.Append(" -mfb=273");                      // Fast bytes (maximum)
-        args.Append(" -mlc=3");                        // Literal context bits (default; best for mixed binary content)
-        args.Append(" -mlp=0");                        // Literal position bits (default)
-        args.Append(" -mpb=2");                        // Position bits (default)
-        args.Append(" -mhc=on");                       // Compress archive header
-        args.Append(" -ms=on");                        // Solid mode
-        args.Append(" -y");                            // Yes to all prompts
+        args.Append(" -t7z"); // 7z format
+        args.Append(" -m0=LZMA"); // LZMA compression method
+        args.Append(" -mx=9"); // Ultra compression level
+        args.Append(" -mmf=bt5"); // Match finder bt5 (best ratio)
+        args.Append(" -mmc=1000000000"); // Match cycles (maximum passes)
+        args.Append($" -md={dictMb}m"); // Dictionary sized to ROM
+        args.Append(" -mfb=273"); // Fast bytes (maximum)
+        args.Append(" -mlc=3"); // Literal context bits (default; best for mixed binary content)
+        args.Append(" -mlp=0"); // Literal position bits (default)
+        args.Append(" -mpb=2"); // Position bits (default)
+        args.Append(" -mhc=on"); // Compress archive header
+        args.Append(" -ms=on"); // Solid mode
+        args.Append(" -y"); // Yes to all prompts
         return args.ToString();
     }
 
@@ -190,9 +190,7 @@ public sealed class SevenZipCliCompressor : IArchiveCompressor
 
     private static string? FindInPath(string name)
     {
-        var searchDirs = (
-            Environment.GetEnvironmentVariable("PATH") ?? string.Empty
-        )
+        var searchDirs = (Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
             .Split(Path.PathSeparator)
             .Concat(["/opt/homebrew/bin", "/usr/local/bin"]);
 

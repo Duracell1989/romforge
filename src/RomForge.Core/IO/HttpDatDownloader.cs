@@ -6,9 +6,9 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentResults;
+using RomForge.Core.Services;
 using Serilog;
 using SharpCompress.Archives;
-using RomForge.Core.Services;
 
 namespace RomForge.Core.IO;
 
@@ -76,14 +76,24 @@ public sealed class HttpDatDownloader : IDatDownloader
             var entries = archive.Entries.Where(e => !e.IsDirectory).ToList();
             var total = entries.Count;
             var done = 0;
+            var canonicalDestDir = Path.GetFullPath(imgsDestDir);
 
             foreach (var entry in entries)
             {
                 ct.ThrowIfCancellationRequested();
-                var relativePath = entry.Key!
-                    .Replace('/', Path.DirectorySeparatorChar)
+                var relativePath = entry
+                    .Key!.Replace('/', Path.DirectorySeparatorChar)
                     .TrimStart(Path.DirectorySeparatorChar);
-                var destPath = Path.Combine(imgsDestDir, relativePath);
+                var destPath = Path.GetFullPath(Path.Combine(canonicalDestDir, relativePath));
+                if (
+                    !destPath.StartsWith(
+                        canonicalDestDir + Path.DirectorySeparatorChar,
+                        StringComparison.Ordinal
+                    )
+                )
+                    throw new InvalidOperationException(
+                        $"Archive entry '{entry.Key}' would extract outside the destination directory."
+                    );
                 Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
                 await using var src = await entry.OpenEntryStreamAsync(ct);
                 await using var dst = File.Create(destPath);

@@ -29,7 +29,7 @@ public partial class App : Application
             ConfigureLogging();
 
             MainWindow? mainWindow = null;
-            IServiceProvider services = ConfigureServices(() => mainWindow);
+            ServiceProvider services = ConfigureServices(() => mainWindow);
 
             MainWindowVM vm = services.GetRequiredService<MainWindowVM>();
             DataContext = vm;
@@ -66,17 +66,20 @@ public partial class App : Application
         Log.Information("RomForge starting");
     }
 
-    private static IServiceProvider ConfigureServices(Func<Window?> getWindow)
+    private static ServiceProvider ConfigureServices(Func<Window?> getWindow)
     {
         ServiceCollection services = new ServiceCollection();
         services.AddSingleton<ILogger>(Log.Logger);
         services.AddSingleton<IFileDialogService>(_ => new AvaloniaFileDialogService(getWindow));
         services.AddSingleton<IUserNotifier>(_ => new AvaloniaUserNotifier(getWindow));
+        services.AddSingleton<IUiDispatcher, AvaloniaUiDispatcher>();
+        services.AddSingleton<IAppLifetime, AvaloniaAppLifetime>();
         services.AddSingleton<IRomSource, FileSystemRomSource>();
         services.AddSingleton<IRomFileOperations, LocalRomFileOperations>();
         services.AddSingleton<IArchiveCompressor, SevenZipCliCompressor>();
-        services.AddSingleton<IArchiveExtractor>(sp =>
-            new SharpCompressExtractor(sp.GetRequiredService<AppDataService>().TempPath));
+        services.AddSingleton<IArchiveExtractor>(sp => new SharpCompressExtractor(
+            sp.GetRequiredService<AppDataService>().TempPath
+        ));
 
         services.AddSingleton<HttpClient>(_ =>
         {
