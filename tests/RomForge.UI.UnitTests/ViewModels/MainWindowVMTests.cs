@@ -1327,6 +1327,86 @@ public sealed class MainWindowVMTests
         );
     }
 
+    // --- ReArchiveSelectedAsync: compress succeeds but delete-original fails ---
+
+    [Test]
+    public async Task ReArchiveSelectedAsync_WhenDeleteOriginalFails_NotifiesError()
+    {
+        Mock<IArchiveCompressor> availableCompressor = new Mock<IArchiveCompressor>();
+        availableCompressor.Setup(c => c.IsAvailable).Returns(true);
+        availableCompressor
+            .Setup(c =>
+                c.CompressAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<long>(),
+                    It.IsAny<IProgress<int>?>(),
+                    It.IsAny<string>(),
+                    It.IsAny<CancellationToken>()
+                )
+            )
+            .ReturnsAsync(Result.Ok());
+        MainWindowVM vm = MakeVM(compressorMock: availableCompressor);
+
+        _extractor
+            .Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Ok("/tmp/no_such_extracted.rom"));
+        _fileOps
+            .Setup(f => f.DeleteAsync(It.IsAny<string>()))
+            .ReturnsAsync(Result.Fail("delete failed"));
+
+        LoadedDatVM datVm = MakeDatVM();
+        GameRowVM gameRow = MakeGameRowWithScannedRom("/roms/Test.zip", wrongArchiveType: true);
+        datVm.Games.Add(gameRow);
+        vm.ActiveDat = datVm;
+        vm.SelectedGame = gameRow;
+
+        await vm.ReArchiveSelectedCommand.ExecuteAsync(null);
+
+        _notifier.Verify(
+            n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("delete failed"))),
+            Times.Once
+        );
+    }
+
+    // --- TrimAllAsync: compress failure mid-trim covers TrimOneAsync compress call ---
+
+    [Test]
+    public async Task TrimAllAsync_WhenCompressFails_NotifiesErrors()
+    {
+        _compressor.Setup(c => c.IsAvailable).Returns(true);
+        _compressor
+            .Setup(c =>
+                c.CompressAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<long>(),
+                    It.IsAny<IProgress<int>?>(),
+                    It.IsAny<string>(),
+                    It.IsAny<CancellationToken>()
+                )
+            )
+            .ReturnsAsync(Result.Fail("compress failed"));
+        _extractor
+            .Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Ok("/tmp/no_such_trim.rom"));
+        _fileOps
+            .Setup(f => f.TruncateAsync(It.IsAny<string>(), It.IsAny<long>()))
+            .ReturnsAsync(Result.Ok());
+
+        LoadedDatVM datVm = MakeDatVM();
+        GameRowVM gameRow = MakeGameRowWithScannedRom("/roms/Test.7z", untrimmed: true);
+        datVm.Games.Add(gameRow);
+        _vm.ActiveDat = datVm;
+
+        await _vm.TrimAllCommand.ExecuteAsync(null);
+
+        _notifier.Verify(
+            n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("compress failed"))),
+            Times.Once
+        );
+    }
+
     // --- ReArchiveSelectedAsync success ---
 
     [Test]
