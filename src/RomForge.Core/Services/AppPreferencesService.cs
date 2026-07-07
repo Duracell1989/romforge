@@ -65,5 +65,17 @@ public sealed class AppPreferencesService
         await SaveAsync(existing with { LastActiveDatName = datName });
     }
 
+    public async Task UpdateSettingsAsync(string defaultArchiveFormat, string? unverifiedFolder)
+    {
+        AppPreferences existing = await LoadAsync();
+        await SaveAsync(
+            existing with
+            {
+                DefaultArchiveFormat = defaultArchiveFormat,
+                UnverifiedFolder = unverifiedFolder,
+            }
+        );
+    }
+
     private string GetPath() => Path.Combine(_appData.ConfigPath, "preferences.json");
 }

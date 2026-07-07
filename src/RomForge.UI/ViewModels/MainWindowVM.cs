@@ -44,6 +44,7 @@ public partial class MainWindowVM : VMBase
     private readonly IAppLifetime _appLifetime;
 
     private ObservableCollection<GameRowVM>? _subscribedGames;
+    private string? _unverifiedFolder;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsDatLoaded))]
@@ -66,8 +67,6 @@ public partial class MainWindowVM : VMBase
     [NotifyPropertyChangedFor(nameof(ReArchiveButtonLabel))]
     [NotifyPropertyChangedFor(nameof(ReArchiveAllButtonLabel))]
     public partial string ArchiveFormat { get; set; }
-
-    public IReadOnlyList<string> ArchiveFormats { get; } = ["7z", "zip"];
 
     public string ReArchiveButtonLabel => $"Re-Archive to {ArchiveFormat}";
     public string ReArchiveAllButtonLabel => $"Re-Archive All to {ArchiveFormat}";
@@ -147,12 +146,6 @@ public partial class MainWindowVM : VMBase
         RenameAllCommand.NotifyCanExecuteChanged();
     }
 
-    partial void OnArchiveFormatChanged(string value)
-    {
-        if (ActiveDat is not null)
-            _ = _configService.UpdateArchiveFormatAsync(ActiveDat.DatFile.Header.DatName, value);
-    }
-
     partial void OnActiveDatChanged(LoadedDatVM? oldValue, LoadedDatVM? newValue)
     {
         if (oldValue is not null)
@@ -164,12 +157,10 @@ public partial class MainWindowVM : VMBase
         {
             newValue.PropertyChanged += OnActiveDatPropertyChanged;
             ResubscribeGames(newValue.Games);
-            _ = LoadArchiveFormatAsync(newValue.DatFile.Header.DatName);
             _ = _preferencesService.UpdateLastActiveDatAsync(newValue.DatFile.Header.DatName);
         }
         else
         {
-            ArchiveFormat = "7z";
             _ = _preferencesService.UpdateLastActiveDatAsync(null);
         }
         SelectedGame = null;
@@ -217,12 +208,6 @@ public partial class MainWindowVM : VMBase
         RenameAllCommand.NotifyCanExecuteChanged();
         ReArchiveAllCommand.NotifyCanExecuteChanged();
         TrimAllCommand.NotifyCanExecuteChanged();
-    }
-
-    private async Task LoadArchiveFormatAsync(string datName)
-    {
-        DatConfig? config = await _configService.LoadAsync(datName);
-        ArchiveFormat = config?.ArchiveFormat ?? "7z";
     }
 
     [RelayCommand]
@@ -274,6 +259,8 @@ public partial class MainWindowVM : VMBase
         await _reArchiveStore.InitializeAsync();
 
         AppPreferences prefs = await _preferencesService.LoadAsync();
+        ArchiveFormat = prefs.DefaultArchiveFormat;
+        _unverifiedFolder = prefs.UnverifiedFolder;
 
         foreach (string path in _appData.GetImportedDatPaths())
         {
@@ -292,20 +279,41 @@ public partial class MainWindowVM : VMBase
             LoadedDats.Add(datVm);
         }
 
-        if (LoadedDats.Count == 0)
+        if (LoadedDats.Count > 0)
+        {
+            LoadedDatVM? last = prefs.LastActiveDatName is not null
+                ? LoadedDats.FirstOrDefault(d =>
+                    string.Equals(
+                        d.DatFile.Header.DatName,
+                        prefs.LastActiveDatName,
+                        StringComparison.Ordinal
+                    )
+                )
+                : null;
+
+            ActiveDat = last ?? LoadedDats[0];
+        }
+
+        await WarnIfUnverifiedFolderMissingAsync();
+    }
+
+    /// <summary>
+    /// If a persisted unverified folder no longer exists on disk, notify the user and open
+    /// Settings so they can choose a new one. The stale path is dropped in-memory so a later
+    /// "Move Unverified" falls back to prompting rather than failing on the missing folder.
+    /// </summary>
+    private async Task WarnIfUnverifiedFolderMissingAsync()
+    {
+        if (_unverifiedFolder is null || _fileOperations.DirectoryExists(_unverifiedFolder))
             return;
 
-        LoadedDatVM? last = prefs.LastActiveDatName is not null
-            ? LoadedDats.FirstOrDefault(d =>
-                string.Equals(
-                    d.DatFile.Header.DatName,
-                    prefs.LastActiveDatName,
-                    StringComparison.Ordinal
-                )
-            )
-            : null;
+        await _notifier.NotifyErrorAsync(
+            $"The configured unverified folder no longer exists:\n{_unverifiedFolder}\n\nPlease choose a new one in Settings."
+        );
+        await OpenSettingsAsync();
 
-        ActiveDat = last ?? LoadedDats[0];
+        if (_unverifiedFolder is not null && !_fileOperations.DirectoryExists(_unverifiedFolder))
+            _unverifiedFolder = null;
     }
 
     private async Task LoadDatFromManagedPathAsync(string managedPath)
@@ -1323,9 +1331,13 @@ public partial class MainWindowVM : VMBase
         if (ActiveDat is null || ActiveDat.UnmatchedRoms.Count == 0)
             return;
 
-        string? destFolder = await _fileDialogs.PickUnverifiedDestinationAsync();
+        string? destFolder = _unverifiedFolder;
         if (destFolder is null)
-            return;
+        {
+            destFolder = await _fileDialogs.PickUnverifiedDestinationAsync();
+            if (destFolder is null)
+                return;
+        }
 
         List<ScannedRom> targets = ActiveDat.UnmatchedRoms.ToList();
         ProgressWindowVM progressVm = new ProgressWindowVM(targets.Count, isCancellable: true);
@@ -1485,6 +1497,18 @@ public partial class MainWindowVM : VMBase
             imgProgress,
             progressVm.CancellationToken
         );
+    }
+
+    [RelayCommand]
+    private async Task OpenSettingsAsync()
+    {
+        AppPreferences current = await _preferencesService.LoadAsync();
+        SettingsVM settingsVm = new SettingsVM(_preferencesService, _fileDialogs, current);
+        await _notifier.ShowSettingsAsync(settingsVm);
+
+        AppPreferences updated = await _preferencesService.LoadAsync();
+        ArchiveFormat = updated.DefaultArchiveFormat;
+        _unverifiedFolder = updated.UnverifiedFolder;
     }
 
     [RelayCommand]

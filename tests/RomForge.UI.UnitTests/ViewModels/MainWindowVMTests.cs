@@ -178,10 +178,6 @@ public sealed class MainWindowVMTests
     public void MoveUnverifiedLabel_OnConstruction_ShowsZeroCount() =>
         _vm.MoveUnverifiedLabel.Should().Be("Move Unverified (0)");
 
-    [Test]
-    public void ArchiveFormats_Contains7zAndZip() =>
-        _vm.ArchiveFormats.Should().BeEquivalentTo("7z", "zip");
-
     // --- Computed label properties ---
 
     [Test]
@@ -288,14 +284,14 @@ public sealed class MainWindowVMTests
     }
 
     [Test]
-    public void OnActiveDatChanged_WhenCleared_ResetsArchiveFormatTo7z()
+    public void OnActiveDatChanged_WhenCleared_LeavesArchiveFormatUnchanged()
     {
-        _vm.ActiveDat = MakeDatVM();
         _vm.ArchiveFormat = "zip";
+        _vm.ActiveDat = MakeDatVM();
 
         _vm.ActiveDat = null;
 
-        _vm.ArchiveFormat.Should().Be("7z");
+        _vm.ArchiveFormat.Should().Be("zip");
     }
 
     [Test]
@@ -657,6 +653,61 @@ public sealed class MainWindowVMTests
         _vm.ActiveDat.Should().BeNull();
     }
 
+    private async Task PersistUnverifiedFolderAsync(string? folder) =>
+        await new AppPreferencesService(
+            new AppDataService(_tempDir),
+            new LoggerConfiguration().CreateLogger()
+        ).UpdateSettingsAsync("7z", folder);
+
+    [Test]
+    public async Task LoadManagedDatsAsync_WhenSavedUnverifiedFolderMissing_NotifiesAndOpensSettings()
+    {
+        await PersistUnverifiedFolderAsync("/does/not/exist");
+        _fileOps.Setup(f => f.DirectoryExists("/does/not/exist")).Returns(false);
+
+        await _vm.LoadManagedDatsAsync();
+
+        _notifier.Verify(n => n.NotifyErrorAsync(It.IsAny<string>()), Times.Once);
+        _notifier.Verify(n => n.ShowSettingsAsync(It.IsAny<SettingsVM>()), Times.Once);
+    }
+
+    [Test]
+    public async Task LoadManagedDatsAsync_WhenSavedUnverifiedFolderExists_DoesNotOpenSettings()
+    {
+        await PersistUnverifiedFolderAsync("/exists");
+        _fileOps.Setup(f => f.DirectoryExists("/exists")).Returns(true);
+
+        await _vm.LoadManagedDatsAsync();
+
+        _notifier.Verify(n => n.ShowSettingsAsync(It.IsAny<SettingsVM>()), Times.Never);
+    }
+
+    [Test]
+    public async Task LoadManagedDatsAsync_WhenNoUnverifiedFolderSaved_DoesNotOpenSettings()
+    {
+        await _vm.LoadManagedDatsAsync();
+
+        _notifier.Verify(n => n.ShowSettingsAsync(It.IsAny<SettingsVM>()), Times.Never);
+    }
+
+    [Test]
+    public async Task LoadManagedDatsAsync_WhenSavedFolderMissingAndUserDoesNotFixIt_DropsFolderSoMoveFallsBackToPicker()
+    {
+        await PersistUnverifiedFolderAsync("/does/not/exist");
+        _fileOps.Setup(f => f.DirectoryExists("/does/not/exist")).Returns(false);
+        // Settings dialog is a no-op (user cancels without choosing a new folder).
+        await _vm.LoadManagedDatsAsync();
+
+        LoadedDatVM dat = MakeDatVM();
+        dat.UnmatchedRoms = [new ScannedRom { FilePath = "/roms/unknown.zip" }];
+        _vm.ActiveDat = dat;
+        _fileDialogs.Setup(d => d.PickUnverifiedDestinationAsync()).ReturnsAsync((string?)null);
+
+        await _vm.MoveUnverifiedCommand.ExecuteAsync(null);
+
+        _fileDialogs.Verify(d => d.PickUnverifiedDestinationAsync(), Times.Once);
+    }
+
     // --- MoveUnverifiedAsync ---
 
     [Test]
@@ -974,14 +1025,74 @@ public sealed class MainWindowVMTests
         _vm.ActiveDat.Should().BeNull();
     }
 
-    // --- OnArchiveFormatChanged ---
+    // --- OpenSettingsAsync ---
 
     [Test]
-    public void OnArchiveFormatChanged_WhenActiveDatSet_UpdatesConfigAsync()
+    public async Task OpenSettingsAsync_AppliesPersistedFormat_AfterDialogSaves()
     {
-        _vm.ActiveDat = MakeDatVM();
-        _vm.ArchiveFormat = "zip";
+        _notifier
+            .Setup(n => n.ShowSettingsAsync(It.IsAny<SettingsVM>()))
+            .Returns<SettingsVM>(async vm =>
+            {
+                vm.ArchiveFormat = "zip";
+                await vm.SaveCommand.ExecuteAsync(null);
+            });
+
+        await _vm.OpenSettingsCommand.ExecuteAsync(null);
+
         _vm.ArchiveFormat.Should().Be("zip");
+    }
+
+    [Test]
+    public async Task OpenSettingsAsync_WhenDialogCancelled_DiscardsUnsavedEditsAndKeepsPersistedFormat()
+    {
+        AppPreferencesService prefs = new AppPreferencesService(
+            new AppDataService(_tempDir),
+            new LoggerConfiguration().CreateLogger()
+        );
+        await prefs.UpdateSettingsAsync("zip", null);
+
+        // Cancel: the dialog closes without the VM's SaveCommand ever running.
+        _notifier
+            .Setup(n => n.ShowSettingsAsync(It.IsAny<SettingsVM>()))
+            .Returns<SettingsVM>(vm =>
+            {
+                vm.ArchiveFormat = "7z";
+                return Task.CompletedTask;
+            });
+
+        await _vm.OpenSettingsCommand.ExecuteAsync(null);
+
+        _vm.ArchiveFormat.Should().Be("zip");
+        (await prefs.LoadAsync()).DefaultArchiveFormat.Should().Be("zip");
+    }
+
+    [Test]
+    public async Task MoveUnverifiedAsync_WhenSavedFolderSet_SkipsPickerAndUsesIt()
+    {
+        _notifier
+            .Setup(n => n.ShowSettingsAsync(It.IsAny<SettingsVM>()))
+            .Returns<SettingsVM>(async vm =>
+            {
+                vm.UnverifiedFolder = "/dest";
+                await vm.SaveCommand.ExecuteAsync(null);
+            });
+        await _vm.OpenSettingsCommand.ExecuteAsync(null);
+
+        LoadedDatVM dat = MakeDatVM();
+        dat.UnmatchedRoms = [new ScannedRom { FilePath = "/roms/unknown.zip" }];
+        _vm.ActiveDat = dat;
+        _fileOps
+            .Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(Result.Ok());
+
+        await _vm.MoveUnverifiedCommand.ExecuteAsync(null);
+
+        _fileDialogs.Verify(d => d.PickUnverifiedDestinationAsync(), Times.Never);
+        _fileOps.Verify(
+            f => f.RenameAsync("/roms/unknown.zip", Path.Combine("/dest", "unknown.zip")),
+            Times.Once
+        );
     }
 
     // --- TrimAll command CanExecute ---

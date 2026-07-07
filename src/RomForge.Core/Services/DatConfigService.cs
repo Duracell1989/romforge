@@ -28,8 +28,8 @@ public sealed class DatConfigService
     }
 
     /// <summary>
-    /// Finds the OfflineList .ini alongside the source DAT, parses language bits and archive
-    /// format, and merges them into the persisted config for this DAT.
+    /// Finds the OfflineList .ini alongside the source DAT, parses language bits, and merges
+    /// them into the persisted config for this DAT.
     /// </summary>
     public async Task ImportFromOfflineListAsync(string sourceDatPath, DatHeader header)
     {
@@ -54,11 +54,7 @@ public sealed class DatConfigService
         OfflineListConfig ini = readResult.Value;
         DatConfig existing = await LoadAsync(header.DatName) ?? new DatConfig();
 
-        DatConfig updated = existing with
-        {
-            ArchiveFormat = ini.ArchiveFormat ?? existing.ArchiveFormat,
-            LanguageBits = [.. ini.LanguageBits],
-        };
+        DatConfig updated = existing with { LanguageBits = [.. ini.LanguageBits] };
 
         await SaveAsync(header.DatName, updated);
         _logger.Information(
@@ -106,12 +102,6 @@ public sealed class DatConfigService
         await SaveAsync(datName, existing with { RomFolderPath = romFolderPath });
     }
 
-    public async Task UpdateArchiveFormatAsync(string datName, string archiveFormat)
-    {
-        DatConfig existing = await LoadAsync(datName) ?? new DatConfig();
-        await SaveAsync(datName, existing with { ArchiveFormat = archiveFormat });
-    }
-
     private string GetConfigFilePath(string datName) =>
         Path.Combine(_appData.ConfigPath, SanitizeName(datName) + ".json");
 
@@ -131,9 +121,6 @@ public sealed class DatConfigService
 
     private static string SanitizeName(string name) =>
         string.Concat(
-            System.Linq.Enumerable.Select(
-                name,
-                c => Array.IndexOf(InvalidChars, c) >= 0 ? '_' : c
-            )
+            System.Linq.Enumerable.Select(name, c => Array.IndexOf(InvalidChars, c) >= 0 ? '_' : c)
         );
 }

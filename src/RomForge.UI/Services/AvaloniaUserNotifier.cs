@@ -79,12 +79,13 @@ internal sealed class AvaloniaUserNotifier : IUserNotifier
             window.Opened += (_, _) =>
             {
                 _ = operationTask.ContinueWith(
-                    _ => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                    {
-                        operationCompleted = true;
-                        if (!userInitiatedClose)
-                            window.Close();
-                    }),
+                    _ =>
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                        {
+                            operationCompleted = true;
+                            if (!userInitiatedClose)
+                                window.Close();
+                        }),
                     TaskScheduler.Default
                 );
             };
@@ -99,7 +100,23 @@ internal sealed class AvaloniaUserNotifier : IUserNotifier
         }
     }
 
-    public async Task ShowBatchProgressAsync(string title, BatchProgressWindowVM vm, Task operationTask)
+    public async Task ShowSettingsAsync(SettingsVM vm)
+    {
+        Window? parent = _getWindow();
+        SettingsWindow window = new SettingsWindow { DataContext = vm };
+        vm.RequestClose = _ => window.Close();
+
+        if (parent is not null)
+            await window.ShowDialog(parent);
+        else
+            window.Show();
+    }
+
+    public async Task ShowBatchProgressAsync(
+        string title,
+        BatchProgressWindowVM vm,
+        Task operationTask
+    )
     {
         Window? parent = _getWindow();
         BatchProgressWindow window = new BatchProgressWindow { Title = title, DataContext = vm };
@@ -125,12 +142,13 @@ internal sealed class AvaloniaUserNotifier : IUserNotifier
             window.Opened += (_, _) =>
             {
                 _ = operationTask.ContinueWith(
-                    _ => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                    {
-                        operationCompleted = true;
-                        if (!userInitiatedClose)
-                            window.Close();
-                    }),
+                    _ =>
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                        {
+                            operationCompleted = true;
+                            if (!userInitiatedClose)
+                                window.Close();
+                        }),
                     TaskScheduler.Default
                 );
             };

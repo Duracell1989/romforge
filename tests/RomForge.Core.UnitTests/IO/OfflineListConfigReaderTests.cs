@@ -110,16 +110,6 @@ public sealed class OfflineListConfigReaderTests
     }
 
     [Test]
-    public void Read_ParsesArchiveFormat_WhenPresent()
-    {
-        WriteIni("[Option]\nArchiveFormat=7z\n");
-
-        var result = OfflineListConfigReader.Read(IniPath());
-
-        result.Value.ArchiveFormat.Should().Be("7z");
-    }
-
-    [Test]
     public void Read_IgnoresKeysOutsideOptionSection()
     {
         WriteIni("[Other]\nl1=\"En\"\n[Option]\nl2=\"Fr\"\n");

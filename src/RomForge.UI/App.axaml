@@ -23,6 +23,8 @@
                         <NativeMenuItem Header="Import DAT…" Command="{Binding ImportDatCommand}"/>
                         <NativeMenuItem Header="Remove DAT" Command="{Binding RemoveDatCommand}"/>
                         <NativeMenuItemSeparator/>
+                        <NativeMenuItem Header="Settings…" Command="{Binding OpenSettingsCommand}" Gesture="Meta+,"/>
+                        <NativeMenuItemSeparator/>
                         <NativeMenuItem Header="Quit RomForge" Command="{Binding QuitCommand}" Gesture="Meta+Q"/>
                     </NativeMenu>
                 </NativeMenuItem.Menu>

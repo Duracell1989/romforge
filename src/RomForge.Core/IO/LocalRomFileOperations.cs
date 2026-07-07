@@ -46,4 +46,6 @@ public sealed class LocalRomFileOperations : IRomFileOperations
             return Task.FromResult(Result.Fail(new ExceptionalError(ex)));
         }
     }
+
+    public bool DirectoryExists(string path) => Directory.Exists(path);
 }

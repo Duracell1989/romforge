@@ -72,17 +72,6 @@ public sealed class DatConfigServiceTests
     }
 
     [Test]
-    public async Task SaveAsync_ThenLoadAsync_RoundTripsArchiveFormat()
-    {
-        DatConfig config = new DatConfig { ArchiveFormat = "zip" };
-
-        await _svc.SaveAsync("TestDat", config);
-        DatConfig? loaded = await _svc.LoadAsync("TestDat");
-
-        loaded!.ArchiveFormat.Should().Be("zip");
-    }
-
-    [Test]
     public async Task UpdateRomFolderAsync_NoExistingConfig_CreatesConfigWithFolder()
     {
         await _svc.UpdateRomFolderAsync("TestDat", "/roms/GBA");
@@ -96,7 +85,6 @@ public sealed class DatConfigServiceTests
     {
         DatConfig initial = new DatConfig
         {
-            ArchiveFormat = "7z",
             LanguageBits = new List<LanguageBit> { new LanguageBit(1, "En") },
         };
         await _svc.SaveAsync("TestDat", initial);
@@ -105,7 +93,6 @@ public sealed class DatConfigServiceTests
 
         DatConfig? loaded = await _svc.LoadAsync("TestDat");
         loaded!.RomFolderPath.Should().Be("/roms/GBA");
-        loaded.ArchiveFormat.Should().Be("7z");
         loaded.LanguageBits.Should().HaveCount(1);
     }
 
@@ -146,28 +133,5 @@ public sealed class DatConfigServiceTests
 
         DatConfig? loaded = await _svc.LoadAsync("GBA");
         loaded.Should().BeNull();
-    }
-
-    [Test]
-    public async Task UpdateArchiveFormatAsync_NoExistingConfig_CreatesConfigWithFormat()
-    {
-        await _svc.UpdateArchiveFormatAsync("TestDat", "zip");
-
-        DatConfig? loaded = await _svc.LoadAsync("TestDat");
-        loaded.Should().NotBeNull();
-        loaded!.ArchiveFormat.Should().Be("zip");
-    }
-
-    [Test]
-    public async Task UpdateArchiveFormatAsync_ExistingConfig_UpdatesOnlyArchiveFormat()
-    {
-        DatConfig initial = new DatConfig { RomFolderPath = "/roms/GBA", ArchiveFormat = "7z" };
-        await _svc.SaveAsync("TestDat", initial);
-
-        await _svc.UpdateArchiveFormatAsync("TestDat", "zip");
-
-        DatConfig? loaded = await _svc.LoadAsync("TestDat");
-        loaded!.ArchiveFormat.Should().Be("zip");
-        loaded.RomFolderPath.Should().Be("/roms/GBA");
     }
 }

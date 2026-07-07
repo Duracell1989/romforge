@@ -34,12 +34,50 @@ public sealed class AppPreferencesServiceTests
         AppPreferences result = await _svc.LoadAsync();
 
         result.LastActiveDatName.Should().BeNull();
+        result.DefaultArchiveFormat.Should().Be("7z");
+        result.UnverifiedFolder.Should().BeNull();
+    }
+
+    [Test]
+    public async Task UpdateSettingsAsync_PersistsFormatAndFolder()
+    {
+        await _svc.UpdateSettingsAsync("zip", "/roms/unverified");
+
+        AppPreferences loaded = await _svc.LoadAsync();
+        loaded.DefaultArchiveFormat.Should().Be("zip");
+        loaded.UnverifiedFolder.Should().Be("/roms/unverified");
+    }
+
+    [Test]
+    public async Task UpdateSettingsAsync_ClearsFolder_WhenNull()
+    {
+        await _svc.UpdateSettingsAsync("7z", "/roms/unverified");
+
+        await _svc.UpdateSettingsAsync("zip", null);
+
+        AppPreferences loaded = await _svc.LoadAsync();
+        loaded.UnverifiedFolder.Should().BeNull();
+        loaded.DefaultArchiveFormat.Should().Be("zip");
+    }
+
+    [Test]
+    public async Task UpdateSettingsAsync_PreservesLastActiveDatName()
+    {
+        await _svc.UpdateLastActiveDatAsync("GBA");
+
+        await _svc.UpdateSettingsAsync("zip", "/roms/unverified");
+
+        AppPreferences loaded = await _svc.LoadAsync();
+        loaded.LastActiveDatName.Should().Be("GBA");
     }
 
     [Test]
     public async Task SaveAsync_ThenLoadAsync_RoundTripsLastActiveDatName()
     {
-        AppPreferences prefs = new AppPreferences { LastActiveDatName = "GBA - Official OfflineList" };
+        AppPreferences prefs = new AppPreferences
+        {
+            LastActiveDatName = "GBA - Official OfflineList",
+        };
 
         await _svc.SaveAsync(prefs);
         AppPreferences loaded = await _svc.LoadAsync();
@@ -59,7 +97,9 @@ public sealed class AppPreferencesServiceTests
     [Test]
     public async Task UpdateLastActiveDatAsync_ClearsName_WhenNull()
     {
-        await _svc.SaveAsync(new AppPreferences { LastActiveDatName = "GBA - Official OfflineList" });
+        await _svc.SaveAsync(
+            new AppPreferences { LastActiveDatName = "GBA - Official OfflineList" }
+        );
 
         await _svc.UpdateLastActiveDatAsync(null);
 

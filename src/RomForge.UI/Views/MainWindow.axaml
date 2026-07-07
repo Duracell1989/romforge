@@ -96,11 +96,6 @@ xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                 <Button Command="{Binding ScanFolderCommand}" Content="Scan Folder…"/>
                 <Button Command="{Binding MoveUnverifiedCommand}" Content="{Binding MoveUnverifiedLabel}"/>
                 <Separator Width="1" Height="18" Margin="4,0" IsVisible="{Binding IsDatLoaded}"/>
-                <TextBlock Text="Format:" VerticalAlignment="Center" Opacity="0.7" IsVisible="{Binding IsDatLoaded}"/>
-                <ComboBox ItemsSource="{Binding ArchiveFormats}"
-                          SelectedItem="{Binding ArchiveFormat, Mode=TwoWay}"
-                          MinWidth="70"
-                          IsVisible="{Binding IsDatLoaded}"/>
                 <Button Command="{Binding RenameAllCommand}" Content="Rename All"/>
                 <Button Command="{Binding ReArchiveAllCommand}" Content="{Binding ReArchiveAllButtonLabel}"/>
                 <Button Command="{Binding TrimAllCommand}" Content="Trim All"/>

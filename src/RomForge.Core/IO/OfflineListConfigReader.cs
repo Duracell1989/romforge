@@ -9,7 +9,6 @@ namespace RomForge.Core.IO;
 public sealed record OfflineListConfig
 {
     public string? RomFolderPath { get; init; }
-    public string? ArchiveFormat { get; init; }
     public IReadOnlyList<LanguageBit> LanguageBits { get; init; } = [];
 }
 
@@ -24,7 +23,8 @@ public static class OfflineListConfigReader
             List<LanguageBit> bits = [];
             for (var n = 1; n <= 26; n++)
             {
-                if (!options.TryGetValue($"l{n}", out var raw)) continue;
+                if (!options.TryGetValue($"l{n}", out var raw))
+                    continue;
 
                 var label = raw.Trim('"').Trim();
                 if (!string.IsNullOrEmpty(label))
@@ -32,14 +32,14 @@ public static class OfflineListConfigReader
             }
 
             options.TryGetValue("RomFolder", out var romFolder);
-            options.TryGetValue("ArchiveFormat", out var archiveFormat);
 
-            return Result.Ok(new OfflineListConfig
-            {
-                RomFolderPath = string.IsNullOrEmpty(romFolder) ? null : romFolder,
-                ArchiveFormat = string.IsNullOrEmpty(archiveFormat) ? null : archiveFormat,
-                LanguageBits = bits,
-            });
+            return Result.Ok(
+                new OfflineListConfig
+                {
+                    RomFolderPath = string.IsNullOrEmpty(romFolder) ? null : romFolder,
+                    LanguageBits = bits,
+                }
+            );
         }
         catch (Exception ex)
         {
