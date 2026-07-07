@@ -35,7 +35,7 @@
                 <TextBox Grid.Column="0"
                          Text="{Binding UnverifiedFolder}"
                          IsReadOnly="True"
-                         Watermark="Ask each time"/>
+                         PlaceholderText="Ask each time"/>
                 <Button Grid.Column="1"
                         Content="Browse…"
                         Command="{Binding BrowseUnverifiedFolderCommand}"/>
