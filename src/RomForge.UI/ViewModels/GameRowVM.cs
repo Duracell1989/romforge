@@ -57,6 +57,7 @@ public sealed partial class GameRowVM : ObservableObject, IDisposable
     public bool IsUntrimmed => _result.IsUntrimmed;
     public bool IsReArchived => _result.IsReArchived;
     public bool IsGood => _result.IsGood;
+    public RomStatus DisplayStatus => _result.DisplayStatus;
     public ScannedRom? ScannedRom => _result.ScannedRom;
 
     public int ReleaseNumber => _result.Game.ReleaseNumber;
@@ -70,47 +71,44 @@ public sealed partial class GameRowVM : ObservableObject, IDisposable
     public int ScreenshotsWidth { get; }
     public int ScreenshotsHeight { get; }
 
-    public string StatusText
-    {
-        get
+    public string StatusText =>
+        DisplayStatus switch
         {
-            if (_result.Status == MatchStatus.Missing) return "Missing";
-            if (_result.IsUntrimmed) return "Untrimmed";
-            if (_result.IsWrongArchiveType) return "Wrong Archive";
-            if (_result.IsIncorrectlyNamed) return "Incorrectly Named";
-            if (_result.IsReArchived) return "Good";
-            return "Verified";
-        }
-    }
+            RomStatus.Missing => "Missing",
+            RomStatus.Untrimmed => "Untrimmed",
+            RomStatus.WrongArchive => "Wrong Archive",
+            RomStatus.IncorrectlyNamed => "Incorrectly Named",
+            RomStatus.Good => "Good",
+            RomStatus.Verified => "Verified",
+            _ => "Verified",
+        };
 
-    public IBrush StatusBrush
-    {
-        get
+    public IBrush StatusBrush =>
+        DisplayStatus switch
         {
-            if (_result.Status == MatchStatus.Missing) return StatusColors.Missing;
-            if (_result.IsUntrimmed) return StatusColors.Untrimmed;
-            if (_result.IsWrongArchiveType) return StatusColors.WrongArchiveType;
-            if (_result.IsIncorrectlyNamed) return StatusColors.IncorrectlyNamed;
-            if (_result.IsReArchived) return StatusColors.Good;
-            return StatusColors.Verified;
-        }
-    }
+            RomStatus.Missing => StatusColors.Missing,
+            RomStatus.Untrimmed => StatusColors.Untrimmed,
+            RomStatus.WrongArchive => StatusColors.WrongArchiveType,
+            RomStatus.IncorrectlyNamed => StatusColors.IncorrectlyNamed,
+            RomStatus.Good => StatusColors.Good,
+            RomStatus.Verified => StatusColors.Verified,
+            _ => StatusColors.Verified,
+        };
 
     /// <summary>
     /// Numeric key for status-column sorting. Lower = higher priority issue.
     /// </summary>
-    internal int StatusSortKey
-    {
-        get
+    internal int StatusSortKey =>
+        DisplayStatus switch
         {
-            if (_result.Status == MatchStatus.Missing) return 0;
-            if (_result.IsUntrimmed) return 1;
-            if (_result.IsWrongArchiveType) return 2;
-            if (_result.IsIncorrectlyNamed) return 3;
-            if (_result.IsReArchived) return 5;
-            return 4;
-        }
-    }
+            RomStatus.Missing => 0,
+            RomStatus.Untrimmed => 1,
+            RomStatus.WrongArchive => 2,
+            RomStatus.IncorrectlyNamed => 3,
+            RomStatus.Verified => 4,
+            RomStatus.Good => 5,
+            _ => 4,
+        };
 
     public string ReArchivedText => _result.IsReArchived ? "✓" : "–";
 
@@ -154,8 +152,7 @@ public sealed partial class GameRowVM : ObservableObject, IDisposable
             return string.Empty;
         if (bits.Count == 0)
             return bitmask.ToString();
-        List<string> labels = bits
-            .Where(b => (bitmask & (1 << b.BitIndex)) != 0)
+        List<string> labels = bits.Where(b => (bitmask & (1 << b.BitIndex)) != 0)
             .Select(b => b.Label)
             .ToList();
         return labels.Count > 0 ? string.Join(" ", labels) : bitmask.ToString();

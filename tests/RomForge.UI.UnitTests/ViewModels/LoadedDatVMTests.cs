@@ -240,12 +240,14 @@ public class LoadedDatVMTests
     }
 
     [Test]
-    public void StatusSummary_PreparedGameNoReArchived_CountsAsGood()
+    public void StatusSummary_VerifiedNotReArchived_CountsAsVerifiedNotGood()
     {
+        // A scanned-correct ROM that RomForge has not re-archived is "verified", not "good".
         LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
         vm.Games.Add(MakeRow(new MatchResult { Game = new Game(), Status = MatchStatus.Verified }));
 
-        vm.StatusSummary.Should().Contain("1 good");
+        vm.StatusSummary.Should().Contain("1 verified");
+        vm.StatusSummary.Should().NotContain("good");
     }
 
     [Test]
