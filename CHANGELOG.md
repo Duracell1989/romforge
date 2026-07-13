@@ -4,6 +4,24 @@ All notable changes to RomForge are documented here. This project follows [Seman
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-07-13
+
+First stable release.
+
+### Added
+
+- Settings screen (File → Settings…, ⌘,): global default archive format and a default destination folder for unverified ROMs
+- Native macOS menu bar and a right-click context menu on the game list, plus a streamlined toolbar and status filter chips
+- Signed and notarized macOS build — the app now launches without a Gatekeeper warning
+
+### Changed
+
+- Reworked per-game match status into composable flags, so multiple issues on one ROM are tracked and shown together
+
+### Security
+
+- Fixed a zip-slip path-traversal weakness when extracting archives
+
 ## [0.1.0] — 2026-06-23
 
 Initial release.

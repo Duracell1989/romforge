@@ -54,6 +54,10 @@ jobs:
           security import /tmp/cert.p12 -k build.keychain -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -s -k "build" build.keychain
           rm /tmp/cert.p12
+          # Developer ID G2 intermediate — lets codesign build the full chain to Apple's root
+          curl -fsSL http://certs.apple.com/devidg2.der -o /tmp/devidg2.der
+          security import /tmp/devidg2.der -k build.keychain
+          rm /tmp/devidg2.der
 
       - name: Sign .app
         if: env.MACOS_CERT_P12 != ''
