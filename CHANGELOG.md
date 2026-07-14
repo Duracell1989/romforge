@@ -4,6 +4,16 @@ All notable changes to RomForge are documented here. This project follows [Seman
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-07-14
+
+### Added
+
+- Download missing box-art: after a DAT update, RomForge fetches only the images you don't already have and shows a live log with an "X of Y" counter that you can cancel
+
+### Fixed
+
+- A ROM is now only counted "Good" once RomForge has re-archived it — a freshly scanned, coincidentally-correct file no longer shows as good before it has been rewritten
+
 ## [1.0.0] — 2026-07-13
 
 First stable release.
