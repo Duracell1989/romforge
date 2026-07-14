@@ -4,6 +4,7 @@
              xmlns:local="using:RomForge.UI"
              xmlns:vm="using:RomForge.UI.ViewModels"
              x:DataType="vm:MainWindowVM"
+             Name="RomForge"
              RequestedThemeVariant="Default">
              <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
