@@ -92,6 +92,8 @@ public partial class App : Application
         services.AddSingleton<IDatImporter, LocalDatImporter>();
         services.AddSingleton<IDatUpdateChecker, HttpDatUpdateChecker>();
         services.AddSingleton<IDatDownloader, HttpDatDownloader>();
+        services.AddSingleton<IImageDownloader, HttpImageDownloader>();
+        services.AddSingleton<ImageSyncService>();
         services.AddSingleton<DatConfigService>();
         services.AddSingleton<ScanResultStore>();
         services.AddSingleton<ReArchiveStore>();

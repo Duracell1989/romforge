@@ -86,6 +86,34 @@ public sealed class ImagePathResolverTests
         result.Should().Be(expectedPath);
     }
 
+    [Test]
+    public void BuildRelativeLocalPath_UsesDatNameFolderSubfolderAndSuffix()
+    {
+        DatHeader header = new() { DatName = "TestDat" };
+
+        string result = ImagePathResolver.BuildRelativeLocalPath(header, 501, "b");
+
+        result.Should().Be(Path.Combine("TestDat", "501-1000", "501b.png"));
+    }
+
+    [Test]
+    public void BuildRelativeLocalPath_ImFolderOverridesDatName()
+    {
+        DatHeader header = new() { DatName = "WrongFolder", ImFolder = "RightFolder" };
+
+        string result = ImagePathResolver.BuildRelativeLocalPath(header, 1, "a");
+
+        result.Should().Be(Path.Combine("RightFolder", "1-500", "1a.png"));
+    }
+
+    [Test]
+    public void BuildRelativeUrlPath_OmitsFolderAndUsesForwardSlashes()
+    {
+        string result = ImagePathResolver.BuildRelativeUrlPath(501, "a");
+
+        result.Should().Be("501-1000/501a.png");
+    }
+
     private string CreateImageFile(string folderName, string subFolder, string fileName)
     {
         string dir = Path.Combine(_tempDir, folderName, subFolder);

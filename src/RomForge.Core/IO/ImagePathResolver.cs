@@ -18,18 +18,28 @@ public static class ImagePathResolver
         string suffix
     )
     {
-        var folderName = string.IsNullOrEmpty(header.ImFolder)
-            ? header.DatName
-            : header.ImFolder;
-        var subFolder = GetSubfolder(imageNumber);
-        var path = Path.Combine(
-            imgsBasePath,
-            folderName,
-            subFolder,
-            $"{imageNumber}{suffix}.png"
-        );
+        var path = Path.Combine(imgsBasePath, BuildRelativeLocalPath(header, imageNumber, suffix));
         return File.Exists(path) ? path : null;
     }
+
+    /// <summary>
+    /// The image's path relative to the imgs base directory:
+    /// <c>&lt;folder&gt;/&lt;subfolder&gt;/&lt;n&gt;&lt;suffix&gt;.png</c>. Shared by the
+    /// local resolver and the downloader so both agree on the on-disk layout.
+    /// </summary>
+    internal static string BuildRelativeLocalPath(DatHeader header, int imageNumber, string suffix)
+    {
+        var folderName = string.IsNullOrEmpty(header.ImFolder) ? header.DatName : header.ImFolder;
+        return Path.Combine(folderName, GetSubfolder(imageNumber), $"{imageNumber}{suffix}.png");
+    }
+
+    /// <summary>
+    /// The image's path relative to the OfflineList <c>imURL</c> base:
+    /// <c>&lt;subfolder&gt;/&lt;n&gt;&lt;suffix&gt;.png</c>. Unlike the local path, the DAT
+    /// folder name is not part of the URL.
+    /// </summary>
+    internal static string BuildRelativeUrlPath(int imageNumber, string suffix) =>
+        $"{GetSubfolder(imageNumber)}/{imageNumber}{suffix}.png";
 
     internal static string GetSubfolder(int imageNumber)
     {

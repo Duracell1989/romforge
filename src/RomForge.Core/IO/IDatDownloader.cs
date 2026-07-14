@@ -6,7 +6,7 @@ using FluentResults;
 namespace RomForge.Core.IO;
 
 /// <summary>
-/// Downloads updated DAT files and image archives.
+/// Downloads updated DAT files.
 /// </summary>
 public interface IDatDownloader
 {
@@ -18,17 +18,6 @@ public interface IDatDownloader
         string url,
         string destDir,
         string? fileName,
-        IProgress<int>? progress,
-        CancellationToken ct = default
-    );
-
-    /// <summary>
-    /// Downloads an image archive and extracts PNGs into <paramref name="imgsDestDir"/>,
-    /// preserving the ZIP's internal folder structure.
-    /// </summary>
-    Task<Result> DownloadImagesAsync(
-        string url,
-        string imgsDestDir,
         IProgress<int>? progress,
         CancellationToken ct = default
     );

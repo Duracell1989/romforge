@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -8,7 +7,6 @@ using System.Threading.Tasks;
 using FluentResults;
 using RomForge.Core.Services;
 using Serilog;
-using SharpCompress.Archives;
 
 namespace RomForge.Core.IO;
 
@@ -54,67 +52,6 @@ public sealed class HttpDatDownloader : IDatDownloader
             TryDelete(tempPath);
             _logger.Warning(ex, "Failed to download DAT from {Url}", url);
             return Result.Fail($"DAT download failed: {ex.Message}");
-        }
-    }
-
-    public async Task<Result> DownloadImagesAsync(
-        string url,
-        string imgsDestDir,
-        IProgress<int>? progress,
-        CancellationToken ct = default
-    )
-    {
-        var tempZip = Path.Combine(_appData.TempPath, Path.GetRandomFileName() + ".zip");
-        try
-        {
-            IProgress<int>? downloadProgress = progress is not null
-                ? new Progress<int>(p => progress.Report(p / 2))
-                : null;
-            await DownloadToFileAsync(url, tempZip, downloadProgress, ct);
-
-            using var archive = ArchiveFactory.OpenArchive(tempZip);
-            var entries = archive.Entries.Where(e => !e.IsDirectory).ToList();
-            var total = entries.Count;
-            var done = 0;
-            var canonicalDestDir = Path.GetFullPath(imgsDestDir);
-
-            foreach (var entry in entries)
-            {
-                ct.ThrowIfCancellationRequested();
-                var relativePath = entry
-                    .Key!.Replace('/', Path.DirectorySeparatorChar)
-                    .TrimStart(Path.DirectorySeparatorChar);
-                var destPath = Path.GetFullPath(Path.Combine(canonicalDestDir, relativePath));
-                if (
-                    !destPath.StartsWith(
-                        canonicalDestDir + Path.DirectorySeparatorChar,
-                        StringComparison.Ordinal
-                    )
-                )
-                    throw new InvalidOperationException(
-                        $"Archive entry '{entry.Key}' would extract outside the destination directory."
-                    );
-                Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
-                await using var src = await entry.OpenEntryStreamAsync(ct);
-                await using var dst = File.Create(destPath);
-                await src.CopyToAsync(dst, ct);
-                done++;
-                progress?.Report(50 + done * 50 / Math.Max(total, 1));
-            }
-
-            TryDelete(tempZip);
-            return Result.Ok();
-        }
-        catch (OperationCanceledException)
-        {
-            TryDelete(tempZip);
-            throw;
-        }
-        catch (Exception ex)
-        {
-            TryDelete(tempZip);
-            _logger.Warning(ex, "Failed to download images from {Url}", url);
-            return Result.Fail($"Image download failed: {ex.Message}");
         }
     }
 

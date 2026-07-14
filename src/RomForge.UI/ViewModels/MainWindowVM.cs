@@ -36,6 +36,7 @@ public partial class MainWindowVM : VMBase
     private readonly IDatImporter _datImporter;
     private readonly IDatUpdateChecker _updateChecker;
     private readonly IDatDownloader _downloader;
+    private readonly ImageSyncService _imageSync;
     private readonly DatConfigService _configService;
     private readonly ScanResultStore _scanResultStore;
     private readonly ReArchiveStore _reArchiveStore;
@@ -91,6 +92,7 @@ public partial class MainWindowVM : VMBase
         IDatImporter datImporter,
         IDatUpdateChecker updateChecker,
         IDatDownloader downloader,
+        ImageSyncService imageSync,
         DatConfigService configService,
         ScanResultStore scanResultStore,
         ReArchiveStore reArchiveStore,
@@ -111,6 +113,7 @@ public partial class MainWindowVM : VMBase
         _datImporter = datImporter;
         _updateChecker = updateChecker;
         _downloader = downloader;
+        _imageSync = imageSync;
         _configService = configService;
         _scanResultStore = scanResultStore;
         _reArchiveStore = reArchiveStore;
@@ -1454,6 +1457,13 @@ public partial class MainWindowVM : VMBase
         }
 
         await LoadDatFromManagedPathAsync(ActiveDat.DatFilePath);
+
+        if (ActiveDat?.DatFile.Header.NewImUrl is not null)
+        {
+            using ImageDownloadWindowVM imageVm = new ImageDownloadWindowVM();
+            Task syncTask = RunImageSyncAsync(ActiveDat.DatFile, imageVm);
+            await _notifier.ShowImageDownloadAsync(imageVm, syncTask);
+        }
     }
 
     private bool CanCheckDatUpdate() =>
@@ -1464,12 +1474,9 @@ public partial class MainWindowVM : VMBase
         if (header.NewDatUrl is null)
             return Result.Fail("DAT download URL is not available.");
 
-        var hasImages = header.NewImUrl is not null;
-        var datMax = hasImages ? 50 : 100;
-
         IProgress<int> datProgress = new Progress<int>(p =>
         {
-            progressVm.Progress = p * datMax / 100;
+            progressVm.Progress = p;
         });
 
         Result<string> datResult = await _downloader.DownloadDatAsync(
@@ -1482,21 +1489,27 @@ public partial class MainWindowVM : VMBase
         if (datResult.IsFailed)
             return Result.Fail(datResult.Errors[0].Message);
 
-        if (header.NewImUrl is null)
-            return Result.Ok();
+        return Result.Ok();
+    }
 
-        progressVm.CurrentFile = "Downloading images…";
-        IProgress<int> imgProgress = new Progress<int>(p =>
+    private async Task RunImageSyncAsync(DatFile datFile, ImageDownloadWindowVM imageVm)
+    {
+        IProgress<ImageSyncProgress> progress = new Progress<ImageSyncProgress>(imageVm.Report);
+        try
         {
-            progressVm.Progress = 50 + p / 2;
-        });
+            Result<ImageSyncSummary> result = await _imageSync.SyncMissingAsync(
+                datFile,
+                _appData.ImgsPath,
+                progress,
+                imageVm.CancellationToken
+            );
 
-        return await _downloader.DownloadImagesAsync(
-            header.NewImUrl,
-            _appData.ImgsPath,
-            imgProgress,
-            progressVm.CancellationToken
-        );
+            imageVm.Finish(result.IsSuccess ? result.Value : new ImageSyncSummary(0, 0, 0));
+        }
+        catch (OperationCanceledException)
+        {
+            imageVm.Cancelled();
+        }
     }
 
     [RelayCommand]

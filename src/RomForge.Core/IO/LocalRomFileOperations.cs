@@ -48,4 +48,6 @@ public sealed class LocalRomFileOperations : IRomFileOperations
     }
 
     public bool DirectoryExists(string path) => Directory.Exists(path);
+
+    public bool FileExists(string path) => File.Exists(path);
 }

@@ -34,6 +34,7 @@ public sealed class MainWindowVMTests
     private Mock<IArchiveExtractor> _extractor = null!;
     private Mock<IDatUpdateChecker> _updateChecker = null!;
     private Mock<IDatDownloader> _downloader = null!;
+    private Mock<IImageDownloader> _imageDownloader = null!;
     private Mock<IAppLifetime> _appLifetime = null!;
     private Mock<IRomSource> _romSource = null!;
 
@@ -50,6 +51,7 @@ public sealed class MainWindowVMTests
         _extractor = new Mock<IArchiveExtractor>();
         _updateChecker = new Mock<IDatUpdateChecker>();
         _downloader = new Mock<IDatDownloader>();
+        _imageDownloader = new Mock<IImageDownloader>();
         _appLifetime = new Mock<IAppLifetime>();
         _romSource = new Mock<IRomSource>();
         _romSource
@@ -83,6 +85,7 @@ public sealed class MainWindowVMTests
             _datImporter.Object,
             _updateChecker.Object,
             _downloader.Object,
+            new ImageSyncService(_imageDownloader.Object, _fileOps.Object, logger),
             new DatConfigService(appData, logger),
             new ScanResultStore(appData, logger),
             new ReArchiveStore(appData, logger),

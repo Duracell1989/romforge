@@ -100,6 +100,31 @@ internal sealed class AvaloniaUserNotifier : IUserNotifier
         }
     }
 
+    public async Task ShowImageDownloadAsync(ImageDownloadWindowVM vm, Task operationTask)
+    {
+        Window? parent = _getWindow();
+        ImageDownloadWindow window = new ImageDownloadWindow { DataContext = vm };
+        vm.RequestClose = () => window.Close();
+
+        // While the download is running, the OS close button cancels but keeps the window open
+        // until the operation observes the cancellation; the log stays readable afterwards.
+        window.Closing += (_, e) =>
+        {
+            if (!vm.IsComplete)
+            {
+                vm.CloseOrCancelCommand.Execute(null);
+                e.Cancel = true;
+            }
+        };
+
+        if (parent is not null)
+            await window.ShowDialog(parent);
+        else
+            window.Show();
+
+        await operationTask;
+    }
+
     public async Task ShowSettingsAsync(SettingsVM vm)
     {
         Window? parent = _getWindow();

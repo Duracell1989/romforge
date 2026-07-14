@@ -9,4 +9,5 @@ public interface IRomFileOperations
     Task<Result> DeleteAsync(string path);
     Task<Result> TruncateAsync(string path, long length);
     bool DirectoryExists(string path);
+    bool FileExists(string path);
 }
