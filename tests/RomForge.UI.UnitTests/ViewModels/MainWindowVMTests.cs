@@ -143,6 +143,20 @@ public sealed class MainWindowVMTests
             "/test/dat.xml"
         );
 
+    private static LoadedDatVM MakeDatVMWithImageUrl() =>
+        new LoadedDatVM(
+            new DatFile
+            {
+                Header = new DatHeader
+                {
+                    DatName = "Test DAT",
+                    NewImUrl = "https://example.com/imgs/",
+                },
+                Games = [],
+            },
+            "/test/dat.xml"
+        );
+
     private static GameRowVM MakeGameRow(
         bool incorrectlyNamed = false,
         bool wrongArchiveType = false,
@@ -515,6 +529,50 @@ public sealed class MainWindowVMTests
         _vm.ActiveDat = MakeDatVMWithUpdateUrl();
 
         _vm.CheckDatUpdateCommand.CanExecute(null).Should().BeTrue();
+    }
+
+    // --- DownloadImagesAsync ---
+
+    [Test]
+    public void DownloadImagesCommand_CannotExecute_WhenNoDatLoaded()
+    {
+        _vm.ActiveDat = null;
+
+        _vm.DownloadImagesCommand.CanExecute(null).Should().BeFalse();
+    }
+
+    [Test]
+    public void DownloadImagesCommand_CannotExecute_WhenDatHasNoImageUrl()
+    {
+        _vm.ActiveDat = MakeDatVM();
+
+        _vm.DownloadImagesCommand.CanExecute(null).Should().BeFalse();
+    }
+
+    [Test]
+    public void DownloadImagesCommand_CanExecute_WhenDatHasImageUrl()
+    {
+        _vm.ActiveDat = MakeDatVMWithImageUrl();
+
+        _vm.DownloadImagesCommand.CanExecute(null).Should().BeTrue();
+    }
+
+    [Test]
+    public async Task DownloadImages_WhenDatHasImageUrl_ShowsImageDownloadWindow()
+    {
+        _vm.ActiveDat = MakeDatVMWithImageUrl();
+        _notifier
+            .Setup(n =>
+                n.ShowImageDownloadAsync(It.IsAny<ImageDownloadWindowVM>(), It.IsAny<Task>())
+            )
+            .Returns<ImageDownloadWindowVM, Task>((_, task) => task);
+
+        await _vm.DownloadImagesCommand.ExecuteAsync(null);
+
+        _notifier.Verify(
+            n => n.ShowImageDownloadAsync(It.IsAny<ImageDownloadWindowVM>(), It.IsAny<Task>()),
+            Times.Once
+        );
     }
 
     // --- RemoveDat ---
