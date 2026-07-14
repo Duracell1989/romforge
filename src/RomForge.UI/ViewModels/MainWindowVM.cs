@@ -764,6 +764,7 @@ public partial class MainWindowVM : VMBase
     )
     {
         string? tempFile = null;
+        string? tempArchive = null;
         try
         {
             Result<string> extractResult = await _extractor.ExtractToTempFileAsync(
@@ -779,19 +780,18 @@ public partial class MainWindowVM : VMBase
             tempFile = extractResult.Value;
 
             bool sameFile = target.From.Equals(target.To, StringComparison.OrdinalIgnoreCase);
+
+            // For an in-place re-archive (source and destination are the same path)
+            // compress to a temporary archive first and only swap it in after the
+            // compression succeeds. Deleting the original before the new archive
+            // exists would lose the ROM if compression failed or was cancelled.
+            string compressTarget = sameFile ? target.To + ".romforge-tmp" : target.To;
             if (sameFile)
-            {
-                Result preDeleteResult = await _fileOperations.DeleteAsync(target.From);
-                if (preDeleteResult.IsFailed)
-                    return (
-                        null,
-                        $"Could not replace original: {Path.GetFileName(target.From)}: {preDeleteResult.Errors[0].Message}"
-                    );
-            }
+                tempArchive = compressTarget;
 
             Result compressResult = await _compressor.CompressAsync(
                 tempFile,
-                target.To,
+                compressTarget,
                 game.Game.RomSize,
                 compressionProgress,
                 archiveFormat,
@@ -803,7 +803,27 @@ public partial class MainWindowVM : VMBase
                     $"{Path.GetFileName(target.From)}: {compressResult.Errors[0].Message}"
                 );
 
-            if (!sameFile)
+            if (sameFile)
+            {
+                Result deleteResult = await _fileOperations.DeleteAsync(target.From);
+                if (deleteResult.IsFailed)
+                    return (
+                        null,
+                        $"Could not replace original: {Path.GetFileName(target.From)}: {deleteResult.Errors[0].Message}"
+                    );
+
+                Result renameResult = await _fileOperations.RenameAsync(compressTarget, target.To);
+                // The original is now gone; the new archive at compressTarget is the
+                // only copy. Regardless of the rename outcome, prevent the finally
+                // block from deleting it — on failure it stays for manual recovery.
+                tempArchive = null;
+                if (renameResult.IsFailed)
+                    return (
+                        null,
+                        $"Archived to {Path.GetFileName(compressTarget)} but could not restore final name {Path.GetFileName(target.To)}: {renameResult.Errors[0].Message}"
+                    );
+            }
+            else
             {
                 Result deleteResult = await _fileOperations.DeleteAsync(target.From);
                 if (deleteResult.IsFailed)
@@ -837,6 +857,11 @@ public partial class MainWindowVM : VMBase
         {
             if (tempFile is not null && File.Exists(tempFile))
                 await _fileOperations.DeleteAsync(tempFile);
+            // Clean up a leftover temp archive from a failed or cancelled in-place
+            // compress. It is nulled once the original is deleted, so this only ever
+            // runs while the original is still intact.
+            if (tempArchive is not null && File.Exists(tempArchive))
+                await _fileOperations.DeleteAsync(tempArchive);
         }
     }
 

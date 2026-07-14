@@ -1278,6 +1278,60 @@ public sealed class MainWindowVMTests
         );
     }
 
+    [Test]
+    public async Task ReArchiveSelectedAsync_WhenInPlaceAndCompressFails_DoesNotDeleteOriginal()
+    {
+        // In-place re-archive: the source path already matches the target
+        // name/extension, so From == To. If compression fails the original ROM
+        // must survive — deleting it before the new archive exists loses the file.
+        Mock<IArchiveCompressor> availableCompressor = new Mock<IArchiveCompressor>();
+        availableCompressor.Setup(c => c.IsAvailable).Returns(true);
+        availableCompressor
+            .Setup(c =>
+                c.CompressAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<long>(),
+                    It.IsAny<IProgress<int>?>(),
+                    It.IsAny<string>(),
+                    It.IsAny<CancellationToken>()
+                )
+            )
+            .ReturnsAsync(Result.Fail("compression failed"));
+        MainWindowVM vm = MakeVM(compressorMock: availableCompressor);
+
+        _extractor
+            .Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Ok("/tmp/no_such_extracted_file.rom"));
+        _fileOps.Setup(f => f.DeleteAsync(It.IsAny<string>())).ReturnsAsync(Result.Ok());
+
+        _notifier
+            .Setup(n =>
+                n.ShowProgressAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<ProgressWindowVM>(),
+                    It.IsAny<Task>()
+                )
+            )
+            .Returns<string, ProgressWindowVM, Task>((_, _, task) => task);
+
+        LoadedDatVM datVm = MakeDatVM();
+        // FilePath already has the target stem (empty naming mask) and the
+        // default "7z" extension → GetReArchiveTarget returns From == To.
+        GameRowVM gameRow = MakeGameRowWithScannedRom("/roms/Test.7z", wrongArchiveType: true);
+        datVm.Games.Add(gameRow);
+        vm.ActiveDat = datVm;
+        vm.SelectedGame = gameRow;
+
+        await vm.ReArchiveSelectedCommand.ExecuteAsync(null);
+
+        _fileOps.Verify(f => f.DeleteAsync("/roms/Test.7z"), Times.Never);
+        _notifier.Verify(
+            n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("compression failed"))),
+            Times.Once
+        );
+    }
+
     // --- TrimSelectedAsync ---
 
     [Test]
@@ -1375,13 +1429,27 @@ public sealed class MainWindowVMTests
         );
     }
 
-    // --- ReArchiveSelectedAsync sameFile pre-delete failure ---
+    // --- ReArchiveSelectedAsync sameFile delete-original failure ---
 
     [Test]
-    public async Task ReArchiveSelectedAsync_WhenSameFileAndPreDeleteFails_NotifiesError()
+    public async Task ReArchiveSelectedAsync_WhenSameFileAndDeleteOriginalFails_NotifiesError()
     {
+        // In-place re-archive: compression to the temp archive succeeds, but
+        // deleting the original (to swap the new archive in) fails.
         Mock<IArchiveCompressor> availableCompressor = new Mock<IArchiveCompressor>();
         availableCompressor.Setup(c => c.IsAvailable).Returns(true);
+        availableCompressor
+            .Setup(c =>
+                c.CompressAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<long>(),
+                    It.IsAny<IProgress<int>?>(),
+                    It.IsAny<string>(),
+                    It.IsAny<CancellationToken>()
+                )
+            )
+            .ReturnsAsync(Result.Ok());
         MainWindowVM vm = MakeVM(compressorMock: availableCompressor);
 
         _extractor
@@ -1400,7 +1468,117 @@ public sealed class MainWindowVMTests
         await vm.ReArchiveSelectedCommand.ExecuteAsync(null);
 
         _notifier.Verify(
-            n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("delete failed"))),
+            n =>
+                n.NotifyErrorAsync(
+                    It.Is<string>(s =>
+                        s.Contains("Could not replace original") && s.Contains("delete failed")
+                    )
+                ),
+            Times.Once
+        );
+    }
+
+    [Test]
+    public async Task ReArchiveSelectedAsync_WhenInPlaceSucceeds_SwapsTempArchiveIntoPlace()
+    {
+        // In-place re-archive happy path: compress to the temp archive, delete the
+        // original, then rename the temp archive onto the final path.
+        Mock<IArchiveCompressor> availableCompressor = new Mock<IArchiveCompressor>();
+        availableCompressor.Setup(c => c.IsAvailable).Returns(true);
+        availableCompressor
+            .Setup(c =>
+                c.CompressAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<long>(),
+                    It.IsAny<IProgress<int>?>(),
+                    It.IsAny<string>(),
+                    It.IsAny<CancellationToken>()
+                )
+            )
+            .ReturnsAsync(Result.Ok());
+        MainWindowVM vm = MakeVM(compressorMock: availableCompressor);
+
+        _extractor
+            .Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Ok("/tmp/no_such_extracted.rom"));
+        _fileOps.Setup(f => f.DeleteAsync(It.IsAny<string>())).ReturnsAsync(Result.Ok());
+        _fileOps
+            .Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(Result.Ok());
+
+        LoadedDatVM datVm = MakeDatVM();
+        GameRowVM gameRow = MakeGameRowWithScannedRom("/roms/Test.7z", wrongArchiveType: true);
+        datVm.Games.Add(gameRow);
+        vm.ActiveDat = datVm;
+        vm.SelectedGame = gameRow;
+
+        await vm.ReArchiveSelectedCommand.ExecuteAsync(null);
+
+        // Compression writes to the temp archive, never directly onto the original.
+        availableCompressor.Verify(
+            c =>
+                c.CompressAsync(
+                    It.IsAny<string>(),
+                    "/roms/Test.7z.romforge-tmp",
+                    It.IsAny<long>(),
+                    It.IsAny<IProgress<int>?>(),
+                    It.IsAny<string>(),
+                    It.IsAny<CancellationToken>()
+                ),
+            Times.Once
+        );
+        _fileOps.Verify(
+            f => f.RenameAsync("/roms/Test.7z.romforge-tmp", "/roms/Test.7z"),
+            Times.Once
+        );
+        _notifier.Verify(n => n.NotifyErrorAsync(It.IsAny<string>()), Times.Never);
+    }
+
+    [Test]
+    public async Task ReArchiveSelectedAsync_WhenInPlaceRenameFails_NotifiesError()
+    {
+        // Original already deleted and the new archive sits at the temp path; the
+        // rename onto the final name fails, so the temp archive must be preserved.
+        Mock<IArchiveCompressor> availableCompressor = new Mock<IArchiveCompressor>();
+        availableCompressor.Setup(c => c.IsAvailable).Returns(true);
+        availableCompressor
+            .Setup(c =>
+                c.CompressAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<long>(),
+                    It.IsAny<IProgress<int>?>(),
+                    It.IsAny<string>(),
+                    It.IsAny<CancellationToken>()
+                )
+            )
+            .ReturnsAsync(Result.Ok());
+        MainWindowVM vm = MakeVM(compressorMock: availableCompressor);
+
+        _extractor
+            .Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Ok("/tmp/no_such_extracted.rom"));
+        _fileOps.Setup(f => f.DeleteAsync(It.IsAny<string>())).ReturnsAsync(Result.Ok());
+        _fileOps
+            .Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(Result.Fail("rename failed"));
+
+        LoadedDatVM datVm = MakeDatVM();
+        GameRowVM gameRow = MakeGameRowWithScannedRom("/roms/Test.7z", wrongArchiveType: true);
+        datVm.Games.Add(gameRow);
+        vm.ActiveDat = datVm;
+        vm.SelectedGame = gameRow;
+
+        await vm.ReArchiveSelectedCommand.ExecuteAsync(null);
+
+        _notifier.Verify(
+            n =>
+                n.NotifyErrorAsync(
+                    It.Is<string>(s =>
+                        s.Contains("could not restore final name") && s.Contains("rename failed")
+                    )
+                ),
             Times.Once
         );
     }
