@@ -575,6 +575,19 @@ public sealed class MainWindowVMTests
         );
     }
 
+    [Test]
+    public async Task DownloadImages_WhenDatHasNoImageUrl_DoesNotShowWindow()
+    {
+        _vm.ActiveDat = MakeDatVM(); // no image URL
+
+        await _vm.DownloadImagesCommand.ExecuteAsync(null);
+
+        _notifier.Verify(
+            n => n.ShowImageDownloadAsync(It.IsAny<ImageDownloadWindowVM>(), It.IsAny<Task>()),
+            Times.Never
+        );
+    }
+
     // --- RemoveDat ---
 
     [Test]
@@ -904,6 +917,58 @@ public sealed class MainWindowVMTests
         await _vm.CheckDatUpdateCommand.ExecuteAsync(null);
 
         _notifier.Verify(n => n.NotifyErrorAsync(It.IsAny<string>()), Times.Once);
+    }
+
+    [Test]
+    public async Task CheckDatUpdateAsync_WhenUpdateSucceedsAndReloadedDatHasImageUrl_ShowsImageDownload()
+    {
+        _vm.ActiveDat = MakeDatVMWithUpdateUrl(); // DatVersion = 0
+        _updateChecker
+            .Setup(u =>
+                u.FetchLatestVersionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
+            )
+            .ReturnsAsync(Result.Ok("1")); // newer
+        _notifier
+            .Setup(n => n.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(true);
+        _downloader
+            .Setup(d =>
+                d.DownloadDatAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<IProgress<int>?>(),
+                    It.IsAny<CancellationToken>()
+                )
+            )
+            .ReturnsAsync(Result.Ok("/managed/updated.dat"));
+        _datReader
+            .Setup(r => r.ReadAsync())
+            .ReturnsAsync(
+                Result.Ok(
+                    new DatFile
+                    {
+                        Header = new DatHeader
+                        {
+                            DatName = "Test DAT",
+                            NewImUrl = "https://example.com/imgs/",
+                        },
+                        Games = [],
+                    }
+                )
+            );
+        _notifier
+            .Setup(n =>
+                n.ShowImageDownloadAsync(It.IsAny<ImageDownloadWindowVM>(), It.IsAny<Task>())
+            )
+            .Returns<ImageDownloadWindowVM, Task>((_, task) => task);
+
+        await _vm.CheckDatUpdateCommand.ExecuteAsync(null);
+
+        _notifier.Verify(
+            n => n.ShowImageDownloadAsync(It.IsAny<ImageDownloadWindowVM>(), It.IsAny<Task>()),
+            Times.Once
+        );
     }
 
     // --- RenameAllAsync ---
