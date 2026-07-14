@@ -74,6 +74,21 @@ public sealed class SevenZipCliCompressor : IArchiveCompressor
         process.StartInfo = psi;
         process.Start();
 
+        // Kill the child process on cancellation; otherwise the 7-Zip process is orphaned and
+        // keeps writing the archive after the user cancels.
+        using CancellationTokenRegistration killRegistration = cancellationToken.Register(() =>
+        {
+            try
+            {
+                if (!process.HasExited)
+                    process.Kill(entireProcessTree: true);
+            }
+            catch (InvalidOperationException)
+            {
+                // Process already exited between the HasExited check and Kill — nothing to do.
+            }
+        });
+
         var stdoutTask = progress is not null
             ? MonitorProgressAsync(process.StandardOutput, progress, cancellationToken)
             : process.StandardOutput.ReadToEndAsync(cancellationToken);

@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Net.Http;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -27,6 +28,7 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             ConfigureLogging();
+            RegisterGlobalExceptionHandlers();
 
             MainWindow? mainWindow = null;
             ServiceProvider services = ConfigureServices(() => mainWindow);
@@ -36,11 +38,36 @@ public partial class App : Application
             MainWindow window = new MainWindow { DataContext = vm };
             mainWindow = window;
             desktop.MainWindow = window;
-            window.Opened += async (_, _) => await vm.LoadManagedDatsAsync();
+            window.Opened += async (_, _) =>
+            {
+                try
+                {
+                    await vm.LoadManagedDatsAsync();
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Failed to load managed DATs on startup");
+                }
+            };
             desktop.Exit += (_, _) => Log.CloseAndFlush();
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private static void RegisterGlobalExceptionHandlers()
+    {
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            Log.Fatal(
+                e.ExceptionObject as Exception,
+                "Unhandled exception; application terminating"
+            );
+
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            Log.Error(e.Exception, "Unobserved task exception");
+            e.SetObserved();
+        };
     }
 
     private static void ConfigureLogging()

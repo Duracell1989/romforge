@@ -484,6 +484,35 @@ public sealed class MainWindowVMTests
     }
 
     [Test]
+    public async Task ReArchiveAllAsync_WhenOperationThrowsUnexpectedly_DoesNotCrashAndNotifiesError()
+    {
+        GameRowVM game = new GameRowVM(
+            new MatchResult
+            {
+                Game = new Game { Title = "Test Game" },
+                Status = MatchStatus.Verified,
+                IsWrongArchiveType = true,
+                ScannedRom = new ScannedRom { FilePath = "/roms/game.zip" },
+            },
+            string.Empty,
+            new DatHeader(),
+            []
+        );
+        LoadedDatVM dat = MakeDatVM();
+        dat.Games = new ObservableCollection<GameRowVM> { game };
+        _vm.ActiveDat = dat;
+        _compressor.Setup(c => c.IsAvailable).Returns(true);
+        _extractor
+            .Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        Func<Task> act = async () => await _vm.ReArchiveAllCommand.ExecuteAsync(null);
+
+        await act.Should().NotThrowAsync();
+        _notifier.Verify(n => n.NotifyErrorAsync(It.IsAny<string>()), Times.Once);
+    }
+
+    [Test]
     public void MoveUnverifiedCommand_CannotExecute_WhenNoUnmatchedRoms()
     {
         _vm.ActiveDat = MakeDatVM();

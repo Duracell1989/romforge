@@ -743,6 +743,11 @@ public partial class MainWindowVM : VMBase
             _logger.Information(ex, "Re-archive cancelled");
             return null;
         }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Re-archive failed unexpectedly");
+            return $"Re-archive failed unexpectedly: {ex.Message}";
+        }
         finally
         {
             IsReArchiving = false;
@@ -958,6 +963,16 @@ public partial class MainWindowVM : VMBase
                     progress.Completed = done;
                 });
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Re-archive failed unexpectedly for {Game}", game.Title);
+                lock (errorsLock)
+                    errors.Add($"{game.Title}: {ex.Message}");
+            }
             finally
             {
                 semaphore.Release();
@@ -976,6 +991,12 @@ public partial class MainWindowVM : VMBase
                 completed,
                 targets.Count
             );
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Re-archive all failed unexpectedly");
+            lock (errorsLock)
+                errors.Add($"Re-archive failed unexpectedly: {ex.Message}");
         }
         finally
         {
