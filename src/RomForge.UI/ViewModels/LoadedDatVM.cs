@@ -18,12 +18,23 @@ namespace RomForge.UI.ViewModels;
 /// </summary>
 public partial class LoadedDatVM : VMBase
 {
-    private enum SortColumn { None, ReleaseNumber, Title, Publisher, Location, Language, ReArchived, Status }
+    private enum SortColumn
+    {
+        None,
+        ReleaseNumber,
+        Title,
+        Publisher,
+        Location,
+        Language,
+        ReArchived,
+        Status,
+    }
 
     private readonly DatFile _datFile;
     private readonly string _imgsBasePath;
     private readonly DatConfig? _config;
-    private readonly ObservableCollection<GameRowVM> _filteredGames = new ObservableCollection<GameRowVM>();
+    private readonly ObservableCollection<GameRowVM> _filteredGames =
+        new ObservableCollection<GameRowVM>();
     private SortColumn _sortColumn = SortColumn.None;
     private bool _sortDescending;
 
@@ -100,16 +111,19 @@ public partial class LoadedDatVM : VMBase
             if (Games.Count == 0)
                 return "No scan yet";
 
-            int good = Games.Count(g => g.IsGood);
-            int untrimmed = Games.Count(g => g.IsUntrimmed);
-            int wrongArchiveType = Games.Count(g => !g.IsUntrimmed && g.IsWrongArchiveType);
-            int incorrectlyNamed = Games.Count(g => !g.IsUntrimmed && !g.IsWrongArchiveType && g.IsIncorrectlyNamed);
-            int missing = Games.Count(g => g.Status == MatchStatus.Missing);
+            int good = Games.Count(g => g.DisplayStatus == RomStatus.Good);
+            int verified = Games.Count(g => g.DisplayStatus == RomStatus.Verified);
+            int untrimmed = Games.Count(g => g.DisplayStatus == RomStatus.Untrimmed);
+            int wrongArchiveType = Games.Count(g => g.DisplayStatus == RomStatus.WrongArchive);
+            int incorrectlyNamed = Games.Count(g => g.DisplayStatus == RomStatus.IncorrectlyNamed);
+            int missing = Games.Count(g => g.DisplayStatus == RomStatus.Missing);
 
             List<string> segments = new List<string> { $"{Games.Count} games" };
 
             if (good > 0)
                 segments.Add($"{good} good");
+            if (verified > 0)
+                segments.Add($"{verified} verified");
             if (incorrectlyNamed > 0)
                 segments.Add($"{incorrectlyNamed} incorrectly named");
             if (wrongArchiveType > 0)
@@ -120,7 +134,9 @@ public partial class LoadedDatVM : VMBase
 
             string summary = string.Join("  •  ", segments);
 
-            return IsFilterActive ? $"Showing {FilteredCount} of {Games.Count}  •  {summary}" : summary;
+            return IsFilterActive
+                ? $"Showing {FilteredCount} of {Games.Count}  •  {summary}"
+                : summary;
         }
     }
 
@@ -196,7 +212,10 @@ public partial class LoadedDatVM : VMBase
                 ? items.OrderByDescending(g => g.ReleaseNumber)
                 : items.OrderBy(g => g.ReleaseNumber),
             SortColumn.Title => _sortDescending
-                ? items.OrderByDescending(g => g.Title, System.StringComparer.CurrentCultureIgnoreCase)
+                ? items.OrderByDescending(
+                    g => g.Title,
+                    System.StringComparer.CurrentCultureIgnoreCase
+                )
                 : items.OrderBy(g => g.Title, System.StringComparer.CurrentCultureIgnoreCase),
             SortColumn.Publisher => _sortDescending
                 ? items.OrderByDescending(
@@ -208,10 +227,16 @@ public partial class LoadedDatVM : VMBase
                     System.StringComparer.CurrentCultureIgnoreCase
                 ),
             SortColumn.Location => _sortDescending
-                ? items.OrderByDescending(g => g.Location, System.StringComparer.CurrentCultureIgnoreCase)
+                ? items.OrderByDescending(
+                    g => g.Location,
+                    System.StringComparer.CurrentCultureIgnoreCase
+                )
                 : items.OrderBy(g => g.Location, System.StringComparer.CurrentCultureIgnoreCase),
             SortColumn.Language => _sortDescending
-                ? items.OrderByDescending(g => g.Language, System.StringComparer.CurrentCultureIgnoreCase)
+                ? items.OrderByDescending(
+                    g => g.Language,
+                    System.StringComparer.CurrentCultureIgnoreCase
+                )
                 : items.OrderBy(g => g.Language, System.StringComparer.CurrentCultureIgnoreCase),
             SortColumn.ReArchived => _sortDescending
                 ? items.OrderByDescending(g => g.IsReArchived)
@@ -229,7 +254,8 @@ public partial class LoadedDatVM : VMBase
     {
         base.OnPropertyChanged(e);
         if (
-            e.PropertyName is nameof(TitleFilter)
+            e.PropertyName
+            is nameof(TitleFilter)
                 or nameof(ShowVerified)
                 or nameof(ShowMissing)
                 or nameof(ShowIncorrectlyNamed)
@@ -251,24 +277,22 @@ public partial class LoadedDatVM : VMBase
 
     private bool MatchesFilter(GameRowVM vm)
     {
-        if (vm.Status == MatchStatus.Missing && !ShowMissing)
-            return false;
-        if (vm.IsUntrimmed && !ShowUntrimmed)
-            return false;
-        if (!vm.IsUntrimmed && vm.IsWrongArchiveType && !ShowWrongArchiveType)
-            return false;
-        if (!vm.IsUntrimmed && !vm.IsWrongArchiveType && vm.IsIncorrectlyNamed && !ShowIncorrectlyNamed)
-            return false;
-        if (vm.IsGood && !ShowGood)
-            return false;
-        if (vm.IsGood && !vm.IsReArchived && !ShowVerified)
-            return false;
         if (
             !string.IsNullOrEmpty(TitleFilter)
             && !vm.Title.Contains(TitleFilter, System.StringComparison.OrdinalIgnoreCase)
         )
             return false;
-        return true;
+
+        return vm.DisplayStatus switch
+        {
+            RomStatus.Missing => ShowMissing,
+            RomStatus.Untrimmed => ShowUntrimmed,
+            RomStatus.WrongArchive => ShowWrongArchiveType,
+            RomStatus.IncorrectlyNamed => ShowIncorrectlyNamed,
+            RomStatus.Good => ShowGood,
+            RomStatus.Verified => ShowVerified,
+            _ => true,
+        };
     }
 
     partial void OnGamesChanged(
