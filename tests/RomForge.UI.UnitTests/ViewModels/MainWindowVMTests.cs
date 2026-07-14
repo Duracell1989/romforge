@@ -37,6 +37,8 @@ public sealed class MainWindowVMTests
     private Mock<IImageDownloader> _imageDownloader = null!;
     private Mock<IAppLifetime> _appLifetime = null!;
     private Mock<IRomSource> _romSource = null!;
+    private Mock<IReleaseChecker> _releaseChecker = null!;
+    private Mock<IUrlLauncher> _urlLauncher = null!;
 
     [SetUp]
     public void SetUp()
@@ -57,6 +59,12 @@ public sealed class MainWindowVMTests
         _romSource
             .Setup(s => s.EnumerateAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(EmptyRomSourceAsync());
+        _releaseChecker = new Mock<IReleaseChecker>();
+        // Default: the startup update check silently fails (no network), so it never notifies.
+        _releaseChecker
+            .Setup(c => c.FetchLatestReleaseAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Fail<ReleaseInfo>("no network"));
+        _urlLauncher = new Mock<IUrlLauncher>();
         _vm = MakeVM();
     }
 
@@ -80,6 +88,8 @@ public sealed class MainWindowVMTests
             compressorMock?.Object ?? _compressor.Object,
             _extractor.Object,
             _notifier.Object,
+            _urlLauncher.Object,
+            new UpdateCheckService(_releaseChecker.Object, logger, "1.0.0"),
             logger,
             appData,
             _datImporter.Object,
@@ -570,6 +580,65 @@ public sealed class MainWindowVMTests
         _vm.QuitCommand.Execute(null);
 
         _appLifetime.Verify(a => a.Shutdown(), Times.Once);
+    }
+
+    // --- CheckForUpdatesAsync ---
+
+    private void SetupLatestRelease(string tag) =>
+        _releaseChecker
+            .Setup(c => c.FetchLatestReleaseAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(
+                Result.Ok(new ReleaseInfo(tag, $"https://example.com/releases/tag/{tag}"))
+            );
+
+    [Test]
+    public async Task CheckForUpdates_WhenNewerReleaseAndConfirmed_OpensReleasePage()
+    {
+        // Current version is "1.0.0" (see MakeVM)
+        SetupLatestRelease("v2.0.0");
+        _notifier
+            .Setup(n => n.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(true);
+
+        await _vm.CheckForUpdatesCommand.ExecuteAsync(null);
+
+        _urlLauncher.Verify(
+            l => l.OpenUrlAsync("https://example.com/releases/tag/v2.0.0"),
+            Times.Once
+        );
+    }
+
+    [Test]
+    public async Task CheckForUpdates_WhenNewerReleaseButDeclined_DoesNotOpenPage()
+    {
+        SetupLatestRelease("v2.0.0");
+        _notifier
+            .Setup(n => n.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(false);
+
+        await _vm.CheckForUpdatesCommand.ExecuteAsync(null);
+
+        _urlLauncher.Verify(l => l.OpenUrlAsync(It.IsAny<string>()), Times.Never);
+    }
+
+    [Test]
+    public async Task CheckForUpdates_WhenUpToDate_NotifiesInfo()
+    {
+        SetupLatestRelease("v1.0.0"); // same as current
+
+        await _vm.CheckForUpdatesCommand.ExecuteAsync(null);
+
+        _notifier.Verify(n => n.NotifyInfoAsync(It.IsAny<string>()), Times.Once);
+        _urlLauncher.Verify(l => l.OpenUrlAsync(It.IsAny<string>()), Times.Never);
+    }
+
+    [Test]
+    public async Task CheckForUpdates_WhenCheckFails_NotifiesError()
+    {
+        // Default mock returns a failed result.
+        await _vm.CheckForUpdatesCommand.ExecuteAsync(null);
+
+        _notifier.Verify(n => n.NotifyErrorAsync(It.IsAny<string>()), Times.Once);
     }
 
     // --- ImportDatAsync ---

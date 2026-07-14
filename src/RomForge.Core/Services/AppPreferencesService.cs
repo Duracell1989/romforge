@@ -65,7 +65,11 @@ public sealed class AppPreferencesService
         await SaveAsync(existing with { LastActiveDatName = datName });
     }
 
-    public async Task UpdateSettingsAsync(string defaultArchiveFormat, string? unverifiedFolder)
+    public async Task UpdateSettingsAsync(
+        string defaultArchiveFormat,
+        string? unverifiedFolder,
+        bool checkForUpdatesOnStartup = true
+    )
     {
         AppPreferences existing = await LoadAsync();
         await SaveAsync(
@@ -73,6 +77,7 @@ public sealed class AppPreferencesService
             {
                 DefaultArchiveFormat = defaultArchiveFormat,
                 UnverifiedFolder = unverifiedFolder,
+                CheckForUpdatesOnStartup = checkForUpdatesOnStartup,
             }
         );
     }

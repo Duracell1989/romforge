@@ -45,6 +45,9 @@
             </Grid>
         </Grid>
 
+        <CheckBox Content="Check for updates on startup"
+                  IsChecked="{Binding CheckForUpdatesOnStartup, Mode=TwoWay}"/>
+
         <StackPanel Orientation="Horizontal"
                     Spacing="8"
                     HorizontalAlignment="Right">

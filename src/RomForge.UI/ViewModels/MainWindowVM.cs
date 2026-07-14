@@ -31,6 +31,8 @@ public partial class MainWindowVM : VMBase
     private readonly IArchiveCompressor _compressor;
     private readonly IArchiveExtractor _extractor;
     private readonly IUserNotifier _notifier;
+    private readonly IUrlLauncher _urlLauncher;
+    private readonly UpdateCheckService _updateCheck;
     private readonly ILogger _logger;
     private readonly AppDataService _appData;
     private readonly IDatImporter _datImporter;
@@ -87,6 +89,8 @@ public partial class MainWindowVM : VMBase
         IArchiveCompressor compressor,
         IArchiveExtractor extractor,
         IUserNotifier notifier,
+        IUrlLauncher urlLauncher,
+        UpdateCheckService updateCheck,
         ILogger logger,
         AppDataService appData,
         IDatImporter datImporter,
@@ -108,6 +112,8 @@ public partial class MainWindowVM : VMBase
         _compressor = compressor;
         _extractor = extractor;
         _notifier = notifier;
+        _urlLauncher = urlLauncher;
+        _updateCheck = updateCheck;
         _logger = logger.ForContext<MainWindowVM>();
         _appData = appData;
         _datImporter = datImporter;
@@ -298,6 +304,9 @@ public partial class MainWindowVM : VMBase
         }
 
         await WarnIfUnverifiedFolderMissingAsync();
+
+        if (prefs.CheckForUpdatesOnStartup)
+            _ = RunUpdateCheckAsync(announceWhenCurrent: false);
     }
 
     /// <summary>
@@ -1522,6 +1531,40 @@ public partial class MainWindowVM : VMBase
         AppPreferences updated = await _preferencesService.LoadAsync();
         ArchiveFormat = updated.DefaultArchiveFormat;
         _unverifiedFolder = updated.UnverifiedFolder;
+    }
+
+    [RelayCommand]
+    private async Task CheckForUpdatesAsync() =>
+        await RunUpdateCheckAsync(announceWhenCurrent: true);
+
+    /// <summary>
+    /// Checks for a newer release. When <paramref name="announceWhenCurrent"/> is <c>false</c>
+    /// (the startup check), an up-to-date result or a failed check stays silent; only an available
+    /// update prompts the user.
+    /// </summary>
+    private async Task RunUpdateCheckAsync(bool announceWhenCurrent)
+    {
+        UpdateCheckOutcome outcome = await _updateCheck.CheckAsync();
+
+        if (outcome.Status == UpdateCheckStatus.UpdateAvailable)
+        {
+            bool open = await _notifier.ConfirmAsync(
+                "Update Available",
+                $"RomForge {outcome.LatestVersion} is available — you have {outcome.CurrentVersion}.\n\nOpen the download page?"
+            );
+            if (open && outcome.ReleaseUrl is not null)
+                await _urlLauncher.OpenUrlAsync(outcome.ReleaseUrl);
+        }
+        else if (announceWhenCurrent && outcome.Status == UpdateCheckStatus.UpToDate)
+        {
+            await _notifier.NotifyInfoAsync(
+                $"You're on the latest version ({outcome.CurrentVersion})."
+            );
+        }
+        else if (announceWhenCurrent && outcome.Status == UpdateCheckStatus.CheckFailed)
+        {
+            await _notifier.NotifyErrorAsync($"Could not check for updates.\n{outcome.Error}");
+        }
     }
 
     [RelayCommand]
