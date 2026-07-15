@@ -99,7 +99,7 @@ public sealed class SevenZipCliCompressorIntegrationTests
             .Entries.Where(e => !e.IsDirectory)
             .Select(e => e.Key)
             .Should()
-            .BeEquivalentTo(["source.bin"]);
+            .BeEquivalentTo("source.bin");
     }
 
     [Test]

@@ -76,7 +76,7 @@ public sealed class MainWindowVMTests
         // The VM persists the last-active DAT fire-and-forget, so a preferences write may still be
         // landing in the temp dir as the test ends. Retry briefly rather than failing the test on
         // that benign race; still surface a genuinely stuck write after the retries are exhausted.
-        for (int attempt = 0; ; attempt++)
+        for (int attempt = 0; attempt < 20; attempt++)
         {
             try
             {
@@ -84,12 +84,15 @@ public sealed class MainWindowVMTests
                     Directory.Delete(dir, recursive: true);
                 return;
             }
-            catch (Exception ex)
-                when (ex is IOException or UnauthorizedAccessException && attempt < 20)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 Thread.Sleep(25);
             }
         }
+
+        // Retries exhausted: attempt once more unguarded so a genuinely stuck write surfaces.
+        if (Directory.Exists(dir))
+            Directory.Delete(dir, recursive: true);
     }
 
     private MainWindowVM MakeVM(Mock<IArchiveCompressor>? compressorMock = null)
