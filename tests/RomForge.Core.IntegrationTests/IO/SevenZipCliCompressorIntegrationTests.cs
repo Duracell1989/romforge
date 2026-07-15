@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,6 +10,7 @@ using FluentResults;
 using NUnit.Framework;
 using RomForge.Core.IO;
 using Serilog;
+using SharpCompress.Archives;
 
 namespace RomForge.Core.IntegrationTests.IO;
 
@@ -71,6 +73,33 @@ public sealed class SevenZipCliCompressorIntegrationTests
 
         result.IsSuccess.Should().BeTrue();
         File.Exists(dest).Should().BeTrue();
+    }
+
+    [Test]
+    public async Task CompressAsync_WhenDestinationAlreadyExists_ReplacesInsteadOfAppending()
+    {
+        Assume.That(_sut.IsAvailable, Is.True, "7-Zip binary not found; skipping.");
+
+        // A stale archive left at the destination (e.g. from a crash mid-compress) must be
+        // replaced, not appended to — "7z a" adds to an existing archive, which would leave
+        // two entries and silently corrupt the ROM once the original is deleted.
+        string stale = Path.Combine(_tempDir, "stale.bin");
+        await File.WriteAllBytesAsync(stale, new byte[512]);
+        string dest = Path.Combine(_tempDir, "out.7z");
+        (await _sut.CompressAsync(stale, dest, 512)).IsSuccess.Should().BeTrue();
+
+        string source = Path.Combine(_tempDir, "source.bin");
+        await File.WriteAllBytesAsync(source, new byte[2048]);
+
+        Result result = await _sut.CompressAsync(source, dest, 2048);
+
+        result.IsSuccess.Should().BeTrue();
+        using IArchive archive = ArchiveFactory.OpenArchive(dest);
+        archive
+            .Entries.Where(e => !e.IsDirectory)
+            .Select(e => e.Key)
+            .Should()
+            .BeEquivalentTo("source.bin");
     }
 
     [Test]

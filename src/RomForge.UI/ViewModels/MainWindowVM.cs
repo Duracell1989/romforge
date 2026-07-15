@@ -1089,6 +1089,7 @@ public partial class MainWindowVM : VMBase
     {
         IsTrimming = true;
         string? tempRom = null;
+        string? tempArchive = null;
 
         try
         {
@@ -1109,6 +1110,8 @@ public partial class MainWindowVM : VMBase
 
             bool samePath = target.From.Equals(target.To, StringComparison.OrdinalIgnoreCase);
             string archiveDest = samePath ? target.To + ".romforge_tmp" : target.To;
+            if (samePath)
+                tempArchive = archiveDest;
 
             Progress<int> progressCallback = new Progress<int>(pct => progress.Progress = pct);
             Result compressResult = await _compressor.CompressAsync(
@@ -1128,6 +1131,9 @@ public partial class MainWindowVM : VMBase
 
             if (samePath)
             {
+                // The original is gone; the temp archive is now the only copy. Keep it on a
+                // rename failure for manual recovery rather than deleting it in the finally.
+                tempArchive = null;
                 Result renameResult = await _fileOperations.RenameAsync(archiveDest, target.To);
                 if (renameResult.IsFailed)
                     return $"Trim succeeded but could not rename temp archive.\n{renameResult.Errors[0].Message}";
@@ -1166,6 +1172,10 @@ public partial class MainWindowVM : VMBase
             IsTrimming = false;
             if (tempRom is not null && File.Exists(tempRom))
                 await _fileOperations.DeleteAsync(tempRom);
+            // Remove a leftover temp archive from a failed or cancelled in-place trim. It is
+            // nulled once the original is deleted, so this only runs while the original survives.
+            if (tempArchive is not null && File.Exists(tempArchive))
+                await _fileOperations.DeleteAsync(tempArchive);
         }
     }
 
@@ -1261,6 +1271,7 @@ public partial class MainWindowVM : VMBase
             return null;
 
         string? tempRom = null;
+        string? tempArchive = null;
         try
         {
             Result<string> extractResult = await _extractor.ExtractToTempFileAsync(
@@ -1281,6 +1292,8 @@ public partial class MainWindowVM : VMBase
                 StringComparison.OrdinalIgnoreCase
             );
             string archiveDest = samePath ? target.Value.To + ".romforge_tmp" : target.Value.To;
+            if (samePath)
+                tempArchive = archiveDest;
 
             int fileBase = index * 100 / total;
             int fileRange = 100 / total;
@@ -1305,6 +1318,9 @@ public partial class MainWindowVM : VMBase
 
             if (samePath)
             {
+                // The original is gone; the temp archive is now the only copy. Keep it on a
+                // rename failure for manual recovery rather than deleting it in the finally.
+                tempArchive = null;
                 var (_, isFailed, readOnlyList) = await _fileOperations.RenameAsync(
                     archiveDest,
                     target.Value.To
@@ -1340,6 +1356,10 @@ public partial class MainWindowVM : VMBase
         {
             if (tempRom is not null && File.Exists(tempRom))
                 await _fileOperations.DeleteAsync(tempRom);
+            // Remove a leftover temp archive from a failed or cancelled in-place trim. It is
+            // nulled once the original is deleted, so this only runs while the original survives.
+            if (tempArchive is not null && File.Exists(tempArchive))
+                await _fileOperations.DeleteAsync(tempArchive);
         }
     }
 
@@ -1610,26 +1630,38 @@ public partial class MainWindowVM : VMBase
     /// </summary>
     private async Task RunUpdateCheckAsync(bool announceWhenCurrent)
     {
-        UpdateCheckOutcome outcome = await _updateCheck.CheckAsync();
+        try
+        {
+            UpdateCheckOutcome outcome = await _updateCheck.CheckAsync();
 
-        if (outcome.Status == UpdateCheckStatus.UpdateAvailable)
-        {
-            bool open = await _notifier.ConfirmAsync(
-                "Update Available",
-                $"RomForge {outcome.LatestVersion} is available — you have {outcome.CurrentVersion}.\n\nOpen the download page?"
-            );
-            if (open && outcome.ReleaseUrl is not null)
-                await _urlLauncher.OpenUrlAsync(outcome.ReleaseUrl);
+            if (outcome.Status == UpdateCheckStatus.UpdateAvailable)
+            {
+                bool open = await _notifier.ConfirmAsync(
+                    "Update Available",
+                    $"RomForge {outcome.LatestVersion} is available — you have {outcome.CurrentVersion}.\n\nOpen the download page?"
+                );
+                if (open && outcome.ReleaseUrl is not null)
+                    await _urlLauncher.OpenUrlAsync(outcome.ReleaseUrl);
+            }
+            else if (announceWhenCurrent && outcome.Status == UpdateCheckStatus.UpToDate)
+            {
+                await _notifier.NotifyInfoAsync(
+                    $"You're on the latest version ({outcome.CurrentVersion})."
+                );
+            }
+            else if (announceWhenCurrent && outcome.Status == UpdateCheckStatus.CheckFailed)
+            {
+                await _notifier.NotifyErrorAsync($"Could not check for updates.\n{outcome.Error}");
+            }
         }
-        else if (announceWhenCurrent && outcome.Status == UpdateCheckStatus.UpToDate)
+        catch (Exception ex)
         {
-            await _notifier.NotifyInfoAsync(
-                $"You're on the latest version ({outcome.CurrentVersion})."
-            );
-        }
-        else if (announceWhenCurrent && outcome.Status == UpdateCheckStatus.CheckFailed)
-        {
-            await _notifier.NotifyErrorAsync($"Could not check for updates.\n{outcome.Error}");
+            // An uncaught throw here (e.g. from launching the release page) would abort the app
+            // via the RelayCommand. The startup check stays silent; only the interactive path
+            // surfaces the failure.
+            _logger.Error(ex, "Update check failed unexpectedly");
+            if (announceWhenCurrent)
+                await _notifier.NotifyErrorAsync($"Could not check for updates.\n{ex.Message}");
         }
     }
 

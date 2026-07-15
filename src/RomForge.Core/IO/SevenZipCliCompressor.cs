@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -48,6 +49,25 @@ public sealed class SevenZipCliCompressor : IArchiveCompressor
                 "7-Zip binary not found. Install 7-Zip (macOS: brew install 7-zip)."
             );
 
+        // 7-Zip's "a" command adds to an existing archive rather than replacing it. A stale or
+        // partial file at the destination (e.g. left behind when the app was killed mid-compress)
+        // would be appended to, silently corrupting the output. Remove it first so we always
+        // write a fresh archive.
+        if (File.Exists(destArchive))
+        {
+            try
+            {
+                File.Delete(destArchive);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.Error(ex, "Could not remove existing archive {Dest}", destArchive);
+                return Result.Fail(
+                    $"Could not replace existing archive {Path.GetFileName(destArchive)}: {ex.Message}"
+                );
+            }
+        }
+
         var totalRam = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
         var dictMb = ComputeDictionaryMb(romSize, totalRam);
         _logger.Debug(
@@ -58,16 +78,17 @@ public sealed class SevenZipCliCompressor : IArchiveCompressor
             dictMb
         );
 
-        var psi = new ProcessStartInfo(
-            _binaryPath,
-            BuildArguments(sourceFile, destArchive, romSize, totalRam, format)
-        )
+        var psi = new ProcessStartInfo(_binaryPath)
         {
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             CreateNoWindow = true,
         };
+        // Pass each token through ArgumentList so the OS argument encoder handles escaping.
+        // A filename containing a quote or space cannot break out and inject extra switches.
+        foreach (string arg in BuildArguments(sourceFile, destArchive, romSize, totalRam, format))
+            psi.ArgumentList.Add(arg);
 
         var sw = Stopwatch.StartNew();
         using var process = new Process();
@@ -119,7 +140,7 @@ public sealed class SevenZipCliCompressor : IArchiveCompressor
         return Result.Ok();
     }
 
-    internal static string BuildArguments(
+    internal static IReadOnlyList<string> BuildArguments(
         string sourceFile,
         string destArchive,
         long romSize,
@@ -128,26 +149,29 @@ public sealed class SevenZipCliCompressor : IArchiveCompressor
     )
     {
         if (format == "zip")
-            return $"a -tzip -mx=9 -y \"{destArchive}\" \"{sourceFile}\"";
+            return ["a", "-tzip", "-mx=9", "-y", destArchive, sourceFile];
 
-        var dictMb = ComputeDictionaryMb(romSize, totalRamBytes);
+        int dictMb = ComputeDictionaryMb(romSize, totalRamBytes);
         // 7-Zip LZMA switch reference: https://7-zip.opensource.jp/chm/cmdline/switches/method.htm
-        var args = new System.Text.StringBuilder();
-        args.Append($"a \"{destArchive}\" \"{sourceFile}\"");
-        args.Append(" -t7z"); // 7z format
-        args.Append(" -m0=LZMA"); // LZMA compression method
-        args.Append(" -mx=9"); // Ultra compression level
-        args.Append(" -mmf=bt5"); // Match finder bt5 (best ratio)
-        args.Append(" -mmc=1000000000"); // Match cycles (maximum passes)
-        args.Append($" -md={dictMb}m"); // Dictionary sized to ROM
-        args.Append(" -mfb=273"); // Fast bytes (maximum)
-        args.Append(" -mlc=3"); // Literal context bits (default; best for mixed binary content)
-        args.Append(" -mlp=0"); // Literal position bits (default)
-        args.Append(" -mpb=2"); // Position bits (default)
-        args.Append(" -mhc=on"); // Compress archive header
-        args.Append(" -ms=on"); // Solid mode
-        args.Append(" -y"); // Yes to all prompts
-        return args.ToString();
+        return
+        [
+            "a",
+            destArchive,
+            sourceFile,
+            "-t7z", // 7z format
+            "-m0=LZMA", // LZMA compression method
+            "-mx=9", // Ultra compression level
+            "-mmf=bt5", // Match finder bt5 (best ratio)
+            "-mmc=1000000000", // Match cycles (maximum passes)
+            $"-md={dictMb}m", // Dictionary sized to ROM
+            "-mfb=273", // Fast bytes (maximum)
+            "-mlc=3", // Literal context bits (default; best for mixed binary content)
+            "-mlp=0", // Literal position bits (default)
+            "-mpb=2", // Position bits (default)
+            "-mhc=on", // Compress archive header
+            "-ms=on", // Solid mode
+            "-y", // Yes to all prompts
+        ];
     }
 
     internal static int ComputeDictionaryMb(long romSize, long totalRamBytes)

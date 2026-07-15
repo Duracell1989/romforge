@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using AwesomeAssertions;
 using NUnit.Framework;
@@ -116,6 +118,49 @@ public sealed class AppPreferencesServiceTests
 
         AppPreferences loaded = await _svc.LoadAsync();
         loaded.LastActiveDatName.Should().Be("New DAT");
+    }
+
+    [Test]
+    public async Task ConcurrentLastActiveDatUpdates_DoNotClobberOtherSettings()
+    {
+        // The UI fires UpdateLastActiveDatAsync fire-and-forget on every DAT switch; several can
+        // overlap. Each does a load-modify-save on the shared file, so without serialization a
+        // load that hits the file mid-write falls back to defaults and persists them, wiping the
+        // user's format/folder/startup settings.
+        await _svc.SaveAsync(
+            new AppPreferences
+            {
+                DefaultArchiveFormat = "zip",
+                UnverifiedFolder = "/roms/unverified",
+                CheckForUpdatesOnStartup = false,
+            }
+        );
+
+        IEnumerable<Task> updates = Enumerable
+            .Range(0, 100)
+            .Select(i => _svc.UpdateLastActiveDatAsync($"dat-{i}"));
+        await Task.WhenAll(updates);
+
+        AppPreferences loaded = await _svc.LoadAsync();
+        loaded.DefaultArchiveFormat.Should().Be("zip");
+        loaded.UnverifiedFolder.Should().Be("/roms/unverified");
+        loaded.CheckForUpdatesOnStartup.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task UpdateLastActiveDatAsync_WhenFileUnreadable_DoesNotClobberItWithDefaults()
+    {
+        // A transiently unreadable file (locked by a concurrent writer, or mid-write) must not be
+        // overwritten with defaults — that is what wipes the user's real settings. The update is
+        // skipped and the file is left intact for the next successful read.
+        string path = Path.Combine(_appData.ConfigPath, "preferences.json");
+        const string unreadable = "{ not valid json ]]]";
+        await File.WriteAllTextAsync(path, unreadable);
+
+        await _svc.UpdateLastActiveDatAsync("New DAT");
+
+        string after = await File.ReadAllTextAsync(path);
+        after.Should().Be(unreadable);
     }
 
     [Test]
