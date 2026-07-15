@@ -60,6 +60,33 @@ public sealed class SettingsVMTests
     }
 
     [Test]
+    public void Constructor_InitializesCheckForUpdatesOnStartup_FromCurrentPreferences()
+    {
+        SettingsVM vm = MakeVM(new AppPreferences { CheckForUpdatesOnStartup = false });
+
+        vm.CheckForUpdatesOnStartup.Should().BeFalse();
+    }
+
+    [Test]
+    public void CheckForUpdatesOnStartup_DefaultsToTrue()
+    {
+        SettingsVM vm = MakeVM();
+
+        vm.CheckForUpdatesOnStartup.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task Save_PersistsCheckForUpdatesOnStartup()
+    {
+        SettingsVM vm = MakeVM();
+        vm.CheckForUpdatesOnStartup = false;
+
+        await vm.SaveCommand.ExecuteAsync(null);
+
+        (await _preferencesService.LoadAsync()).CheckForUpdatesOnStartup.Should().BeFalse();
+    }
+
+    [Test]
     public async Task BrowseUnverifiedFolder_WhenPicked_SetsFolder()
     {
         _fileDialogs.Setup(d => d.PickUnverifiedDestinationAsync()).ReturnsAsync("/picked");

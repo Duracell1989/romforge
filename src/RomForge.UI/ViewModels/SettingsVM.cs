@@ -24,6 +24,9 @@ public sealed partial class SettingsVM : VMBase
     [ObservableProperty]
     public partial string? UnverifiedFolder { get; set; }
 
+    [ObservableProperty]
+    public partial bool CheckForUpdatesOnStartup { get; set; }
+
     public IReadOnlyList<string> ArchiveFormats { get; } = ["7z", "zip"];
 
     /// <summary>
@@ -42,6 +45,7 @@ public sealed partial class SettingsVM : VMBase
         _fileDialogs = fileDialogs;
         ArchiveFormat = current.DefaultArchiveFormat;
         UnverifiedFolder = current.UnverifiedFolder;
+        CheckForUpdatesOnStartup = current.CheckForUpdatesOnStartup;
     }
 
     [RelayCommand]
@@ -58,7 +62,11 @@ public sealed partial class SettingsVM : VMBase
     [RelayCommand]
     private async Task SaveAsync()
     {
-        await _preferencesService.UpdateSettingsAsync(ArchiveFormat, UnverifiedFolder);
+        await _preferencesService.UpdateSettingsAsync(
+            ArchiveFormat,
+            UnverifiedFolder,
+            CheckForUpdatesOnStartup
+        );
         RequestClose?.Invoke(true);
     }
 

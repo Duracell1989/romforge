@@ -72,6 +72,7 @@ public partial class App : Application
         services.AddSingleton<ILogger>(Log.Logger);
         services.AddSingleton<IFileDialogService>(_ => new AvaloniaFileDialogService(getWindow));
         services.AddSingleton<IUserNotifier>(_ => new AvaloniaUserNotifier(getWindow));
+        services.AddSingleton<IUrlLauncher>(_ => new AvaloniaUrlLauncher(getWindow));
         services.AddSingleton<IUiDispatcher, AvaloniaUiDispatcher>();
         services.AddSingleton<IAppLifetime, AvaloniaAppLifetime>();
         services.AddSingleton<IRomSource, FileSystemRomSource>();
@@ -91,6 +92,12 @@ public partial class App : Application
         services.AddSingleton<AppDataService>();
         services.AddSingleton<IDatImporter, LocalDatImporter>();
         services.AddSingleton<IDatUpdateChecker, HttpDatUpdateChecker>();
+        services.AddSingleton<IReleaseChecker, GitHubReleaseChecker>();
+        services.AddSingleton(sp => new UpdateCheckService(
+            sp.GetRequiredService<IReleaseChecker>(),
+            sp.GetRequiredService<ILogger>(),
+            GetCurrentVersion()
+        ));
         services.AddSingleton<IDatDownloader, HttpDatDownloader>();
         services.AddSingleton<IImageDownloader, HttpImageDownloader>();
         services.AddSingleton<ImageSyncService>();
@@ -100,5 +107,11 @@ public partial class App : Application
         services.AddSingleton<AppPreferencesService>();
         services.AddSingleton<MainWindowVM>();
         return services.BuildServiceProvider();
+    }
+
+    private static string GetCurrentVersion()
+    {
+        Version? version = typeof(App).Assembly.GetName().Version;
+        return version is null ? "0.0.0" : version.ToString(3);
     }
 }

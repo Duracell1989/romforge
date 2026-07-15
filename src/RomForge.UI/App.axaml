@@ -38,6 +38,13 @@
                     </NativeMenu>
                 </NativeMenuItem.Menu>
             </NativeMenuItem>
+            <NativeMenuItem Header="Help">
+                <NativeMenuItem.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="Check for Updates…" Command="{Binding CheckForUpdatesCommand}"/>
+                    </NativeMenu>
+                </NativeMenuItem.Menu>
+            </NativeMenuItem>
         </NativeMenu>
     </NativeMenu.Menu>
 

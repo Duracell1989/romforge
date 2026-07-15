@@ -1,6 +1,6 @@
 # RomForge
 
-A cross-platform ROM management tool for the [OfflineList](http://offlinelist.free.fr) DAT ecosystem.
+A cross-platform ROM management tool for the OfflineList DAT ecosystem.
 
 [![CI](https://github.com/Duracell1989/RomForge/actions/workflows/ci.yml/badge.svg)](https://github.com/Duracell1989/RomForge/actions/workflows/ci.yml)
 
@@ -39,11 +39,11 @@ RomForge is a modern rewrite of OfflineList — a Windows-only C++ tool that has
 
 Download the latest release for your platform from the [Releases](../../releases) page.
 
-**macOS:** Download `RomForge-osx-arm64.zip` (Apple Silicon) or `RomForge-osx-x64.zip` (Intel Mac). Unzip and drag `RomForge.app` to your Applications folder. On first launch, right-click → Open to bypass Gatekeeper (the app is unsigned).
+**macOS:** Download `RomForge-macOS-arm64.dmg` (Apple Silicon). Open the `.dmg` and drag `RomForge.app` to your Applications folder. The app is signed and notarized, so it launches normally — no Gatekeeper workaround needed.
 
-**Windows:** Download `RomForge-win-x64.zip`. Extract and run `RomForge.exe`.
+**Windows:** Download `RomForge-Windows-x64.zip`. Extract and run `RomForge.exe`.
 
-**Linux:** Download `RomForge-linux-x64.tar.gz`. Extract and run `./RomForge`.
+**Linux:** Download `RomForge-Linux-x64.tar.gz`. Extract and run `./RomForge`.
 
 ---
 
@@ -69,9 +69,9 @@ make package  # produces artifacts/RomForge.app
 
 ## DAT file compatibility
 
-RomForge reads DAT files in the [OfflineList XML format](http://offlinelist.free.fr). DATs for popular systems (GBA, NDS, GBC, and others) are maintained by the OfflineList community.
+RomForge reads DAT files in the **OfflineList XML format**. You supply the DATs yourself: they contain only checksums and filenames — no ROM data — so they are freely distributable metadata.
 
-DAT files can be imported directly from ZIP archives as distributed by the community — no manual extraction required.
+The maintained source for these DATs is the [No-Intro](https://datomatic.no-intro.org) preservation project's DAT-o-Matic. When downloading, pick the **OfflineList** export format — RomForge does not currently read the No-Intro/Logiqx format. DATs can be imported directly from their ZIP archives; no manual extraction is required.
 
 ---
 
