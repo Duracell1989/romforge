@@ -28,12 +28,12 @@ public sealed class ScanResultStore
 
     public async Task InitializeAsync()
     {
-        await using SqliteConnection conn = new SqliteConnection(_connectionString);
-        await conn.OpenAsync();
+        await using SqliteConnection conn = await StatusDbConnection.OpenAsync(_connectionString);
 
         await using (SqliteCommand cmd = conn.CreateCommand())
         {
-            cmd.CommandText = @"
+            cmd.CommandText =
+                @"
                 CREATE TABLE IF NOT EXISTS ScanResults (
                     DatName             TEXT    NOT NULL,
                     ReleaseNumber       INTEGER NOT NULL,
@@ -63,9 +63,11 @@ public sealed class ScanResultStore
     {
         try
         {
-            await using SqliteConnection conn = new SqliteConnection(_connectionString);
-            await conn.OpenAsync();
-            await using SqliteTransaction tx = (SqliteTransaction)await conn.BeginTransactionAsync();
+            await using SqliteConnection conn = await StatusDbConnection.OpenAsync(
+                _connectionString
+            );
+            await using SqliteTransaction tx = (SqliteTransaction)
+                await conn.BeginTransactionAsync();
 
             await using (SqliteCommand del = conn.CreateCommand())
             {
@@ -76,7 +78,8 @@ public sealed class ScanResultStore
 
             await using (SqliteCommand ins = conn.CreateCommand())
             {
-                ins.CommandText = @"
+                ins.CommandText =
+                    @"
                     INSERT INTO ScanResults
                         (DatName, ReleaseNumber, Status, FilePath, FileExtension, RomExtension, Crc,
                          IsIncorrectlyNamed, IsWrongArchiveType, IsUntrimmed, IsReArchived, LastModified)
@@ -91,11 +94,23 @@ public sealed class ScanResultStore
                 SqliteParameter pFileExt = ins.Parameters.Add("@FileExtension", SqliteType.Text);
                 SqliteParameter pRomExt = ins.Parameters.Add("@RomExtension", SqliteType.Text);
                 SqliteParameter pCrc = ins.Parameters.Add("@Crc", SqliteType.Integer);
-                SqliteParameter pIncorrectlyNamed = ins.Parameters.Add("@IsIncorrectlyNamed", SqliteType.Integer);
-                SqliteParameter pWrongArchive = ins.Parameters.Add("@IsWrongArchiveType", SqliteType.Integer);
+                SqliteParameter pIncorrectlyNamed = ins.Parameters.Add(
+                    "@IsIncorrectlyNamed",
+                    SqliteType.Integer
+                );
+                SqliteParameter pWrongArchive = ins.Parameters.Add(
+                    "@IsWrongArchiveType",
+                    SqliteType.Integer
+                );
                 SqliteParameter pUntrimmed = ins.Parameters.Add("@IsUntrimmed", SqliteType.Integer);
-                SqliteParameter pReArchived = ins.Parameters.Add("@IsReArchived", SqliteType.Integer);
-                SqliteParameter pLastModified = ins.Parameters.Add("@LastModified", SqliteType.Text);
+                SqliteParameter pReArchived = ins.Parameters.Add(
+                    "@IsReArchived",
+                    SqliteType.Integer
+                );
+                SqliteParameter pLastModified = ins.Parameters.Add(
+                    "@LastModified",
+                    SqliteType.Text
+                );
 
                 foreach (MatchResult r in results)
                 {
@@ -105,12 +120,15 @@ public sealed class ScanResultStore
                     pFilePath.Value = (object?)r.ScannedRom?.FilePath ?? DBNull.Value;
                     pFileExt.Value = (object?)r.ScannedRom?.FileExtension ?? DBNull.Value;
                     pRomExt.Value = (object?)r.ScannedRom?.RomExtension ?? DBNull.Value;
-                    pCrc.Value = r.ScannedRom is not null ? (object)(long)r.ScannedRom.Crc : DBNull.Value;
+                    pCrc.Value = r.ScannedRom is not null
+                        ? (object)(long)r.ScannedRom.Crc
+                        : DBNull.Value;
                     pIncorrectlyNamed.Value = r.IsIncorrectlyNamed ? 1 : 0;
                     pWrongArchive.Value = r.IsWrongArchiveType ? 1 : 0;
                     pUntrimmed.Value = r.IsUntrimmed ? 1 : 0;
                     pReArchived.Value = r.IsReArchived ? 1 : 0;
-                    pLastModified.Value = (object?)r.ScannedRom?.LastModified?.ToString("O") ?? DBNull.Value;
+                    pLastModified.Value =
+                        (object?)r.ScannedRom?.LastModified?.ToString("O") ?? DBNull.Value;
                     await ins.ExecuteNonQueryAsync();
                 }
             }
@@ -154,10 +172,10 @@ public sealed class ScanResultStore
     private async Task<Dictionary<int, PersistedRow>> ReadRowsAsync(string datName)
     {
         Dictionary<int, PersistedRow> rows = new Dictionary<int, PersistedRow>();
-        await using SqliteConnection conn = new SqliteConnection(_connectionString);
-        await conn.OpenAsync();
+        await using SqliteConnection conn = await StatusDbConnection.OpenAsync(_connectionString);
         await using SqliteCommand cmd = conn.CreateCommand();
-        cmd.CommandText = @"
+        cmd.CommandText =
+            @"
             SELECT ReleaseNumber, Status, FilePath, FileExtension, RomExtension, Crc,
                    IsIncorrectlyNamed, IsWrongArchiveType, IsUntrimmed, IsReArchived, LastModified
             FROM ScanResults
@@ -179,10 +197,22 @@ public sealed class ScanResultStore
             bool isReArchived = reader.GetInt32(9) != 0;
             DateTime? lastModified = await reader.IsDBNullAsync(10)
                 ? null
-                : DateTime.Parse(reader.GetString(10), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+                : DateTime.Parse(
+                    reader.GetString(10),
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.RoundtripKind
+                );
             rows[releaseNumber] = new PersistedRow(
-                status, filePath, fileExt, romExt, crc,
-                isIncorrectlyNamed, isWrongArchiveType, isUntrimmed, isReArchived, lastModified
+                status,
+                filePath,
+                fileExt,
+                romExt,
+                crc,
+                isIncorrectlyNamed,
+                isWrongArchiveType,
+                isUntrimmed,
+                isReArchived,
+                lastModified
             );
         }
 
@@ -192,7 +222,12 @@ public sealed class ScanResultStore
     private static MatchResult BuildMatchResult(Game game, Dictionary<int, PersistedRow> rows)
     {
         if (!rows.TryGetValue(game.ReleaseNumber, out PersistedRow? row) || row is null)
-            return new MatchResult { Game = game, Status = MatchStatus.Missing, ScannedRom = null };
+            return new MatchResult
+            {
+                Game = game,
+                Status = MatchStatus.Missing,
+                ScannedRom = null,
+            };
 
         ScannedRom? scannedRom = row.FilePath is not null
             ? new ScannedRom
@@ -224,10 +259,12 @@ public sealed class ScanResultStore
     {
         try
         {
-            await using SqliteConnection conn = new SqliteConnection(_connectionString);
-            await conn.OpenAsync();
+            await using SqliteConnection conn = await StatusDbConnection.OpenAsync(
+                _connectionString
+            );
             await using SqliteCommand cmd = conn.CreateCommand();
-            cmd.CommandText = @"
+            cmd.CommandText =
+                @"
                 INSERT OR REPLACE INTO ScanResults
                     (DatName, ReleaseNumber, Status, FilePath, FileExtension, RomExtension, Crc,
                      IsIncorrectlyNamed, IsWrongArchiveType, IsUntrimmed, IsReArchived, LastModified)
@@ -237,26 +274,40 @@ public sealed class ScanResultStore
             cmd.Parameters.AddWithValue(ParamDatName, datName);
             cmd.Parameters.AddWithValue("@ReleaseNumber", result.Game.ReleaseNumber);
             cmd.Parameters.AddWithValue("@Status", (int)result.Status);
-            cmd.Parameters.AddWithValue("@FilePath",
-                (object?)result.ScannedRom?.FilePath ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@FileExtension",
-                (object?)result.ScannedRom?.FileExtension ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@RomExtension",
-                (object?)result.ScannedRom?.RomExtension ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@Crc",
-                result.ScannedRom is not null ? (object)(long)result.ScannedRom.Crc : DBNull.Value);
+            cmd.Parameters.AddWithValue(
+                "@FilePath",
+                (object?)result.ScannedRom?.FilePath ?? DBNull.Value
+            );
+            cmd.Parameters.AddWithValue(
+                "@FileExtension",
+                (object?)result.ScannedRom?.FileExtension ?? DBNull.Value
+            );
+            cmd.Parameters.AddWithValue(
+                "@RomExtension",
+                (object?)result.ScannedRom?.RomExtension ?? DBNull.Value
+            );
+            cmd.Parameters.AddWithValue(
+                "@Crc",
+                result.ScannedRom is not null ? (object)(long)result.ScannedRom.Crc : DBNull.Value
+            );
             cmd.Parameters.AddWithValue("@IsIncorrectlyNamed", result.IsIncorrectlyNamed ? 1 : 0);
             cmd.Parameters.AddWithValue("@IsWrongArchiveType", result.IsWrongArchiveType ? 1 : 0);
             cmd.Parameters.AddWithValue("@IsUntrimmed", result.IsUntrimmed ? 1 : 0);
             cmd.Parameters.AddWithValue("@IsReArchived", result.IsReArchived ? 1 : 0);
-            cmd.Parameters.AddWithValue("@LastModified",
-                (object?)result.ScannedRom?.LastModified?.ToString("O") ?? DBNull.Value);
+            cmd.Parameters.AddWithValue(
+                "@LastModified",
+                (object?)result.ScannedRom?.LastModified?.ToString("O") ?? DBNull.Value
+            );
             await cmd.ExecuteNonQueryAsync();
         }
         catch (Exception ex)
         {
-            _logger.Warning(ex, "Could not update scan result for {DatName}/{ReleaseNumber}",
-                datName, result.Game.ReleaseNumber);
+            _logger.Warning(
+                ex,
+                "Could not update scan result for {DatName}/{ReleaseNumber}",
+                datName,
+                result.Game.ReleaseNumber
+            );
         }
     }
 

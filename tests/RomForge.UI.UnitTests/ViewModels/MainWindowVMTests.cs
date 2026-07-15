@@ -758,6 +758,25 @@ public sealed class MainWindowVMTests
         _notifier.Verify(n => n.NotifyErrorAsync(It.IsAny<string>()), Times.Once);
     }
 
+    [Test]
+    public async Task CheckForUpdates_WhenLauncherThrows_DoesNotCrashAndNotifiesError()
+    {
+        // Opening the release page must never crash the app: an uncaught throw in a
+        // RelayCommand aborts the process (see the RelayCommand-crash guard rule).
+        SetupLatestRelease("v2.0.0");
+        _notifier
+            .Setup(n => n.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(true);
+        _urlLauncher
+            .Setup(l => l.OpenUrlAsync(It.IsAny<string>()))
+            .ThrowsAsync(new InvalidOperationException("launch failed"));
+
+        Func<Task> act = async () => await _vm.CheckForUpdatesCommand.ExecuteAsync(null);
+
+        await act.Should().NotThrowAsync();
+        _notifier.Verify(n => n.NotifyErrorAsync(It.IsAny<string>()), Times.Once);
+    }
+
     // --- ImportDatAsync ---
 
     [Test]
@@ -1984,6 +2003,115 @@ public sealed class MainWindowVMTests
             n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("compress failed"))),
             Times.Once
         );
+    }
+
+    [Test]
+    public async Task TrimSelectedAsync_WhenInPlaceCompressFails_CleansUpLeftoverTempArchive()
+    {
+        // A failed in-place trim wrote to a temp archive; the finally block must delete
+        // that leftover, mirroring the re-archive cleanup, not leave a .romforge_tmp behind.
+        string dir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            string original = Path.Combine(dir, "Test.7z");
+            string tempArchive = original + ".romforge_tmp";
+            await File.WriteAllBytesAsync(tempArchive, new byte[] { 1, 2, 3 });
+
+            _compressor.Setup(c => c.IsAvailable).Returns(true);
+            _compressor
+                .Setup(c =>
+                    c.CompressAsync(
+                        It.IsAny<string>(),
+                        It.IsAny<string>(),
+                        It.IsAny<long>(),
+                        It.IsAny<IProgress<int>?>(),
+                        It.IsAny<string>(),
+                        It.IsAny<CancellationToken>()
+                    )
+                )
+                .ReturnsAsync(Result.Fail("compress failed"));
+            _extractor
+                .Setup(e =>
+                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
+                )
+                .ReturnsAsync(Result.Ok("/tmp/no_such_trim.rom"));
+            _fileOps
+                .Setup(f => f.TruncateAsync(It.IsAny<string>(), It.IsAny<long>()))
+                .ReturnsAsync(Result.Ok());
+
+            LoadedDatVM datVm = MakeDatVM();
+            GameRowVM gameRow = MakeGameRowWithScannedRom(original, untrimmed: true);
+            datVm.Games.Add(gameRow);
+            _vm.ActiveDat = datVm;
+            _vm.SelectedGame = gameRow;
+
+            await _vm.TrimSelectedCommand.ExecuteAsync(null);
+
+            _fileOps.Verify(f => f.DeleteAsync(tempArchive), Times.Once);
+            _fileOps.Verify(f => f.DeleteAsync(original), Times.Never);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Test]
+    public async Task TrimAllAsync_WhenInPlaceCompressFails_CleansUpLeftoverTempArchive()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            string original = Path.Combine(dir, "Test.7z");
+            string tempArchive = original + ".romforge_tmp";
+            await File.WriteAllBytesAsync(tempArchive, new byte[] { 1, 2, 3 });
+
+            _compressor.Setup(c => c.IsAvailable).Returns(true);
+            _compressor
+                .Setup(c =>
+                    c.CompressAsync(
+                        It.IsAny<string>(),
+                        It.IsAny<string>(),
+                        It.IsAny<long>(),
+                        It.IsAny<IProgress<int>?>(),
+                        It.IsAny<string>(),
+                        It.IsAny<CancellationToken>()
+                    )
+                )
+                .ReturnsAsync(Result.Fail("compress failed"));
+            _extractor
+                .Setup(e =>
+                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
+                )
+                .ReturnsAsync(Result.Ok("/tmp/no_such_trim.rom"));
+            _fileOps
+                .Setup(f => f.TruncateAsync(It.IsAny<string>(), It.IsAny<long>()))
+                .ReturnsAsync(Result.Ok());
+            _notifier
+                .Setup(n =>
+                    n.ShowProgressAsync(
+                        It.IsAny<string>(),
+                        It.IsAny<ProgressWindowVM>(),
+                        It.IsAny<Task>()
+                    )
+                )
+                .Returns<string, ProgressWindowVM, Task>((_, _, task) => task);
+
+            LoadedDatVM datVm = MakeDatVM();
+            datVm.Games.Add(MakeGameRowWithScannedRom(original, untrimmed: true));
+            _vm.ActiveDat = datVm;
+
+            await _vm.TrimAllCommand.ExecuteAsync(null);
+
+            _fileOps.Verify(f => f.DeleteAsync(tempArchive), Times.Once);
+            _fileOps.Verify(f => f.DeleteAsync(original), Times.Never);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
     }
 
     // --- ReArchiveSelectedAsync: compress succeeds but delete-original fails ---

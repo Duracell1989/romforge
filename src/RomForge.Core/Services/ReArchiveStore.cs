@@ -30,10 +30,10 @@ public sealed class ReArchiveStore
 
     public async Task InitializeAsync()
     {
-        await using SqliteConnection conn = new SqliteConnection(_connectionString);
-        await conn.OpenAsync();
+        await using SqliteConnection conn = await StatusDbConnection.OpenAsync(_connectionString);
         await using SqliteCommand cmd = conn.CreateCommand();
-        cmd.CommandText = @"
+        cmd.CommandText =
+            @"
             CREATE TABLE IF NOT EXISTS ReArchivedRoms (
                 DatName       TEXT    NOT NULL,
                 ReleaseNumber INTEGER NOT NULL,
@@ -47,10 +47,12 @@ public sealed class ReArchiveStore
     {
         try
         {
-            await using SqliteConnection conn = new SqliteConnection(_connectionString);
-            await conn.OpenAsync();
+            await using SqliteConnection conn = await StatusDbConnection.OpenAsync(
+                _connectionString
+            );
             await using SqliteCommand cmd = conn.CreateCommand();
-            cmd.CommandText = @"
+            cmd.CommandText =
+                @"
                 INSERT OR REPLACE INTO ReArchivedRoms (DatName, ReleaseNumber, ArchivedAt)
                 VALUES (@DatName, @ReleaseNumber, @ArchivedAt)";
             cmd.Parameters.AddWithValue(ParamDatName, datName);
@@ -60,8 +62,12 @@ public sealed class ReArchiveStore
         }
         catch (Exception ex)
         {
-            _logger.Warning(ex, "Could not mark {DatName}/{ReleaseNumber} as re-archived",
-                datName, releaseNumber);
+            _logger.Warning(
+                ex,
+                "Could not mark {DatName}/{ReleaseNumber} as re-archived",
+                datName,
+                releaseNumber
+            );
         }
     }
 
@@ -70,8 +76,9 @@ public sealed class ReArchiveStore
         HashSet<int> result = new HashSet<int>();
         try
         {
-            await using SqliteConnection conn = new SqliteConnection(_connectionString);
-            await conn.OpenAsync();
+            await using SqliteConnection conn = await StatusDbConnection.OpenAsync(
+                _connectionString
+            );
             await using SqliteCommand cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT ReleaseNumber FROM ReArchivedRoms WHERE DatName = @DatName";
             cmd.Parameters.AddWithValue(ParamDatName, datName);

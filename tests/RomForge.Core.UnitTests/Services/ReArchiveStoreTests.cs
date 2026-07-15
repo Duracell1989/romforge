@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using AwesomeAssertions;
+using Microsoft.Data.Sqlite;
 using NUnit.Framework;
 using RomForge.Core.Services;
 using Serilog;
@@ -31,6 +32,32 @@ public sealed class ReArchiveStoreTests
     public async Task InitializeAsync_Succeeds_WithoutError()
     {
         await _store.Invoking(s => s.InitializeAsync()).Should().NotThrowAsync();
+    }
+
+    [Test]
+    public async Task InitializeAsync_EnablesWalJournalMode()
+    {
+        // WAL lets concurrent re-archive tasks share the status DB without a writer being
+        // starved into a swallowed SQLITE_BUSY that would drop a persisted re-archive mark.
+        await _store.InitializeAsync();
+
+        string journalMode = await ReadJournalModeAsync(_appData.StatusDbPath);
+
+        journalMode.Should().Be("wal");
+    }
+
+    private static async Task<string> ReadJournalModeAsync(string dbPath)
+    {
+        string connectionString = new SqliteConnectionStringBuilder
+        {
+            DataSource = dbPath,
+        }.ToString();
+        await using SqliteConnection conn = new SqliteConnection(connectionString);
+        await conn.OpenAsync();
+        await using SqliteCommand cmd = conn.CreateCommand();
+        cmd.CommandText = "PRAGMA journal_mode";
+        object? result = await cmd.ExecuteScalarAsync();
+        return (string)result!;
     }
 
     [Test]

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using AwesomeAssertions;
 using FluentResults;
@@ -46,7 +47,7 @@ public sealed class SevenZipCliCompressorTests
     [Test]
     public void BuildArguments_SevenZip_ContainsRequiredParams()
     {
-        string args = SevenZipCliCompressor.BuildArguments(
+        IReadOnlyList<string> args = SevenZipCliCompressor.BuildArguments(
             "/src/game.gba",
             "/out/game.7z",
             32L * 1024 * 1024,
@@ -67,19 +68,52 @@ public sealed class SevenZipCliCompressorTests
     }
 
     [Test]
-    public void BuildArguments_SevenZip_QuotesBothPaths()
+    public void BuildArguments_SevenZip_IncludesBothPathsAsSeparateArgs()
     {
-        string args = SevenZipCliCompressor.BuildArguments("/src/game.gba", "/out/game.7z", 0, LargeRam);
+        IReadOnlyList<string> args = SevenZipCliCompressor.BuildArguments(
+            "/src/game.gba",
+            "/out/game.7z",
+            0,
+            LargeRam
+        );
 
-        args.Should().Contain("\"/out/game.7z\"");
-        args.Should().Contain("\"/src/game.gba\"");
+        // Paths are discrete arguments, verbatim and unquoted — ProcessStartInfo.ArgumentList
+        // handles escaping, so BuildArguments must not add its own quotes.
+        args.Should().Contain("/out/game.7z");
+        args.Should().Contain("/src/game.gba");
+    }
+
+    [Test]
+    public void BuildArguments_PathWithQuote_KeepsPathAsSingleArgument()
+    {
+        // A filename containing a double quote must not break argument quoting or inject
+        // extra 7-Zip switches — each path is passed as its own argument, verbatim.
+        IReadOnlyList<string> args = SevenZipCliCompressor.BuildArguments(
+            "/src/ga\" -mx=0 \"me.gba",
+            "/out/game.7z",
+            0,
+            LargeRam
+        );
+
+        args.Should().Contain("/src/ga\" -mx=0 \"me.gba");
+        args.Should().NotContain("-mx=0");
     }
 
     [Test]
     public void BuildArguments_SevenZip_DictionarySizeScalesWithRomSize()
     {
-        string argsSmall = SevenZipCliCompressor.BuildArguments("s", "d", 1L * 1024 * 1024, LargeRam);
-        string argsLarge = SevenZipCliCompressor.BuildArguments("s", "d", 512L * 1024 * 1024, LargeRam);
+        IReadOnlyList<string> argsSmall = SevenZipCliCompressor.BuildArguments(
+            "s",
+            "d",
+            1L * 1024 * 1024,
+            LargeRam
+        );
+        IReadOnlyList<string> argsLarge = SevenZipCliCompressor.BuildArguments(
+            "s",
+            "d",
+            512L * 1024 * 1024,
+            LargeRam
+        );
 
         argsSmall.Should().Contain("-md=1m");
         argsLarge.Should().Contain("-md=512m");
@@ -88,7 +122,7 @@ public sealed class SevenZipCliCompressorTests
     [Test]
     public void BuildArguments_ZipFormat_UsesZipTypeWithoutLzmaParams()
     {
-        string args = SevenZipCliCompressor.BuildArguments(
+        IReadOnlyList<string> args = SevenZipCliCompressor.BuildArguments(
             "/src/game.gba",
             "/out/game.zip",
             32L * 1024 * 1024,
@@ -100,7 +134,7 @@ public sealed class SevenZipCliCompressorTests
         args.Should().Contain("-mx=9");
         args.Should().NotContain("-t7z");
         args.Should().NotContain("-m0=LZMA");
-        args.Should().NotContain("-md=");
+        args.Should().NotContain(a => a.StartsWith("-md="));
     }
 
     [Test]
