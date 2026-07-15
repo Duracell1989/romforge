@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography;
+using System.Threading;
 using System.Threading.Tasks;
 using AwesomeAssertions;
 using FluentResults;
@@ -85,6 +87,34 @@ public sealed class SevenZipCliCompressorIntegrationTests
         );
 
         result.IsFailed.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task CompressAsync_WhenCancelledMidRun_KillsProcessAndThrows()
+    {
+        Assume.That(_sut.IsAvailable, Is.True, "7-Zip binary not found; skipping.");
+
+        // A large incompressible payload keeps 7-Zip busy long enough to cancel
+        // while the process is still running, exercising the kill-on-cancel path.
+        string source = Path.Combine(_tempDir, "big.bin");
+        byte[] payload = new byte[32 * 1024 * 1024];
+        RandomNumberGenerator.Fill(payload);
+        await File.WriteAllBytesAsync(source, payload);
+        string dest = Path.Combine(_tempDir, "out.7z");
+
+        using CancellationTokenSource cts = new CancellationTokenSource();
+        Task<Result> compressTask = _sut.CompressAsync(
+            source,
+            dest,
+            payload.Length,
+            cancellationToken: cts.Token
+        );
+
+        await Task.Delay(100);
+        await cts.CancelAsync();
+
+        Func<Task> act = async () => await compressTask;
+        await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
     [Test]
