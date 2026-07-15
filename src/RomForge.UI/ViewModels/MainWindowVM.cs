@@ -179,6 +179,7 @@ public partial class MainWindowVM : VMBase
         ScanFolderCommand.NotifyCanExecuteChanged();
         RemoveDatCommand.NotifyCanExecuteChanged();
         CheckDatUpdateCommand.NotifyCanExecuteChanged();
+        DownloadImagesCommand.NotifyCanExecuteChanged();
         MoveUnverifiedCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(MoveUnverifiedLabel));
     }
@@ -1468,15 +1469,34 @@ public partial class MainWindowVM : VMBase
         await LoadDatFromManagedPathAsync(ActiveDat.DatFilePath);
 
         if (ActiveDat?.DatFile.Header.NewImUrl is not null)
-        {
-            using ImageDownloadWindowVM imageVm = new ImageDownloadWindowVM();
-            Task syncTask = RunImageSyncAsync(ActiveDat.DatFile, imageVm);
-            await _notifier.ShowImageDownloadAsync(imageVm, syncTask);
-        }
+            await RunImageDownloadUiAsync(ActiveDat.DatFile);
     }
 
     private bool CanCheckDatUpdate() =>
         ActiveDat is not null && ActiveDat.DatFile.Header.NewDatVersionUrl is not null;
+
+    [RelayCommand(CanExecute = nameof(CanDownloadImages))]
+    private async Task DownloadImagesAsync()
+    {
+        if (ActiveDat?.DatFile.Header.NewImUrl is null)
+            return;
+
+        await RunImageDownloadUiAsync(ActiveDat.DatFile);
+    }
+
+    private bool CanDownloadImages() =>
+        ActiveDat is not null && ActiveDat.DatFile.Header.NewImUrl is not null;
+
+    /// <summary>
+    /// Opens the image-download window and runs a missing-image sync for the given DAT. Only images
+    /// absent from disk are fetched.
+    /// </summary>
+    private async Task RunImageDownloadUiAsync(DatFile datFile)
+    {
+        using ImageDownloadWindowVM imageVm = new ImageDownloadWindowVM();
+        Task syncTask = RunImageSyncAsync(datFile, imageVm);
+        await _notifier.ShowImageDownloadAsync(imageVm, syncTask);
+    }
 
     private async Task<Result> RunDatUpdateAsync(DatHeader header, ProgressWindowVM progressVm)
     {
