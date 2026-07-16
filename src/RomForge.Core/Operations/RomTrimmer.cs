@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using RomForge.Core.Matching;
 
@@ -20,6 +21,8 @@ public static class RomTrimmer
         string targetExtension = "7z"
     )
     {
+        ArgumentNullException.ThrowIfNull(result);
+
         if (!result.IsUntrimmed || result.ScannedRom is null)
             return null;
 

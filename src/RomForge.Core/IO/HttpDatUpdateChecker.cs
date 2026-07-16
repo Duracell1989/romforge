@@ -14,15 +14,19 @@ public sealed class HttpDatUpdateChecker : IDatUpdateChecker
 
     public HttpDatUpdateChecker(HttpClient http, ILogger logger)
     {
+        ArgumentNullException.ThrowIfNull(logger);
         _http = http;
         _logger = logger.ForContext<HttpDatUpdateChecker>();
     }
 
-    public async Task<Result<string>> FetchLatestVersionAsync(string versionUrl, CancellationToken ct = default)
+    public async Task<Result<string>> FetchLatestVersionAsync(
+        string versionUrl,
+        CancellationToken ct = default
+    )
     {
         try
         {
-            var body = await _http.GetStringAsync(versionUrl, ct);
+            var body = await _http.GetStringAsync(new Uri(versionUrl), ct);
             return Result.Ok(body.Trim());
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

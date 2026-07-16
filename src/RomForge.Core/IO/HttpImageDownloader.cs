@@ -15,6 +15,7 @@ public sealed class HttpImageDownloader : IImageDownloader
 
     public HttpImageDownloader(HttpClient http, ILogger logger)
     {
+        ArgumentNullException.ThrowIfNull(logger);
         _http = http;
         _logger = logger.ForContext<HttpImageDownloader>();
     }
@@ -28,7 +29,7 @@ public sealed class HttpImageDownloader : IImageDownloader
         try
         {
             using HttpResponseMessage response = await _http.GetAsync(
-                imageUrl,
+                new Uri(imageUrl),
                 HttpCompletionOption.ResponseHeadersRead,
                 ct
             );
@@ -46,6 +47,7 @@ public sealed class HttpImageDownloader : IImageDownloader
             throw;
         }
         catch (Exception ex)
+            when (ex is HttpRequestException or IOException or UnauthorizedAccessException)
         {
             TryDelete(destPath);
             _logger.Debug(ex, "Failed to download image {Url}", imageUrl);
@@ -60,7 +62,7 @@ public sealed class HttpImageDownloader : IImageDownloader
             if (File.Exists(path))
                 File.Delete(path);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             _logger.Debug(ex, "Could not delete partial image {Path}", path);
         }

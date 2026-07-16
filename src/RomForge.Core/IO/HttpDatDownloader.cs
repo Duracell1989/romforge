@@ -18,6 +18,7 @@ public sealed class HttpDatDownloader : IDatDownloader
 
     public HttpDatDownloader(HttpClient http, AppDataService appData, ILogger logger)
     {
+        ArgumentNullException.ThrowIfNull(logger);
         _http = http;
         _appData = appData;
         _logger = logger.ForContext<HttpDatDownloader>();
@@ -48,6 +49,7 @@ public sealed class HttpDatDownloader : IDatDownloader
             throw;
         }
         catch (Exception ex)
+            when (ex is HttpRequestException or IOException or UnauthorizedAccessException)
         {
             TryDelete(tempPath);
             _logger.Warning(ex, "Failed to download DAT from {Url}", url);
@@ -63,7 +65,7 @@ public sealed class HttpDatDownloader : IDatDownloader
     )
     {
         using HttpResponseMessage response = await _http.GetAsync(
-            url,
+            new Uri(url),
             HttpCompletionOption.ResponseHeadersRead,
             ct
         );
@@ -109,7 +111,7 @@ public sealed class HttpDatDownloader : IDatDownloader
             if (File.Exists(path))
                 File.Delete(path);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             _logger.Debug(ex, "Could not delete temp file {Path}", path);
         }

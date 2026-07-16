@@ -28,7 +28,11 @@ public sealed class AppPreferencesServiceTests
     }
 
     [TearDown]
-    public void TearDown() => Directory.Delete(_tempDir, recursive: true);
+    public void TearDown()
+    {
+        _svc.Dispose();
+        Directory.Delete(_tempDir, recursive: true);
+    }
 
     [Test]
     public async Task LoadAsync_WhenNoFile_ReturnsDefaultPreferences()

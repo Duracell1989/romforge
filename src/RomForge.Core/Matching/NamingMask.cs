@@ -1,3 +1,5 @@
+using System;
+using System.Globalization;
 using System.Numerics;
 using RomForge.Core.Models;
 
@@ -5,12 +7,21 @@ namespace RomForge.Core.Matching;
 
 public static class NamingMask
 {
-    public static string Expand(string mask, Game game) =>
-        mask.Replace("%u", game.ReleaseNumber.ToString("D4"))
-            .Replace("%n", game.Title)
-            .Replace("%s", game.SourceRom ?? string.Empty)
-            .Replace("%o", game.Comment ?? string.Empty)
-            .Replace("%m", MultiLangMarker(game.Language));
+    public static string Expand(string mask, Game game)
+    {
+        ArgumentNullException.ThrowIfNull(mask);
+        ArgumentNullException.ThrowIfNull(game);
+
+        return mask.Replace(
+                "%u",
+                game.ReleaseNumber.ToString("D4", CultureInfo.InvariantCulture),
+                StringComparison.Ordinal
+            )
+            .Replace("%n", game.Title, StringComparison.Ordinal)
+            .Replace("%s", game.SourceRom ?? string.Empty, StringComparison.Ordinal)
+            .Replace("%o", game.Comment ?? string.Empty, StringComparison.Ordinal)
+            .Replace("%m", MultiLangMarker(game.Language), StringComparison.Ordinal);
+    }
 
     private static string MultiLangMarker(int language)
     {

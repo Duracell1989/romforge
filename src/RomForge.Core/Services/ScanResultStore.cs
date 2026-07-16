@@ -19,6 +19,8 @@ public sealed class ScanResultStore
 
     public ScanResultStore(AppDataService appData, ILogger logger)
     {
+        ArgumentNullException.ThrowIfNull(appData);
+        ArgumentNullException.ThrowIfNull(logger);
         _connectionString = new SqliteConnectionStringBuilder
         {
             DataSource = appData.StatusDbPath,
@@ -61,6 +63,8 @@ public sealed class ScanResultStore
     /// </summary>
     public async Task SaveResultsAsync(string datName, IReadOnlyList<MatchResult> results)
     {
+        ArgumentNullException.ThrowIfNull(results);
+
         try
         {
             await using SqliteConnection conn = await StatusDbConnection.OpenAsync(
@@ -136,7 +140,7 @@ public sealed class ScanResultStore
             await tx.CommitAsync();
             _logger.Debug("Saved {Count} scan results for {DatName}", results.Count, datName);
         }
-        catch (Exception ex)
+        catch (SqliteException ex)
         {
             _logger.Warning(ex, "Could not save scan results for {DatName}", datName);
         }
@@ -149,12 +153,14 @@ public sealed class ScanResultStore
     /// </summary>
     public async Task<IReadOnlyList<MatchResult>> LoadResultsAsync(string datName, DatFile datFile)
     {
+        ArgumentNullException.ThrowIfNull(datFile);
+
         Dictionary<int, PersistedRow> rows;
         try
         {
             rows = await ReadRowsAsync(datName);
         }
-        catch (Exception ex)
+        catch (SqliteException ex)
         {
             _logger.Warning(ex, "Could not load scan results for {DatName}", datName);
             return [];
@@ -171,30 +177,32 @@ public sealed class ScanResultStore
 
     private async Task<Dictionary<int, PersistedRow>> ReadRowsAsync(string datName)
     {
-        Dictionary<int, PersistedRow> rows = new Dictionary<int, PersistedRow>();
-        await using SqliteConnection conn = await StatusDbConnection.OpenAsync(_connectionString);
-        await using SqliteCommand cmd = conn.CreateCommand();
-        cmd.CommandText =
-            @"
-            SELECT ReleaseNumber, Status, FilePath, FileExtension, RomExtension, Crc,
-                   IsIncorrectlyNamed, IsWrongArchiveType, IsUntrimmed, IsReArchived, LastModified
-            FROM ScanResults
-            WHERE DatName = @DatName";
+        var rows = new Dictionary<int, PersistedRow>();
+        await using var conn = await StatusDbConnection.OpenAsync(_connectionString);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+
+                        SELECT ReleaseNumber, Status, FilePath, FileExtension, RomExtension, Crc,
+                               IsIncorrectlyNamed, IsWrongArchiveType, IsUntrimmed, IsReArchived, LastModified
+                        FROM ScanResults
+                        WHERE DatName = @DatName
+
+            """;
         cmd.Parameters.AddWithValue(ParamDatName, datName);
 
         await using SqliteDataReader reader = await cmd.ExecuteReaderAsync();
         while (await reader.ReadAsync())
         {
-            int releaseNumber = reader.GetInt32(0);
-            MatchStatus status = (MatchStatus)reader.GetInt32(1);
-            string? filePath = await reader.IsDBNullAsync(2) ? null : reader.GetString(2);
-            string? fileExt = await reader.IsDBNullAsync(3) ? null : reader.GetString(3);
-            string? romExt = await reader.IsDBNullAsync(4) ? null : reader.GetString(4);
+            var releaseNumber = reader.GetInt32(0);
+            var status = (MatchStatus)reader.GetInt32(1);
+            var filePath = await reader.IsDBNullAsync(2) ? null : reader.GetString(2);
+            var fileExt = await reader.IsDBNullAsync(3) ? null : reader.GetString(3);
+            var romExt = await reader.IsDBNullAsync(4) ? null : reader.GetString(4);
             uint? crc = await reader.IsDBNullAsync(5) ? null : (uint)reader.GetInt64(5);
-            bool isIncorrectlyNamed = reader.GetInt32(6) != 0;
-            bool isWrongArchiveType = reader.GetInt32(7) != 0;
-            bool isUntrimmed = reader.GetInt32(8) != 0;
-            bool isReArchived = reader.GetInt32(9) != 0;
+            var isIncorrectlyNamed = reader.GetInt32(6) != 0;
+            var isWrongArchiveType = reader.GetInt32(7) != 0;
+            var isUntrimmed = reader.GetInt32(8) != 0;
+            var isReArchived = reader.GetInt32(9) != 0;
             DateTime? lastModified = await reader.IsDBNullAsync(10)
                 ? null
                 : DateTime.Parse(
@@ -257,6 +265,8 @@ public sealed class ScanResultStore
     /// </summary>
     public async Task UpdateResultAsync(string datName, MatchResult result)
     {
+        ArgumentNullException.ThrowIfNull(result);
+
         try
         {
             await using SqliteConnection conn = await StatusDbConnection.OpenAsync(
@@ -300,7 +310,7 @@ public sealed class ScanResultStore
             );
             await cmd.ExecuteNonQueryAsync();
         }
-        catch (Exception ex)
+        catch (SqliteException ex)
         {
             _logger.Warning(
                 ex,
@@ -351,7 +361,10 @@ public sealed class ScanResultStore
             {
                 await using SqliteCommand cmd = conn.CreateCommand();
                 cmd.Transaction = tx;
+                // CA2100: sql comes only from the hardcoded `statements` array above, never user input.
+#pragma warning disable CA2100
                 cmd.CommandText = sql;
+#pragma warning restore CA2100
                 await cmd.ExecuteNonQueryAsync();
             }
             await tx.CommitAsync();

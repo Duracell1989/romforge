@@ -16,6 +16,7 @@ public sealed class LocalDatImporter : IDatImporter
 
     public LocalDatImporter(AppDataService appData, ILogger logger)
     {
+        ArgumentNullException.ThrowIfNull(logger);
         _appData = appData;
         _logger = logger.ForContext<LocalDatImporter>();
     }
@@ -27,6 +28,8 @@ public sealed class LocalDatImporter : IDatImporter
         CancellationToken ct
     )
     {
+        ArgumentNullException.ThrowIfNull(header);
+
         var destDatPath = Path.Combine(_appData.DatsPath, Path.GetFileName(sourceDatPath));
 
         if (!string.Equals(sourceDatPath, destDatPath, StringComparison.OrdinalIgnoreCase))
@@ -39,7 +42,7 @@ public sealed class LocalDatImporter : IDatImporter
                     Path.GetFileName(sourceDatPath)
                 );
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 return Result.Fail($"Could not copy DAT file: {ex.Message}");
             }
@@ -88,7 +91,9 @@ public sealed class LocalDatImporter : IDatImporter
 
         var destImgFolder = Path.Combine(_appData.ImgsPath, folderName);
 
-        progress?.Report(new ImportProgress(Current: 0, Total: files.Length, CurrentFile: string.Empty));
+        progress?.Report(
+            new ImportProgress(Current: 0, Total: files.Length, CurrentFile: string.Empty)
+        );
 
         for (int i = 0; i < files.Length; i++)
         {

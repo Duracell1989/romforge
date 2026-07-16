@@ -20,6 +20,7 @@ public sealed class UpdateCheckService
 
     public UpdateCheckService(IReleaseChecker releaseChecker, ILogger logger, string currentVersion)
     {
+        ArgumentNullException.ThrowIfNull(logger);
         _releaseChecker = releaseChecker;
         _logger = logger.ForContext<UpdateCheckService>();
         _currentVersion = currentVersion;

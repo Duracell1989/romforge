@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -44,7 +45,11 @@ public partial class App : Application
                 {
                     await vm.LoadManagedDatsAsync();
                 }
+                // CA1031: this is the top-level startup handler; any failure loading DATs is
+                // logged rather than allowed to crash the app during initialization.
+#pragma warning disable CA1031
                 catch (Exception ex)
+#pragma warning restore CA1031
                 {
                     Log.Error(ex, "Failed to load managed DATs on startup");
                 }
@@ -81,12 +86,14 @@ public partial class App : Application
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Debug()
             .WriteTo.Console(
-                outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}"
+                outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
+                formatProvider: CultureInfo.InvariantCulture
             )
             .WriteTo.File(
                 Path.Combine(logDir, "romforge-.log"),
                 rollingInterval: RollingInterval.Day,
-                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}"
+                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}",
+                formatProvider: CultureInfo.InvariantCulture
             )
             .CreateLogger();
 

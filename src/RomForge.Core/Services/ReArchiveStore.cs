@@ -21,6 +21,8 @@ public sealed class ReArchiveStore
 
     public ReArchiveStore(AppDataService appData, ILogger logger)
     {
+        ArgumentNullException.ThrowIfNull(appData);
+        ArgumentNullException.ThrowIfNull(logger);
         _connectionString = new SqliteConnectionStringBuilder
         {
             DataSource = appData.StatusDbPath,
@@ -30,8 +32,8 @@ public sealed class ReArchiveStore
 
     public async Task InitializeAsync()
     {
-        await using SqliteConnection conn = await StatusDbConnection.OpenAsync(_connectionString);
-        await using SqliteCommand cmd = conn.CreateCommand();
+        await using var conn = await StatusDbConnection.OpenAsync(_connectionString);
+        await using var cmd = conn.CreateCommand();
         cmd.CommandText =
             @"
             CREATE TABLE IF NOT EXISTS ReArchivedRoms (
@@ -47,10 +49,8 @@ public sealed class ReArchiveStore
     {
         try
         {
-            await using SqliteConnection conn = await StatusDbConnection.OpenAsync(
-                _connectionString
-            );
-            await using SqliteCommand cmd = conn.CreateCommand();
+            await using var conn = await StatusDbConnection.OpenAsync(_connectionString);
+            await using var cmd = conn.CreateCommand();
             cmd.CommandText =
                 @"
                 INSERT OR REPLACE INTO ReArchivedRoms (DatName, ReleaseNumber, ArchivedAt)
@@ -60,7 +60,7 @@ public sealed class ReArchiveStore
             cmd.Parameters.AddWithValue(ParamArchivedAt, DateTime.UtcNow.ToString("O"));
             await cmd.ExecuteNonQueryAsync();
         }
-        catch (Exception ex)
+        catch (SqliteException ex)
         {
             _logger.Warning(
                 ex,
@@ -73,7 +73,7 @@ public sealed class ReArchiveStore
 
     public async Task<HashSet<int>> GetReArchivedReleasesAsync(string datName)
     {
-        HashSet<int> result = new HashSet<int>();
+        var result = new HashSet<int>();
         try
         {
             await using SqliteConnection conn = await StatusDbConnection.OpenAsync(
@@ -86,7 +86,7 @@ public sealed class ReArchiveStore
             while (await reader.ReadAsync())
                 result.Add(reader.GetInt32(0));
         }
-        catch (Exception ex)
+        catch (SqliteException ex)
         {
             _logger.Warning(ex, "Could not load re-archived releases for {DatName}", datName);
         }

@@ -20,7 +20,7 @@ internal sealed class AvaloniaUserNotifier : IUserNotifier
 
     public async Task NotifyInfoAsync(string message)
     {
-        Window? window = _getWindow();
+        var window = _getWindow();
         if (window is null)
             return;
 
@@ -31,7 +31,7 @@ internal sealed class AvaloniaUserNotifier : IUserNotifier
 
     public async Task NotifyErrorAsync(string message)
     {
-        Window? window = _getWindow();
+        var window = _getWindow();
         if (window is null)
             return;
 
@@ -42,11 +42,11 @@ internal sealed class AvaloniaUserNotifier : IUserNotifier
 
     public async Task<bool> ConfirmAsync(string title, string message)
     {
-        Window? window = _getWindow();
+        var window = _getWindow();
         if (window is null)
             return false;
 
-        ButtonResult result = await MessageBoxManager
+        var result = await MessageBoxManager
             .GetMessageBoxStandard(title, message, ButtonEnum.YesNo, Icon.Info)
             .ShowWindowDialogAsync(window);
 
@@ -55,13 +55,13 @@ internal sealed class AvaloniaUserNotifier : IUserNotifier
 
     public async Task ShowProgressAsync(string title, ProgressWindowVM vm, Task operationTask)
     {
-        Window? parent = _getWindow();
-        ProgressWindow window = new ProgressWindow { Title = title, DataContext = vm };
+        var parent = _getWindow();
+        var window = new ProgressWindow { Title = title, DataContext = vm };
 
         if (parent is not null)
         {
-            bool operationCompleted = false;
-            bool userInitiatedClose = false;
+            var operationCompleted = false;
+            var userInitiatedClose = false;
 
             window.Closing += (_, e) =>
             {
@@ -102,8 +102,8 @@ internal sealed class AvaloniaUserNotifier : IUserNotifier
 
     public async Task ShowImageDownloadAsync(ImageDownloadWindowVM vm, Task operationTask)
     {
-        Window? parent = _getWindow();
-        ImageDownloadWindow window = new ImageDownloadWindow { DataContext = vm };
+        var parent = _getWindow();
+        var window = new ImageDownloadWindow { DataContext = vm };
         vm.RequestClose = () => window.Close();
 
         // While the download is running, the OS close button cancels but keeps the window open
@@ -148,8 +148,8 @@ internal sealed class AvaloniaUserNotifier : IUserNotifier
 
         if (parent is not null)
         {
-            bool operationCompleted = false;
-            bool userInitiatedClose = false;
+            var operationCompleted = false;
+            var userInitiatedClose = false;
 
             window.Closing += (_, e) =>
             {

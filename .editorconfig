@@ -11,6 +11,43 @@ indent_style = space
 indent_size = 4
 dotnet_diagnostic.IDE0290.severity = none
 
+# CA2007: ConfigureAwait targets redistributable libraries consumed under an
+# arbitrary SynchronizationContext. RomForge.Core is app-internal (only ever
+# referenced by RomForge.UI, never packed as NuGet), so the rule is pure noise here.
+dotnet_diagnostic.CA2007.severity = none
+
+# CA1054/CA1056: "accept System.Uri instead of string for URLs" only matters for a
+# redistributable public API. RomForge.Core is app-internal, and these URLs arrive as
+# strings from XML/JSON deserialization (DatHeader, ReleaseInfo) — a Uri at the DTO
+# boundary just adds parse failure modes. Kept as string.
+dotnet_diagnostic.CA1054.severity = none
+dotnet_diagnostic.CA1056.severity = none
+
+# CA1716: reserved-keyword identifiers (to, Set) only hamper cross-language consumers of
+# a published library. RomForge.Core is app-internal, C#-only; these names are idiomatic.
+dotnet_diagnostic.CA1716.severity = none
+
+# CA1515: "make public types internal" is API-surface hygiene for redistributable libraries.
+# RomForge.UI/.Core are leaf app assemblies (only referenced by their own test projects via
+# InternalsVisibleTo), and Avalonia binds public VMs/Views — so the rule does not apply.
+dotnet_diagnostic.CA1515.severity = none
+
 [*.{csproj,slnx,axaml,xml}]
 indent_style = space
 indent_size = 2
+
+# Test method names follow the mandated Method_Scenario_ExpectedResult convention, which is
+# built on underscores — directly incompatible with CA1707. Suppressed for test projects only.
+[tests/**/*.cs]
+dotnet_diagnostic.CA1707.severity = none
+
+# CA2000: the flagged objects are test-lifetime HttpClients/handlers/streams owned by the SUT
+# for the duration of a single short-lived test; the rule's production-leak rationale does not
+# apply, and disposing SUT-owned clients from static test helpers adds noise for no benefit.
+# (No SQLite connections are among these — those remain SUT-owned and disposed there.)
+dotnet_diagnostic.CA2000.severity = none
+
+# CA1001: NUnit fixtures own IDisposable SUTs (e.g. AppPreferencesService) but dispose them in
+# [TearDown], which CA1001 does not recognise — it only credits IDisposable on the type itself.
+# Fixtures dispose their services in TearDown; the rule is a false positive here.
+dotnet_diagnostic.CA1001.severity = none

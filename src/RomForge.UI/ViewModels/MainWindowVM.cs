@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -113,6 +114,7 @@ public partial class MainWindowVM : VMBase
         _extractor = extractor;
         _notifier = notifier;
         _urlLauncher = urlLauncher;
+        ArgumentNullException.ThrowIfNull(logger);
         _updateCheck = updateCheck;
         _logger = logger.ForContext<MainWindowVM>();
         _appData = appData;
@@ -432,7 +434,11 @@ public partial class MainWindowVM : VMBase
                 stale.Count
             );
         }
+        // CA1031: a background integrity check must never abort the app; any failure is logged
+        // and swallowed so the UI keeps running.
+#pragma warning disable CA1031
         catch (Exception ex)
+#pragma warning restore CA1031
         {
             _logger.Warning(
                 ex,
@@ -753,7 +759,11 @@ public partial class MainWindowVM : VMBase
             _logger.Information(ex, "Re-archive cancelled");
             return null;
         }
+        // CA1031: a single file's re-archive must never abort the app or the batch; any failure
+        // is logged and returned to the caller as an error string.
+#pragma warning disable CA1031
         catch (Exception ex)
+#pragma warning restore CA1031
         {
             _logger.Error(ex, "Re-archive failed unexpectedly");
             return $"Re-archive failed unexpectedly: {ex.Message}";
@@ -936,7 +946,7 @@ public partial class MainWindowVM : VMBase
         List<string> errors = new List<string>();
         object errorsLock = new object();
         int completed = 0;
-        SemaphoreSlim semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
+        using SemaphoreSlim semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
         ConcurrentQueue<BatchSlotVM> slotQueue = new ConcurrentQueue<BatchSlotVM>(progress.Slots);
         LoadedDatVM activeDat = ActiveDat!;
         string archiveFormat = ArchiveFormat;
@@ -1002,7 +1012,11 @@ public partial class MainWindowVM : VMBase
             {
                 throw;
             }
+            // CA1031: one game's failure must not abort the whole batch; it is logged and
+            // recorded as a per-file error while the remaining files continue.
+#pragma warning disable CA1031
             catch (Exception ex)
+#pragma warning restore CA1031
             {
                 _logger.Error(ex, "Re-archive failed unexpectedly for {Game}", game.Title);
                 lock (errorsLock)
@@ -1027,7 +1041,11 @@ public partial class MainWindowVM : VMBase
                 targets.Count
             );
         }
+        // CA1031: the batch-level net must never abort the app; unexpected failures are logged
+        // and surfaced to the user as an error entry.
+#pragma warning disable CA1031
         catch (Exception ex)
+#pragma warning restore CA1031
         {
             _logger.Error(ex, "Re-archive all failed unexpectedly");
             lock (errorsLock)
@@ -1372,13 +1390,14 @@ public partial class MainWindowVM : VMBase
 
     private async Task ReplaceGameAsync(GameRowVM original, MatchResult updatedMatch)
     {
-        var updatedRow = ActiveDat!.BuildGameRow(updatedMatch);
-        var index = ActiveDat.Games.IndexOf(original);
+        var index = ActiveDat!.Games.IndexOf(original);
         if (index < 0)
             return;
+        var updatedRow = ActiveDat.BuildGameRow(updatedMatch);
         ActiveDat.Games[index] = updatedRow;
         if (ReferenceEquals(SelectedGame, original))
             SelectedGame = updatedRow;
+        original.Dispose();
         await _scanResultStore.UpdateResultAsync(ActiveDat.DatFile.Header.DatName, updatedMatch);
     }
 
@@ -1504,7 +1523,11 @@ public partial class MainWindowVM : VMBase
         var latestStr = versionResult.Value;
         var isNewer = int.TryParse(latestStr, out var latestVersion)
             ? latestVersion > header.DatVersion
-            : !string.Equals(latestStr, header.DatVersion.ToString(), StringComparison.Ordinal);
+            : !string.Equals(
+                latestStr,
+                header.DatVersion.ToString(CultureInfo.InvariantCulture),
+                StringComparison.Ordinal
+            );
 
         if (!isNewer)
         {
@@ -1560,8 +1583,13 @@ public partial class MainWindowVM : VMBase
     private async Task RunImageDownloadUiAsync(DatFile datFile)
     {
         using ImageDownloadWindowVM imageVm = new ImageDownloadWindowVM();
+        // CA2025: ShowImageDownloadAsync keeps the modal dialog open until the sync completes
+        // (window.Closing blocks while !vm.IsComplete), so imageVm is never disposed by this
+        // `using` while syncTask is still running.
+#pragma warning disable CA2025
         Task syncTask = RunImageSyncAsync(datFile, imageVm);
         await _notifier.ShowImageDownloadAsync(imageVm, syncTask);
+#pragma warning restore CA2025
     }
 
     private async Task<Result> RunDatUpdateAsync(DatHeader header, ProgressWindowVM progressVm)
@@ -1654,11 +1682,13 @@ public partial class MainWindowVM : VMBase
                 await _notifier.NotifyErrorAsync($"Could not check for updates.\n{outcome.Error}");
             }
         }
+        // CA1031: an uncaught throw here (e.g. from launching the release page) would abort the
+        // app via the RelayCommand. The startup check stays silent; only the interactive path
+        // surfaces the failure.
+#pragma warning disable CA1031
         catch (Exception ex)
+#pragma warning restore CA1031
         {
-            // An uncaught throw here (e.g. from launching the release page) would abort the app
-            // via the RelayCommand. The startup check stays silent; only the interactive path
-            // surfaces the failure.
             _logger.Error(ex, "Update check failed unexpectedly");
             if (announceWhenCurrent)
                 await _notifier.NotifyErrorAsync($"Could not check for updates.\n{ex.Message}");

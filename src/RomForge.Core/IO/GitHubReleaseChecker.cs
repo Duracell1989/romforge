@@ -27,6 +27,7 @@ public sealed class GitHubReleaseChecker : IReleaseChecker
 
     public GitHubReleaseChecker(HttpClient http, ILogger logger)
     {
+        ArgumentNullException.ThrowIfNull(logger);
         _http = http;
         _logger = logger.ForContext<GitHubReleaseChecker>();
     }

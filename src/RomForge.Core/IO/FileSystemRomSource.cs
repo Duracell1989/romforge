@@ -14,22 +14,25 @@ public sealed class FileSystemRomSource : IRomSource
 
     public Task<int> CountAsync(string folderPath, CancellationToken cancellationToken = default)
     {
-        return Task.Run(() =>
-        {
-            EnumerationOptions enumOptions = new EnumerationOptions
+        return Task.Run(
+            () =>
             {
-                RecurseSubdirectories = true,
-                IgnoreInaccessible = true,
-            };
-            int count = 0;
-            foreach (string f in Directory.EnumerateFiles(folderPath, "*", enumOptions))
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (!string.IsNullOrEmpty(Path.GetExtension(f)))
-                    count++;
-            }
-            return count;
-        }, cancellationToken);
+                EnumerationOptions enumOptions = new EnumerationOptions
+                {
+                    RecurseSubdirectories = true,
+                    IgnoreInaccessible = true,
+                };
+                int count = 0;
+                foreach (string f in Directory.EnumerateFiles(folderPath, "*", enumOptions))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (!string.IsNullOrEmpty(Path.GetExtension(f)))
+                        count++;
+                }
+                return count;
+            },
+            cancellationToken
+        );
     }
 
     public async IAsyncEnumerable<RomContent> EnumerateAsync(
@@ -47,19 +50,28 @@ public sealed class FileSystemRomSource : IRomSource
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var fileExt = Path.GetExtension(filePath).ToLowerInvariant();
+            var fileExt = ToLowerExtension(Path.GetExtension(filePath));
             if (string.IsNullOrEmpty(fileExt))
                 continue;
 
             var fileInfo = new FileInfo(filePath);
             var content = ArchiveExtensions.Contains(fileExt)
-                ? await Task.Run(() => BuildArchiveContent(filePath, fileExt, fileInfo), cancellationToken)
+                ? await Task.Run(
+                    () => BuildArchiveContent(filePath, fileExt, fileInfo),
+                    cancellationToken
+                )
                 : BuildRawContent(filePath, fileExt, fileInfo);
 
             if (content is not null)
                 yield return content;
         }
     }
+
+    // File extensions are normalised to lowercase to match the lowercase archive-extension
+    // literals and typical ROM naming; CA1308 (prefer uppercase) does not apply to extensions.
+#pragma warning disable CA1308
+    private static string ToLowerExtension(string value) => value.ToLowerInvariant();
+#pragma warning restore CA1308
 
     private static RomContent BuildRawContent(string filePath, string fileExt, FileInfo fileInfo)
     {
@@ -89,7 +101,7 @@ public sealed class FileSystemRomSource : IRomSource
             if (entry is null)
                 return null;
 
-            romExt = Path.GetExtension(entry.Key ?? string.Empty).TrimStart('.').ToLowerInvariant();
+            romExt = ToLowerExtension(Path.GetExtension(entry.Key ?? string.Empty).TrimStart('.'));
         }
 
         return new RomContent

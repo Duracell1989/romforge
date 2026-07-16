@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -252,6 +253,8 @@ public partial class LoadedDatVM : VMBase
 
     protected override void OnPropertyChanged(PropertyChangedEventArgs e)
     {
+        ArgumentNullException.ThrowIfNull(e);
+
         base.OnPropertyChanged(e);
         if (
             e.PropertyName

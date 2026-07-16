@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Media;
@@ -35,6 +36,9 @@ public sealed partial class GameRowVM : ObservableObject, IDisposable
         IReadOnlyList<LanguageBit> languageBits
     )
     {
+        ArgumentNullException.ThrowIfNull(result);
+        ArgumentNullException.ThrowIfNull(header);
+
         _result = result;
         _namingMask = header.RomTitle;
         _languageBits = languageBits;
@@ -140,7 +144,11 @@ public sealed partial class GameRowVM : ObservableObject, IDisposable
         {
             return new Bitmap(path);
         }
-        catch
+        // CA1031: a bad/locked/corrupt image file must never crash the row — the decoder can
+        // surface a variety of IO and native exception types, so any failure means "no image".
+#pragma warning disable CA1031
+        catch (Exception)
+#pragma warning restore CA1031
         {
             return null;
         }
@@ -151,11 +159,13 @@ public sealed partial class GameRowVM : ObservableObject, IDisposable
         if (bitmask == 0)
             return string.Empty;
         if (bits.Count == 0)
-            return bitmask.ToString();
+            return bitmask.ToString(CultureInfo.InvariantCulture);
         List<string> labels = bits.Where(b => (bitmask & (1 << b.BitIndex)) != 0)
             .Select(b => b.Label)
             .ToList();
-        return labels.Count > 0 ? string.Join(" ", labels) : bitmask.ToString();
+        return labels.Count > 0
+            ? string.Join(" ", labels)
+            : bitmask.ToString(CultureInfo.InvariantCulture);
     }
 
     private static string DecodeLocation(int location) =>
@@ -179,7 +189,7 @@ public sealed partial class GameRowVM : ObservableObject, IDisposable
             18 => "(SE)",
             19 => "(CA)",
             22 => "(PT)",
-            _ => location.ToString(),
+            _ => location.ToString(CultureInfo.InvariantCulture),
         };
 
     private static string FormatSize(long bytes) =>

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using RomForge.Core.Matching;
@@ -16,6 +17,8 @@ public static class RomIntegrityChecker
     /// </summary>
     public static IReadOnlyList<MatchResult> FindStaleResults(IReadOnlyList<MatchResult> results)
     {
+        ArgumentNullException.ThrowIfNull(results);
+
         List<MatchResult> stale = new List<MatchResult>();
         foreach (MatchResult result in results)
         {

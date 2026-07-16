@@ -33,6 +33,7 @@ public sealed class SettingsVMTests
     [TearDown]
     public void TearDown()
     {
+        _preferencesService.Dispose();
         if (Directory.Exists(_tempDir))
             Directory.Delete(_tempDir, recursive: true);
     }

@@ -41,6 +41,7 @@ public sealed partial class SettingsVM : VMBase
         AppPreferences current
     )
     {
+        ArgumentNullException.ThrowIfNull(current);
         _preferencesService = preferencesService;
         _fileDialogs = fileDialogs;
         ArchiveFormat = current.DefaultArchiveFormat;

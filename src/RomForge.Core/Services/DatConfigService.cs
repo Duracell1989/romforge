@@ -23,6 +23,7 @@ public sealed class DatConfigService
 
     public DatConfigService(AppDataService appData, ILogger logger)
     {
+        ArgumentNullException.ThrowIfNull(logger);
         _appData = appData;
         _logger = logger.ForContext<DatConfigService>();
     }
@@ -33,6 +34,8 @@ public sealed class DatConfigService
     /// </summary>
     public async Task ImportFromOfflineListAsync(string sourceDatPath, DatHeader header)
     {
+        ArgumentNullException.ThrowIfNull(header);
+
         string? iniPath = FindOfflineListIni(sourceDatPath, header.DatName);
         if (iniPath is null)
         {
@@ -76,6 +79,7 @@ public sealed class DatConfigService
             return await JsonSerializer.DeserializeAsync<DatConfig>(stream, JsonOptions);
         }
         catch (Exception ex)
+            when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
             _logger.Warning(ex, "Could not load config for {DatName}", datName);
             return null;
@@ -91,6 +95,7 @@ public sealed class DatConfigService
             await JsonSerializer.SerializeAsync(stream, config, JsonOptions);
         }
         catch (Exception ex)
+            when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
             _logger.Warning(ex, "Could not save config for {DatName}", datName);
         }

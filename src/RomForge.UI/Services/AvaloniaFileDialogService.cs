@@ -26,7 +26,7 @@ internal sealed class AvaloniaFileDialogService : IFileDialogService
         if (topLevel is null)
             return null;
 
-        IReadOnlyList<IStorageFile> files = await topLevel.StorageProvider.OpenFilePickerAsync(
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(
             new FilePickerOpenOptions
             {
                 Title = "Open DAT File",
@@ -45,7 +45,7 @@ internal sealed class AvaloniaFileDialogService : IFileDialogService
 
     private async Task<string?> PickFolderAsync(string title)
     {
-        Window? topLevel = _getWindow();
+        var topLevel = _getWindow();
         if (topLevel is null)
             return null;
 

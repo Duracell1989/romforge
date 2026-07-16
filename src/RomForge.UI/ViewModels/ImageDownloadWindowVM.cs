@@ -60,6 +60,8 @@ public sealed partial class ImageDownloadWindowVM : VMBase, IDisposable
     /// </summary>
     public void Report(ImageSyncProgress progress)
     {
+        ArgumentNullException.ThrowIfNull(progress);
+
         Total = progress.Total;
         Current = progress.Current;
         AppendLine($"{(progress.Success ? "✓" : "✗")} {progress.RelativePath}");
@@ -70,6 +72,8 @@ public sealed partial class ImageDownloadWindowVM : VMBase, IDisposable
     /// </summary>
     public void Finish(ImageSyncSummary summary)
     {
+        ArgumentNullException.ThrowIfNull(summary);
+
         if (summary.Total == 0)
             AppendLine("No missing images — everything is already present.");
         else if (summary.Failed == 0)

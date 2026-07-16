@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Hashing;
 using System.Linq;
 using System.Text;
-using System.IO.Hashing;
 
 namespace RomForge.Core.Services;
 
@@ -73,7 +73,7 @@ public sealed class AppDataService
             {
                 File.Delete(file);
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // orphan from a previous crash — skip
             }

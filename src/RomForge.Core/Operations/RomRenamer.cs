@@ -13,7 +13,13 @@ public static class RomRenamer
     /// </summary>
     public static (string From, string To)? GetRenameTarget(MatchResult result, string namingMask)
     {
-        if (!result.IsIncorrectlyNamed || result.ScannedRom is null || string.IsNullOrEmpty(namingMask))
+        ArgumentNullException.ThrowIfNull(result);
+
+        if (
+            !result.IsIncorrectlyNamed
+            || result.ScannedRom is null
+            || string.IsNullOrEmpty(namingMask)
+        )
             return null;
 
         string expectedStem = NamingMask.Expand(namingMask, result.Game);

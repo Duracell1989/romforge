@@ -13,7 +13,7 @@ namespace RomForge.Core.Services;
 /// All reads and writes are serialized so overlapping updates cannot corrupt the file or lose
 /// each other's changes.
 /// </summary>
-public sealed class AppPreferencesService
+public sealed class AppPreferencesService : IDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions
     {
@@ -26,6 +26,7 @@ public sealed class AppPreferencesService
 
     public AppPreferencesService(AppDataService appData, ILogger logger)
     {
+        ArgumentNullException.ThrowIfNull(logger);
         _appData = appData;
         _logger = logger.ForContext<AppPreferencesService>();
     }
@@ -115,6 +116,7 @@ public sealed class AppPreferencesService
                 ?? new AppPreferences();
         }
         catch (Exception ex)
+            when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
             _logger.Warning(ex, "Could not load app preferences");
             return null;
@@ -139,6 +141,7 @@ public sealed class AppPreferencesService
             File.Move(tempPath, path, overwrite: true);
         }
         catch (Exception ex)
+            when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
             _logger.Warning(ex, "Could not save app preferences");
             TryDeleteTemp(tempPath);
@@ -159,4 +162,6 @@ public sealed class AppPreferencesService
     }
 
     private string GetPath() => Path.Combine(_appData.ConfigPath, "preferences.json");
+
+    public void Dispose() => _gate.Dispose();
 }

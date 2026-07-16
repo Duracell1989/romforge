@@ -21,7 +21,7 @@ internal sealed class AvaloniaUrlLauncher : IUrlLauncher
         if (!IsLaunchableHttpUrl(url))
             return false;
 
-        Window? window = _getWindow();
+        var window = _getWindow();
         if (window is null)
             return false;
 

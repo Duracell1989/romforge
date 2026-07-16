@@ -41,7 +41,7 @@ public static class OfflineListConfigReader
                 }
             );
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return Result.Fail($"Could not read OfflineList config: {ex.Message}");
         }
@@ -62,10 +62,10 @@ public static class OfflineListConfigReader
                 continue;
             }
 
-            if (!inOptionSection || !line.Contains('='))
+            if (!inOptionSection || !line.Contains('=', StringComparison.Ordinal))
                 continue;
 
-            var eq = line.IndexOf('=');
+            var eq = line.IndexOf('=', StringComparison.Ordinal);
             var key = line[..eq].Trim();
             var value = line[(eq + 1)..].Trim();
             result[key] = value;

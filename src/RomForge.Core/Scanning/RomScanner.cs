@@ -21,7 +21,11 @@ public static class RomScanner
         CancellationToken cancellationToken = default
     )
     {
-        int estimatedTotal = await source.CountAsync(folderPath, cancellationToken).ConfigureAwait(false);
+        ArgumentNullException.ThrowIfNull(source);
+
+        int estimatedTotal = await source
+            .CountAsync(folderPath, cancellationToken)
+            .ConfigureAwait(false);
         int found = 0;
 
         List<RomContent> contents = new();
@@ -29,7 +33,14 @@ public static class RomScanner
         {
             contents.Add(c);
             found++;
-            progress?.Report(new ScanProgress(found, estimatedTotal, Path.GetFileName(c.FilePath), "Enumerating files..."));
+            progress?.Report(
+                new ScanProgress(
+                    found,
+                    estimatedTotal,
+                    Path.GetFileName(c.FilePath),
+                    "Enumerating files..."
+                )
+            );
         }
 
         if (contents.Count == 0)
@@ -44,8 +55,12 @@ public static class RomScanner
             long? fileSize = c.FileSize;
             DateTime? lastModified = c.LastModified;
 
-            if (cache is not null && fileSize.HasValue && lastModified.HasValue
-                && cache.GetCrc(c.FilePath, fileSize.Value, lastModified.Value) is { } cachedCrc)
+            if (
+                cache is not null
+                && fileSize.HasValue
+                && lastModified.HasValue
+                && cache.GetCrc(c.FilePath, fileSize.Value, lastModified.Value) is { } cachedCrc
+            )
             {
                 results[i] = new ScannedRom
                 {
@@ -53,7 +68,11 @@ public static class RomScanner
                     FileExtension = c.FileExtension,
                     RomExtension = c.RomExtension,
                     Crc = cachedCrc,
-                    TrimmedCrc = cache.GetTrimmedCrc(c.FilePath, fileSize.Value, lastModified.Value),
+                    TrimmedCrc = cache.GetTrimmedCrc(
+                        c.FilePath,
+                        fileSize.Value,
+                        lastModified.Value
+                    ),
                     LastModified = lastModified,
                 };
             }
@@ -73,9 +92,17 @@ public static class RomScanner
             },
             async (item, ct) =>
             {
-                results[item.Index] = await ComputeAndCacheAsync(item.Content, cache, ct).ConfigureAwait(false);
+                results[item.Index] = await ComputeAndCacheAsync(item.Content, cache, ct)
+                    .ConfigureAwait(false);
                 int c = Interlocked.Increment(ref completed);
-                progress?.Report(new ScanProgress(c, crcTotal, Path.GetFileName(item.Content.FilePath), "Computing CRCs..."));
+                progress?.Report(
+                    new ScanProgress(
+                        c,
+                        crcTotal,
+                        Path.GetFileName(item.Content.FilePath),
+                        "Computing CRCs..."
+                    )
+                );
             }
         );
 
@@ -97,7 +124,8 @@ public static class RomScanner
         uint? trimmedCrc;
 
         if (fileSize.HasValue && fileSize.Value <= TrimDetectionThresholdBytes)
-            (crc, trimmedCrc) = await ComputeCrcsBufferedAsync(stream, cancellationToken).ConfigureAwait(false);
+            (crc, trimmedCrc) = await ComputeCrcsBufferedAsync(stream, cancellationToken)
+                .ConfigureAwait(false);
         else
         {
             crc = await ComputeCrc32StreamedAsync(stream, cancellationToken).ConfigureAwait(false);

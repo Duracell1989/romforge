@@ -21,7 +21,10 @@ internal static class StatusDbConnection
         await using SqliteCommand pragma = connection.CreateCommand();
         // journal_mode=WAL persists on the database file; busy_timeout is per-connection and makes
         // a contended writer wait for the lock rather than failing immediately.
+        // CA2100: the only interpolated value is the private const BusyTimeoutMs, never user input.
+#pragma warning disable CA2100
         pragma.CommandText = $"PRAGMA journal_mode=WAL; PRAGMA busy_timeout={BusyTimeoutMs};";
+#pragma warning restore CA2100
         await pragma.ExecuteNonQueryAsync();
 
         return connection;

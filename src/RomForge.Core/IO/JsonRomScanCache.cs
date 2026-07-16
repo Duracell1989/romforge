@@ -42,7 +42,13 @@ public sealed class JsonRomScanCache : IRomScanCache
         return entry.TrimmedCrc;
     }
 
-    public void Set(string filePath, long fileSize, DateTime lastModified, uint crc, uint? trimmedCrc = null)
+    public void Set(
+        string filePath,
+        long fileSize,
+        DateTime lastModified,
+        uint crc,
+        uint? trimmedCrc = null
+    )
     {
         _entries[filePath] = new CacheEntry
         {
@@ -76,7 +82,8 @@ public sealed class JsonRomScanCache : IRomScanCache
             return JsonSerializer.Deserialize<Dictionary<string, CacheEntry>>(fs, JsonOptions)
                 ?? new Dictionary<string, CacheEntry>();
         }
-        catch
+        catch (Exception ex)
+            when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
             return new Dictionary<string, CacheEntry>();
         }

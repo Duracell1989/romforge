@@ -17,6 +17,7 @@ public sealed class SevenZipCliCompressor : IArchiveCompressor
 
     public SevenZipCliCompressor(ILogger logger)
     {
+        ArgumentNullException.ThrowIfNull(logger);
         _logger = logger.ForContext<SevenZipCliCompressor>();
         _binaryPath = FindSevenZipBinary();
 
@@ -122,7 +123,7 @@ public sealed class SevenZipCliCompressor : IArchiveCompressor
 
         if (process.ExitCode != 0)
         {
-            var stderr = stderrTask.Result.Trim();
+            var stderr = (await stderrTask.ConfigureAwait(false)).Trim();
             _logger.Error(
                 "Compression failed (exit {Code}, {Elapsed}ms): {Stderr}",
                 process.ExitCode,

@@ -26,6 +26,7 @@ public sealed class ImageSyncService
 
     public ImageSyncService(IImageDownloader downloader, IRomFileOperations fileOps, ILogger logger)
     {
+        ArgumentNullException.ThrowIfNull(logger);
         _downloader = downloader;
         _fileOps = fileOps;
         _logger = logger.ForContext<ImageSyncService>();
@@ -43,6 +44,8 @@ public sealed class ImageSyncService
         CancellationToken ct = default
     )
     {
+        ArgumentNullException.ThrowIfNull(datFile);
+
         string? imUrlBase = datFile.Header.NewImUrl;
         if (string.IsNullOrEmpty(imUrlBase))
             return Result.Ok(new ImageSyncSummary(0, 0, 0));

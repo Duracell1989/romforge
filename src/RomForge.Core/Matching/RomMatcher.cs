@@ -15,12 +15,17 @@ public static class RomMatcher
         string expectedArchiveExtension = "7z"
     )
     {
+        ArgumentNullException.ThrowIfNull(datFile);
+        ArgumentNullException.ThrowIfNull(scannedRoms);
+
         Dictionary<uint, ScannedRom> byCrc = BuildCrcIndex(scannedRoms);
         Dictionary<uint, ScannedRom> byTrimmedCrc = BuildTrimmedCrcIndex(scannedRoms);
         string namingMask = datFile.Header.RomTitle;
 
         List<MatchResult> results = datFile
-            .Games.Select(game => Classify(game, byCrc, byTrimmedCrc, namingMask, expectedArchiveExtension))
+            .Games.Select(game =>
+                Classify(game, byCrc, byTrimmedCrc, namingMask, expectedArchiveExtension)
+            )
             .ToList();
 
         HashSet<uint> datCrcs = datFile.Games.Select(g => g.Files.RomCrc).ToHashSet();
@@ -42,7 +47,9 @@ public static class RomMatcher
         return index;
     }
 
-    private static Dictionary<uint, ScannedRom> BuildTrimmedCrcIndex(IReadOnlyList<ScannedRom> scannedRoms)
+    private static Dictionary<uint, ScannedRom> BuildTrimmedCrcIndex(
+        IReadOnlyList<ScannedRom> scannedRoms
+    )
     {
         Dictionary<uint, ScannedRom> index = new();
         foreach (ScannedRom rom in scannedRoms)
@@ -73,7 +80,11 @@ public static class RomMatcher
             {
                 string expectedName = NamingMask.Expand(namingMask, game);
                 string actualName = Path.GetFileNameWithoutExtension(rom.FilePath);
-                isIncorrectlyNamed = !string.Equals(actualName, expectedName, StringComparison.OrdinalIgnoreCase);
+                isIncorrectlyNamed = !string.Equals(
+                    actualName,
+                    expectedName,
+                    StringComparison.OrdinalIgnoreCase
+                );
             }
 
             return new MatchResult

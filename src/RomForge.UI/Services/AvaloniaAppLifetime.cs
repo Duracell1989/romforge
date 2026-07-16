@@ -11,6 +11,8 @@ internal sealed class AvaloniaAppLifetime : IAppLifetime
             Application.Current?.ApplicationLifetime
             is IClassicDesktopStyleApplicationLifetime lifetime
         )
+        {
             lifetime.Shutdown();
+        }
     }
 }
