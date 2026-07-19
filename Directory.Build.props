@@ -2,7 +2,7 @@
   <PropertyGroup>
     <BaseOutputPath>$(MSBuildThisFileDirectory)artifacts/bin/$(MSBuildProjectName)/</BaseOutputPath>
     <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)artifacts/obj/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
-    <Version>1.2.0</Version>
+    <Version>1.3.0</Version>
     <!-- NU1903: high-severity CVE in SQLitePCLRaw.lib.e_sqlite3 2.1.11, a transitive dependency
          pulled in by Microsoft.Data.Sqlite 10.0.9. No direct fix available; suppressed until
          SQLitePCLRaw ships a patched version that Microsoft.Data.Sqlite picks up. -->

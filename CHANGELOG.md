@@ -4,6 +4,18 @@ All notable changes to RomForge are documented here. This project follows [Seman
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-07-19
+
+### Added
+
+- The status bar now shows the running app version, with a link to the GitHub releases page; an "About RomForge…" menu item shows the same info
+
+### Fixed
+
+- Scan results are no longer wiped to "Missing" when a DAT's ROM folder is on an offline or not-yet-mounted external drive at startup
+- Re-archiving or trimming a ROM no longer risks losing it if the destination becomes unreachable mid-operation (e.g. a drive unmounts) — the compressed copy is recovered to a dedicated folder instead of being silently discarded
+- Deleting an entire ROM subfolder while its drive stays online is now correctly detected and reported, instead of being silently ignored
+
 ## [1.2.0] — 2026-07-15
 
 ### Added
