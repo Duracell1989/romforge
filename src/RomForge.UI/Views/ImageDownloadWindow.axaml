@@ -17,6 +17,7 @@
 
         <!-- Scrolling log of every image as it is fetched -->
         <TextBox Grid.Row="0"
+                 x:Name="LogTextBox"
                  Text="{Binding LogText}"
                  IsReadOnly="True"
                  AcceptsReturn="True"
