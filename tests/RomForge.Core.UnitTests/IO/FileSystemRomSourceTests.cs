@@ -6,8 +6,10 @@ using System.IO.Hashing;
 using System.Linq;
 using System.Threading.Tasks;
 using AwesomeAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using RomForge.Core.IO;
+using SevenZipSharper;
 
 namespace RomForge.Core.UnitTests.IO;
 
@@ -22,7 +24,10 @@ public sealed class FileSystemRomSourceTests
     {
         _tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempDir);
-        _source = new FileSystemRomSource();
+        _source = new FileSystemRomSource(
+            new SevenZipSharperExtractor(NullLogger<SevenZipExtractor>.Instance, _tempDir),
+            NullLogger<SevenZipExtractor>.Instance
+        );
     }
 
     [TearDown]

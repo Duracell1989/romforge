@@ -7,26 +7,26 @@ using System.Threading;
 using System.Threading.Tasks;
 using AwesomeAssertions;
 using FluentResults;
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using RomForge.Core.IO;
-using Serilog;
-using SharpCompress.Archives;
+using SevenZipSharper;
 
 namespace RomForge.Core.IntegrationTests.IO;
 
-[TestOf(typeof(SevenZipCliCompressor))]
+[TestOf(typeof(SevenZipSharperCompressor))]
 [NonParallelizable]
-public sealed class SevenZipCliCompressorIntegrationTests
+public sealed class SevenZipSharperCompressorIntegrationTests
 {
     private string _tempDir = string.Empty;
-    private SevenZipCliCompressor _sut = null!;
+    private SevenZipSharperCompressor _sut = null!;
 
     [SetUp]
     public void SetUp()
     {
         _tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempDir);
-        _sut = new SevenZipCliCompressor(new LoggerConfiguration().CreateLogger());
+        _sut = new SevenZipSharperCompressor(NullLogger<SevenZipCompressor>.Instance);
     }
 
     [TearDown]
@@ -39,10 +39,27 @@ public sealed class SevenZipCliCompressorIntegrationTests
         return path;
     }
 
-    [Test]
-    public void IsAvailable_WithRealBinary_ReturnsTrue()
+    private static async Task<IReadOnlyList<string>> ListEntryPathsAsync(
+        string archivePath,
+        ArchiveFormat format
+    )
     {
-        Assume.That(_sut.IsAvailable, Is.True, "7-Zip binary not found; skipping.");
+        await using FileStream input = File.OpenRead(archivePath);
+        using SevenZipExtractor extractor = new SevenZipExtractor(
+            input,
+            format,
+            NullLogger<SevenZipExtractor>.Instance
+        );
+        await extractor.OpenAsync();
+        Result<IReadOnlyList<ArchiveEntry>> entries = await extractor.ListEntriesAsync();
+        entries.IsSuccess.Should().BeTrue();
+        return entries.Value.Where(e => !e.IsDirectory).Select(e => e.Path).ToList();
+    }
+
+    [Test]
+    public void IsAvailable_WithRealNativeLibrary_ReturnsTrue()
+    {
+        Assume.That(_sut.IsAvailable, Is.True, "7-Zip native library not available; skipping.");
 
         _sut.IsAvailable.Should().BeTrue();
     }
@@ -50,7 +67,7 @@ public sealed class SevenZipCliCompressorIntegrationTests
     [Test]
     public async Task CompressAsync_ValidSource_CreatesSevenZipArchive()
     {
-        Assume.That(_sut.IsAvailable, Is.True, "7-Zip binary not found; skipping.");
+        Assume.That(_sut.IsAvailable, Is.True, "7-Zip native library not available; skipping.");
 
         string source = await CreateSourceFileAsync();
         string dest = Path.Combine(_tempDir, "out.7z");
@@ -59,12 +76,15 @@ public sealed class SevenZipCliCompressorIntegrationTests
 
         result.IsSuccess.Should().BeTrue();
         File.Exists(dest).Should().BeTrue();
+        (await ListEntryPathsAsync(dest, ArchiveFormat.SevenZip))
+            .Should()
+            .BeEquivalentTo("source.bin");
     }
 
     [Test]
     public async Task CompressAsync_ZipFormat_CreatesZipArchive()
     {
-        Assume.That(_sut.IsAvailable, Is.True, "7-Zip binary not found; skipping.");
+        Assume.That(_sut.IsAvailable, Is.True, "7-Zip native library not available; skipping.");
 
         string source = await CreateSourceFileAsync();
         string dest = Path.Combine(_tempDir, "out.zip");
@@ -73,16 +93,17 @@ public sealed class SevenZipCliCompressorIntegrationTests
 
         result.IsSuccess.Should().BeTrue();
         File.Exists(dest).Should().BeTrue();
+        (await ListEntryPathsAsync(dest, ArchiveFormat.Zip)).Should().BeEquivalentTo("source.bin");
     }
 
     [Test]
     public async Task CompressAsync_WhenDestinationAlreadyExists_ReplacesInsteadOfAppending()
     {
-        Assume.That(_sut.IsAvailable, Is.True, "7-Zip binary not found; skipping.");
+        Assume.That(_sut.IsAvailable, Is.True, "7-Zip native library not available; skipping.");
 
         // A stale archive left at the destination (e.g. from a crash mid-compress) must be
-        // replaced, not appended to — "7z a" adds to an existing archive, which would leave
-        // two entries and silently corrupt the ROM once the original is deleted.
+        // replaced, not appended to — an in-place update would leave two entries and silently
+        // corrupt the ROM once the original is deleted.
         string stale = Path.Combine(_tempDir, "stale.bin");
         await File.WriteAllBytesAsync(stale, new byte[512]);
         string dest = Path.Combine(_tempDir, "out.7z");
@@ -94,10 +115,7 @@ public sealed class SevenZipCliCompressorIntegrationTests
         Result result = await _sut.CompressAsync(source, dest, 2048);
 
         result.IsSuccess.Should().BeTrue();
-        using IArchive archive = ArchiveFactory.OpenArchive(dest);
-        archive
-            .Entries.Where(e => !e.IsDirectory)
-            .Select(e => e.Key)
+        (await ListEntryPathsAsync(dest, ArchiveFormat.SevenZip))
             .Should()
             .BeEquivalentTo("source.bin");
     }
@@ -105,7 +123,7 @@ public sealed class SevenZipCliCompressorIntegrationTests
     [Test]
     public async Task CompressAsync_MissingSource_ReturnsFail()
     {
-        Assume.That(_sut.IsAvailable, Is.True, "7-Zip binary not found; skipping.");
+        Assume.That(_sut.IsAvailable, Is.True, "7-Zip native library not available; skipping.");
 
         string dest = Path.Combine(_tempDir, "out.7z");
 
@@ -119,12 +137,12 @@ public sealed class SevenZipCliCompressorIntegrationTests
     }
 
     [Test]
-    public async Task CompressAsync_WhenCancelledMidRun_KillsProcessAndThrows()
+    public async Task CompressAsync_WhenCancelledMidRun_ThrowsOperationCanceled()
     {
-        Assume.That(_sut.IsAvailable, Is.True, "7-Zip binary not found; skipping.");
+        Assume.That(_sut.IsAvailable, Is.True, "7-Zip native library not available; skipping.");
 
-        // A large incompressible payload keeps 7-Zip busy long enough to cancel
-        // while the process is still running, exercising the kill-on-cancel path.
+        // A large incompressible payload keeps compression busy long enough to cancel while
+        // it's still running, exercising the mid-operation cancellation path.
         string source = Path.Combine(_tempDir, "big.bin");
         byte[] payload = new byte[32 * 1024 * 1024];
         RandomNumberGenerator.Fill(payload);
@@ -139,7 +157,7 @@ public sealed class SevenZipCliCompressorIntegrationTests
             cancellationToken: cts.Token
         );
 
-        await Task.Delay(100);
+        await Task.Delay(50);
         await cts.CancelAsync();
 
         Func<Task> act = async () => await compressTask;
@@ -149,7 +167,7 @@ public sealed class SevenZipCliCompressorIntegrationTests
     [Test]
     public async Task CompressAsync_WithProgressCallback_Succeeds()
     {
-        Assume.That(_sut.IsAvailable, Is.True, "7-Zip binary not found; skipping.");
+        Assume.That(_sut.IsAvailable, Is.True, "7-Zip native library not available; skipping.");
 
         string source = await CreateSourceFileAsync();
         string dest = Path.Combine(_tempDir, "out.7z");

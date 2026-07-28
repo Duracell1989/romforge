@@ -4,13 +4,29 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using SharpCompress.Archives;
+using FluentResults;
+using Microsoft.Extensions.Logging;
+using SevenZipSharper;
+using SevenZipSharper.Detection;
+using static RomForge.Core.IO.FileSystemRomSourceLog;
 
 namespace RomForge.Core.IO;
 
+// S6672: the logger here is forwarded verbatim to SevenZipExtractor's constructor, which
+// requires ILogger<SevenZipExtractor> specifically - it is not this class's own diagnostic logger.
+#pragma warning disable S6672
 public sealed class FileSystemRomSource : IRomSource
 {
     private static readonly HashSet<string> ArchiveExtensions = [".zip", ".7z"];
+
+    private readonly IArchiveExtractor _extractor;
+    private readonly ILogger<SevenZipExtractor> _logger;
+
+    public FileSystemRomSource(IArchiveExtractor extractor, ILogger<SevenZipExtractor> logger)
+    {
+        _extractor = extractor;
+        _logger = logger;
+    }
 
     public Task<int> CountAsync(string folderPath, CancellationToken cancellationToken = default)
     {
@@ -56,10 +72,8 @@ public sealed class FileSystemRomSource : IRomSource
 
             var fileInfo = new FileInfo(filePath);
             var content = ArchiveExtensions.Contains(fileExt)
-                ? await Task.Run(
-                    () => BuildArchiveContent(filePath, fileExt, fileInfo),
-                    cancellationToken
-                )
+                ? await BuildArchiveContentAsync(filePath, fileExt, fileInfo, cancellationToken)
+                    .ConfigureAwait(false)
                 : BuildRawContent(filePath, fileExt, fileInfo);
 
             if (content is not null)
@@ -87,22 +101,19 @@ public sealed class FileSystemRomSource : IRomSource
         };
     }
 
-    private static RomContent? BuildArchiveContent(
+    // Opens the archive briefly to read the entry name, then closes it; the entry is
+    // re-extracted lazily when the stream is actually requested (see OpenArchiveEntryStreamAsync).
+    private async Task<RomContent?> BuildArchiveContentAsync(
         string filePath,
         string fileExt,
-        FileInfo fileInfo
+        FileInfo fileInfo,
+        CancellationToken cancellationToken
     )
     {
-        // Open briefly to read the entry name, then close; re-open when the stream is requested.
-        string romExt;
-        using (var probe = ArchiveFactory.OpenArchive(filePath))
-        {
-            var entry = probe.Entries.FirstOrDefault(e => !e.IsDirectory);
-            if (entry is null)
-                return null;
-
-            romExt = ToLowerExtension(Path.GetExtension(entry.Key ?? string.Empty).TrimStart('.'));
-        }
+        var romExt = await PeekEntryExtensionAsync(filePath, cancellationToken)
+            .ConfigureAwait(false);
+        if (romExt is null)
+            return null;
 
         return new RomContent
         {
@@ -115,93 +126,60 @@ public sealed class FileSystemRomSource : IRomSource
         };
     }
 
-    private static async ValueTask<Stream> OpenArchiveEntryStreamAsync(
+    private async Task<string?> PeekEntryExtensionAsync(
+        string filePath,
+        CancellationToken cancellationToken
+    )
+    {
+        ArchiveFormat? format = ArchiveFormatDetector.FromExtension(filePath);
+        if (format is null)
+            return null;
+
+        await using FileStream input = File.OpenRead(filePath);
+        using SevenZipExtractor extractor = new SevenZipExtractor(input, format.Value, _logger);
+
+        Result<ArchiveInfo> openResult = await extractor
+            .OpenAsync(cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+        if (openResult.IsFailed)
+            return null;
+
+        Result<IReadOnlyList<ArchiveEntry>> entriesResult = await extractor
+            .ListEntriesAsync(cancellationToken)
+            .ConfigureAwait(false);
+        if (entriesResult.IsFailed)
+            return null;
+
+        ArchiveEntry? entry = entriesResult.Value.FirstOrDefault(e => !e.IsDirectory);
+        return entry is null
+            ? null
+            : ToLowerExtension(Path.GetExtension(entry.Path).TrimStart('.'));
+    }
+
+    private async ValueTask<Stream> OpenArchiveEntryStreamAsync(
         string filePath,
         CancellationToken ct
     )
     {
-        var archive = ArchiveFactory.OpenArchive(filePath);
-        try
+        Result<string> extractResult = await _extractor
+            .ExtractToTempFileAsync(filePath, ct)
+            .ConfigureAwait(false);
+        if (extractResult.IsFailed)
         {
-            var entry = archive.Entries.FirstOrDefault(e => !e.IsDirectory);
-            if (entry is null)
-            {
-                archive.Dispose();
-                return Stream.Null;
-            }
-
-            var entryStream = await entry.OpenEntryStreamAsync(ct).ConfigureAwait(false);
-            return new ArchiveOwningStream(archive, entryStream);
-        }
-        catch
-        {
-            archive.Dispose();
-            throw;
-        }
-    }
-
-    // Wraps an archive entry stream and disposes the owning IArchive when closed.
-    private sealed class ArchiveOwningStream : Stream
-    {
-        private readonly IArchive _archive;
-        private readonly Stream _inner;
-
-        public ArchiveOwningStream(IArchive archive, Stream inner)
-        {
-            _archive = archive;
-            _inner = inner;
+            ExtractionFailed(_logger, filePath, extractResult.Errors[0].Message);
+            return Stream.Null;
         }
 
-        public override bool CanRead => _inner.CanRead;
-        public override bool CanSeek => false;
-        public override bool CanWrite => false;
-        public override long Length => throw new NotSupportedException();
-        public override long Position
-        {
-            get => throw new NotSupportedException();
-            set => throw new NotSupportedException();
-        }
-
-        public override int Read(byte[] buffer, int offset, int count) =>
-            _inner.Read(buffer, offset, count);
-
-        public override Task<int> ReadAsync(
-            byte[] buffer,
-            int offset,
-            int count,
-            CancellationToken cancellationToken
-        ) => _inner.ReadAsync(buffer, offset, count, cancellationToken);
-
-        public override ValueTask<int> ReadAsync(
-            Memory<byte> buffer,
-            CancellationToken cancellationToken = default
-        ) => _inner.ReadAsync(buffer, cancellationToken);
-
-        public override void Flush() { }
-
-        public override long Seek(long offset, SeekOrigin origin) =>
-            throw new NotSupportedException();
-
-        public override void SetLength(long value) => throw new NotSupportedException();
-
-        public override void Write(byte[] buffer, int offset, int count) =>
-            throw new NotSupportedException();
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                _inner.Dispose();
-                _archive.Dispose();
-            }
-            base.Dispose(disposing);
-        }
-
-        public override async ValueTask DisposeAsync()
-        {
-            await _inner.DisposeAsync().ConfigureAwait(false);
-            _archive.Dispose();
-            await base.DisposeAsync().ConfigureAwait(false);
-        }
+        // FileOptions.DeleteOnClose sweeps the extracted temp file once the caller disposes
+        // the stream, so no separate owning wrapper is needed.
+        return new FileStream(
+            extractResult.Value,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            bufferSize: 4096,
+            FileOptions.DeleteOnClose | FileOptions.Asynchronous
+        );
     }
 }
+#pragma warning restore S6672
