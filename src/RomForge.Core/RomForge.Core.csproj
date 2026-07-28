@@ -16,8 +16,14 @@
     <PackageReference Include="DuraIT.SevenZipSharper" Version="1.0.2" />
     <PackageReference Include="DuraIT.SevenZipSharper.Native" Version="1.0.2" />
     <PackageReference Include="FluentResults" Version="4.0.0" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
-    <PackageReference Include="Serilog" Version="4.3.1" />
-    <PackageReference Include="System.IO.Hashing" Version="10.0.8" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.10" />
+    <PackageReference Include="Serilog" Version="4.4.0" />
+    <!-- Microsoft.Data.Sqlite floors this at the vulnerable 2.1.11 (GHSA-2m69-gcr7-jv3q); pin newer. -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.12" />
+    <PackageReference Include="System.IO.Hashing" Version="10.0.10" />
+    <PackageReference Update="SonarAnalyzer.CSharp" Version="10.30.0.144632">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 </Project>

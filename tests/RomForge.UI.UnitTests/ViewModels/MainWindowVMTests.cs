@@ -888,7 +888,7 @@ public sealed class MainWindowVMTests
 
         await _vm.ScanFolderCommand.ExecuteAsync(null);
 
-        _vm.ActiveDat!.RomFolder.Should().BeNull();
+        _vm.ActiveDat.RomFolder.Should().BeNull();
     }
 
     // --- LoadManagedDatsAsync ---
@@ -1187,7 +1187,7 @@ public sealed class MainWindowVMTests
 
         _vm.LoadedDats.Should().HaveCount(1);
         _vm.ActiveDat.Should().NotBeNull();
-        _vm.ActiveDat!.DatName.Should().Be("Test DAT");
+        _vm.ActiveDat.DatName.Should().Be("Test DAT");
     }
 
     // --- LoadManagedDatsAsync with real DAT (covers BuildDatVmAsync + LastActiveDat logic) ---
@@ -1211,7 +1211,7 @@ public sealed class MainWindowVMTests
 
         _vm.LoadedDats.Should().HaveCount(1);
         _vm.ActiveDat.Should().NotBeNull();
-        _vm.ActiveDat!.DatName.Should().Be("Managed DAT");
+        _vm.ActiveDat.DatName.Should().Be("Managed DAT");
     }
 
     // --- ScanFolderAsync success path (covers the multi-line match + result persistence) ---
@@ -1236,7 +1236,7 @@ public sealed class MainWindowVMTests
 
         await _vm.ScanFolderCommand.ExecuteAsync(null);
 
-        _vm.ActiveDat!.RomFolder.Should().Be("/roms/gba");
+        _vm.ActiveDat.RomFolder.Should().Be("/roms/gba");
     }
 
     // --- LoadDatFromManagedPathAsync failure path ---
@@ -1893,7 +1893,7 @@ public sealed class MainWindowVMTests
         compressTarget.Should().StartWith(Path.Combine(_tempDir, "temp"));
         compressTarget.Should().NotContain("/roms/");
         // The working archive is then moved onto the final path.
-        _fileOps.Verify(f => f.RenameAsync(compressTarget!, "/roms/Test.7z"), Times.Once);
+        _fileOps.Verify(f => f.RenameAsync(compressTarget, "/roms/Test.7z"), Times.Once);
         _notifier.Verify(n => n.NotifyErrorAsync(It.IsAny<string>()), Times.Never);
     }
 
@@ -2006,7 +2006,7 @@ public sealed class MainWindowVMTests
         await vm.ReArchiveSelectedCommand.ExecuteAsync(null);
 
         workingArchive.Should().StartWith(Path.Combine(_tempDir, "temp"));
-        _fileOps.Verify(f => f.DeleteAsync(workingArchive!), Times.Once);
+        _fileOps.Verify(f => f.DeleteAsync(workingArchive), Times.Once);
     }
 
     [Test]
@@ -2113,7 +2113,7 @@ public sealed class MainWindowVMTests
             await vm.ReArchiveSelectedCommand.ExecuteAsync(null);
 
             workingArchive.Should().StartWith(Path.Combine(_tempDir, "temp"));
-            _fileOps.Verify(f => f.DeleteAsync(workingArchive!), Times.Once);
+            _fileOps.Verify(f => f.DeleteAsync(workingArchive), Times.Once);
             _fileOps.Verify(f => f.DeleteAsync(original), Times.Never);
         }
         finally
@@ -2261,7 +2261,7 @@ public sealed class MainWindowVMTests
             await _vm.TrimSelectedCommand.ExecuteAsync(null);
 
             workingArchive.Should().StartWith(Path.Combine(_tempDir, "temp"));
-            _fileOps.Verify(f => f.DeleteAsync(workingArchive!), Times.Once);
+            _fileOps.Verify(f => f.DeleteAsync(workingArchive), Times.Once);
             _fileOps.Verify(f => f.DeleteAsync(original), Times.Never);
         }
         finally
@@ -2325,7 +2325,7 @@ public sealed class MainWindowVMTests
             await _vm.TrimAllCommand.ExecuteAsync(null);
 
             workingArchive.Should().StartWith(Path.Combine(_tempDir, "temp"));
-            _fileOps.Verify(f => f.DeleteAsync(workingArchive!), Times.Once);
+            _fileOps.Verify(f => f.DeleteAsync(workingArchive), Times.Once);
             _fileOps.Verify(f => f.DeleteAsync(original), Times.Never);
         }
         finally

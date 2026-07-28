@@ -39,7 +39,7 @@ public sealed class RomRenamerTests
         (string From, string To)? target = RomRenamer.GetRenameTarget(result, "%u - %n");
 
         target.Should().NotBeNull();
-        target!.Value.From.Should().Be("/roms/Wrong Name.7z");
+        target.Value.From.Should().Be("/roms/Wrong Name.7z");
         target.Value.To.Should().Be("/roms/0001 - Correct Title.7z");
     }
 

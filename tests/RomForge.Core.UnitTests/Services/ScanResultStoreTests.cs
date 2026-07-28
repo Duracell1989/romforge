@@ -73,7 +73,12 @@ public sealed class ScanResultStoreTests
         };
         List<MatchResult> toSave =
         [
-            new MatchResult { Game = game, Status = MatchStatus.Verified, ScannedRom = rom },
+            new MatchResult
+            {
+                Game = game,
+                Status = MatchStatus.Verified,
+                ScannedRom = rom,
+            },
         ];
 
         await _store.SaveResultsAsync("TestDat", toSave);
@@ -94,7 +99,12 @@ public sealed class ScanResultStoreTests
         DatFile dat = MakeDat("TestDat", [game]);
         List<MatchResult> toSave =
         [
-            new MatchResult { Game = game, Status = MatchStatus.Missing, ScannedRom = null },
+            new MatchResult
+            {
+                Game = game,
+                Status = MatchStatus.Missing,
+                ScannedRom = null,
+            },
         ];
 
         await _store.SaveResultsAsync("TestDat", toSave);
@@ -117,7 +127,14 @@ public sealed class ScanResultStoreTests
         // Save only game1
         await _store.SaveResultsAsync(
             "TestDat",
-            [new MatchResult { Game = game1, Status = MatchStatus.Verified, ScannedRom = null }]
+            [
+                new MatchResult
+                {
+                    Game = game1,
+                    Status = MatchStatus.Verified,
+                    ScannedRom = null,
+                },
+            ]
         );
 
         IReadOnlyList<MatchResult> loaded = await _store.LoadResultsAsync("TestDat", dat);
@@ -137,11 +154,25 @@ public sealed class ScanResultStoreTests
 
         await _store.SaveResultsAsync(
             "TestDat",
-            [new MatchResult { Game = game, Status = MatchStatus.Missing, ScannedRom = null }]
+            [
+                new MatchResult
+                {
+                    Game = game,
+                    Status = MatchStatus.Missing,
+                    ScannedRom = null,
+                },
+            ]
         );
         await _store.SaveResultsAsync(
             "TestDat",
-            [new MatchResult { Game = game, Status = MatchStatus.Verified, ScannedRom = null }]
+            [
+                new MatchResult
+                {
+                    Game = game,
+                    Status = MatchStatus.Verified,
+                    ScannedRom = null,
+                },
+            ]
         );
 
         IReadOnlyList<MatchResult> loaded = await _store.LoadResultsAsync("TestDat", dat);
@@ -161,14 +192,29 @@ public sealed class ScanResultStoreTests
         await _store.SaveResultsAsync(
             "TestDat",
             [
-                new MatchResult { Game = game1, Status = MatchStatus.Missing, ScannedRom = null },
-                new MatchResult { Game = game2, Status = MatchStatus.Missing, ScannedRom = null },
+                new MatchResult
+                {
+                    Game = game1,
+                    Status = MatchStatus.Missing,
+                    ScannedRom = null,
+                },
+                new MatchResult
+                {
+                    Game = game2,
+                    Status = MatchStatus.Missing,
+                    ScannedRom = null,
+                },
             ]
         );
 
         await _store.UpdateResultAsync(
             "TestDat",
-            new MatchResult { Game = game1, Status = MatchStatus.Verified, ScannedRom = null }
+            new MatchResult
+            {
+                Game = game1,
+                Status = MatchStatus.Verified,
+                ScannedRom = null,
+            }
         );
 
         IReadOnlyList<MatchResult> loaded = await _store.LoadResultsAsync("TestDat", dat);
@@ -187,11 +233,25 @@ public sealed class ScanResultStoreTests
 
         await _store.SaveResultsAsync(
             "DatA",
-            [new MatchResult { Game = game, Status = MatchStatus.Verified, ScannedRom = null }]
+            [
+                new MatchResult
+                {
+                    Game = game,
+                    Status = MatchStatus.Verified,
+                    ScannedRom = null,
+                },
+            ]
         );
         await _store.SaveResultsAsync(
             "DatB",
-            [new MatchResult { Game = game, Status = MatchStatus.Missing, ScannedRom = null }]
+            [
+                new MatchResult
+                {
+                    Game = game,
+                    Status = MatchStatus.Missing,
+                    ScannedRom = null,
+                },
+            ]
         );
 
         IReadOnlyList<MatchResult> loadedA = await _store.LoadResultsAsync("DatA", datA);
@@ -247,12 +307,24 @@ public sealed class ScanResultStoreTests
 
         await _store.SaveResultsAsync(
             "TestDat",
-            [new MatchResult { Game = game, Status = MatchStatus.Verified, IsWrongArchiveType = true }]
+            [
+                new MatchResult
+                {
+                    Game = game,
+                    Status = MatchStatus.Verified,
+                    IsWrongArchiveType = true,
+                },
+            ]
         );
 
         await _store.UpdateResultAsync(
             "TestDat",
-            new MatchResult { Game = game, Status = MatchStatus.Verified, IsReArchived = true }
+            new MatchResult
+            {
+                Game = game,
+                Status = MatchStatus.Verified,
+                IsReArchived = true,
+            }
         );
 
         IReadOnlyList<MatchResult> loaded = await _store.LoadResultsAsync("TestDat", dat);
@@ -282,7 +354,12 @@ public sealed class ScanResultStoreTests
         };
         List<MatchResult> toSave =
         [
-            new MatchResult { Game = game, Status = MatchStatus.Verified, ScannedRom = rom },
+            new MatchResult
+            {
+                Game = game,
+                Status = MatchStatus.Verified,
+                ScannedRom = rom,
+            },
         ];
 
         await _store.SaveResultsAsync("TestDat", toSave);
@@ -290,7 +367,7 @@ public sealed class ScanResultStoreTests
 
         DateTime? loaded_time = loaded[0].ScannedRom!.LastModified;
         loaded_time.Should().NotBeNull();
-        loaded_time!.Value.Kind.Should().Be(DateTimeKind.Utc);
+        loaded_time.Value.Kind.Should().Be(DateTimeKind.Utc);
         loaded_time.Value.Should().Be(dstBoundary);
     }
 

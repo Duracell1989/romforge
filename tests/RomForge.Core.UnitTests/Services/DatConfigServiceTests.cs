@@ -46,7 +46,7 @@ public sealed class DatConfigServiceTests
         DatConfig? loaded = await _svc.LoadAsync("TestDat");
 
         loaded.Should().NotBeNull();
-        loaded!.RomFolderPath.Should().Be("/roms/GBA");
+        loaded.RomFolderPath.Should().Be("/roms/GBA");
     }
 
     [Test]
@@ -117,7 +117,7 @@ public sealed class DatConfigServiceTests
 
         DatConfig? loaded = await _svc.LoadAsync(datName);
         loaded.Should().NotBeNull();
-        loaded!.LanguageBits.Should().HaveCount(2);
+        loaded.LanguageBits.Should().HaveCount(2);
     }
 
     [Test]

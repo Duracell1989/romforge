@@ -20,7 +20,7 @@ public sealed class XElementExtensionsTests
         XElement? result = parent.ElementCI("game");
 
         result.Should().NotBeNull();
-        result!.Value.Should().Be("value");
+        result.Value.Should().Be("value");
     }
 
     [Test]
@@ -65,7 +65,7 @@ public sealed class XElementExtensionsTests
         XElement? result = parent.ElementCI("game");
 
         result.Should().NotBeNull();
-        result!.Value.Should().Be("first");
+        result.Value.Should().Be("first");
     }
 
     // --- ElementsCI ---

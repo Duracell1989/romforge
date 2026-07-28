@@ -39,7 +39,7 @@ public sealed class RomTrimmerTests
         (string From, string To)? target = RomTrimmer.GetTrimTarget(result, "%u - %n");
 
         target.Should().NotBeNull();
-        target!.Value.From.Should().Be("/roms/game.7z");
+        target.Value.From.Should().Be("/roms/game.7z");
         target.Value.To.Should().Be("/roms/0001 - My Game.7z");
     }
 
@@ -51,7 +51,7 @@ public sealed class RomTrimmerTests
         (string From, string To)? target = RomTrimmer.GetTrimTarget(result, "%u - %n");
 
         target.Should().NotBeNull();
-        target!.Value.From.Should().Be("/roms/0001 - My Game.7z");
+        target.Value.From.Should().Be("/roms/0001 - My Game.7z");
         target.Value.To.Should().Be("/roms/0001 - My Game.7z");
     }
 
@@ -91,7 +91,7 @@ public sealed class RomTrimmerTests
         (string From, string To)? target = RomTrimmer.GetTrimTarget(result, string.Empty);
 
         target.Should().NotBeNull();
-        target!.Value.To.Should().Be("/roms/My Favourite Game.7z");
+        target.Value.To.Should().Be("/roms/My Favourite Game.7z");
     }
 
     [Test]
