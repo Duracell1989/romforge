@@ -14,6 +14,7 @@ using RomForge.UI.Services;
 using RomForge.UI.ViewModels;
 using RomForge.UI.Views;
 using Serilog;
+using SevenZipSharper;
 
 namespace RomForge.UI;
 
@@ -104,6 +105,7 @@ public partial class App : Application
     {
         ServiceCollection services = new ServiceCollection();
         services.AddSingleton<ILogger>(Log.Logger);
+        services.AddLogging(builder => builder.AddSerilog(Log.Logger, dispose: false));
         services.AddSingleton<IFileDialogService>(_ => new AvaloniaFileDialogService(getWindow));
         services.AddSingleton<IUserNotifier>(_ => new AvaloniaUserNotifier(getWindow));
         services.AddSingleton<IUrlLauncher>(_ => new AvaloniaUrlLauncher(getWindow));
@@ -111,8 +113,9 @@ public partial class App : Application
         services.AddSingleton<IAppLifetime, AvaloniaAppLifetime>();
         services.AddSingleton<IRomSource, FileSystemRomSource>();
         services.AddSingleton<IRomFileOperations, LocalRomFileOperations>();
-        services.AddSingleton<IArchiveCompressor, SevenZipCliCompressor>();
-        services.AddSingleton<IArchiveExtractor>(sp => new SharpCompressExtractor(
+        services.AddSingleton<IArchiveCompressor, SevenZipSharperCompressor>();
+        services.AddSingleton<IArchiveExtractor>(sp => new SevenZipSharperExtractor(
+            sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<SevenZipExtractor>>(),
             sp.GetRequiredService<AppDataService>().TempPath
         ));
 

@@ -4,13 +4,15 @@ using System.IO.Compression;
 using System.Threading.Tasks;
 using AwesomeAssertions;
 using FluentResults;
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using RomForge.Core.IO;
+using SevenZipSharper;
 
 namespace RomForge.Core.IntegrationTests.IO;
 
-[TestOf(typeof(SharpCompressExtractor))]
-public sealed class SharpCompressExtractorIntegrationTests
+[TestOf(typeof(SevenZipSharperExtractor))]
+public sealed class SevenZipSharperExtractorIntegrationTests
 {
     private string _tempDir = string.Empty;
 
@@ -23,6 +25,9 @@ public sealed class SharpCompressExtractorIntegrationTests
 
     [TearDown]
     public void TearDown() => Directory.Delete(_tempDir, recursive: true);
+
+    private static SevenZipSharperExtractor CreateSut(string tempDirectory = "") =>
+        new SevenZipSharperExtractor(NullLogger<SevenZipExtractor>.Instance, tempDirectory);
 
     private string CreateZip(string entryName, byte[] content)
     {
@@ -46,7 +51,7 @@ public sealed class SharpCompressExtractorIntegrationTests
     {
         byte[] expected = [0x01, 0x02, 0x03, 0x04, 0x05];
         string archivePath = CreateZip("game.gba", expected);
-        SharpCompressExtractor sut = new SharpCompressExtractor(_tempDir);
+        SevenZipSharperExtractor sut = CreateSut(_tempDir);
 
         Result<string> result = await sut.ExtractToTempFileAsync(archivePath);
 
@@ -59,7 +64,7 @@ public sealed class SharpCompressExtractorIntegrationTests
     public async Task ExtractToTempFileAsync_ValidZip_PreservesEntryExtension()
     {
         string archivePath = CreateZip("game.nes", [0xAB, 0xCD]);
-        SharpCompressExtractor sut = new SharpCompressExtractor(_tempDir);
+        SevenZipSharperExtractor sut = CreateSut(_tempDir);
 
         Result<string> result = await sut.ExtractToTempFileAsync(archivePath);
 
@@ -71,7 +76,7 @@ public sealed class SharpCompressExtractorIntegrationTests
     public async Task ExtractToTempFileAsync_EmptyArchive_ReturnsFail()
     {
         string archivePath = CreateEmptyZip();
-        SharpCompressExtractor sut = new SharpCompressExtractor(_tempDir);
+        SevenZipSharperExtractor sut = CreateSut(_tempDir);
 
         Result<string> result = await sut.ExtractToTempFileAsync(archivePath);
 
@@ -85,7 +90,7 @@ public sealed class SharpCompressExtractorIntegrationTests
         string customTemp = Path.Combine(_tempDir, "custom");
         Directory.CreateDirectory(customTemp);
         string archivePath = CreateZip("game.sfc", [0x01, 0x02, 0x03]);
-        SharpCompressExtractor sut = new SharpCompressExtractor(customTemp);
+        SevenZipSharperExtractor sut = CreateSut(customTemp);
 
         Result<string> result = await sut.ExtractToTempFileAsync(archivePath);
 
@@ -97,7 +102,7 @@ public sealed class SharpCompressExtractorIntegrationTests
     public async Task ExtractToTempFileAsync_DefaultConstructor_UsesSystemTemp()
     {
         string archivePath = CreateZip("game.gba", [0x01, 0x02, 0x03]);
-        SharpCompressExtractor sut = new SharpCompressExtractor();
+        SevenZipSharperExtractor sut = CreateSut();
         string? extracted = null;
 
         try
@@ -113,5 +118,46 @@ public sealed class SharpCompressExtractorIntegrationTests
             if (extracted is not null)
                 File.Delete(extracted);
         }
+    }
+
+    [Test]
+    public async Task ExtractToTempFileAsync_UnrecognizedExtension_ReturnsFail()
+    {
+        string archivePath = Path.Combine(_tempDir, "game.rar");
+        await File.WriteAllBytesAsync(archivePath, [0x01, 0x02]);
+        SevenZipSharperExtractor sut = CreateSut(_tempDir);
+
+        Result<string> result = await sut.ExtractToTempFileAsync(archivePath);
+
+        result.IsFailed.Should().BeTrue();
+        result.Errors[0].Message.Should().Contain("Unrecognized archive format");
+    }
+
+    [Test]
+    public async Task ExtractToTempFileAsync_ValidSevenZip_ExtractsFileContents()
+    {
+        byte[] expected = [0x10, 0x20, 0x30];
+        string sourcePath = Path.Combine(_tempDir, "source.gba");
+        await File.WriteAllBytesAsync(sourcePath, expected);
+        string archivePath = Path.Combine(_tempDir, "test.7z");
+
+        using SevenZipCompressor compressor = new SevenZipCompressor(
+            ArchiveFormat.SevenZip,
+            SevenZipSharper.Compression.CompressionParameters.Default,
+            NullLogger<SevenZipCompressor>.Instance
+        );
+        await using (FileStream source = File.OpenRead(sourcePath))
+        await using (FileStream dest = File.Create(archivePath))
+        {
+            Result compressResult = await compressor.CompressAsync([("game.gba", source)], dest);
+            compressResult.IsSuccess.Should().BeTrue();
+        }
+
+        SevenZipSharperExtractor sut = CreateSut(_tempDir);
+        Result<string> result = await sut.ExtractToTempFileAsync(archivePath);
+
+        result.IsSuccess.Should().BeTrue();
+        Path.GetExtension(result.Value).Should().Be(".gba");
+        (await File.ReadAllBytesAsync(result.Value)).Should().BeEquivalentTo(expected);
     }
 }

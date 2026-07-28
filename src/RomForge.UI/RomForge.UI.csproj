@@ -22,23 +22,32 @@
     <PackageReference Include="Avalonia.Desktop" Version="12.1.0" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.0" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.0" />
-    <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.1">
+    <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3">
       <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.1" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="MessageBox.Avalonia" Version="12.0.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.8" />
-    <PackageReference Include="Serilog" Version="4.3.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.10" />
+    <PackageReference Include="Serilog" Version="4.4.0" />
+    <PackageReference Include="Serilog.Extensions.Logging" Version="10.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageReference Update="SonarAnalyzer.CSharp" Version="10.30.0.144632">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\RomForge.Core\RomForge.Core.csproj" />
   </ItemGroup>
 
-  <Target Name="CreateMacOSBundle" AfterTargets="Publish" Condition="$(RuntimeIdentifier.StartsWith('osx-'))">
+  <Target
+    Name="CreateMacOSBundle"
+    AfterTargets="Publish"
+    Condition="$(RuntimeIdentifier.StartsWith('osx-'))"
+  >
     <PropertyGroup>
       <_BundleRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../../artifacts/RomForge.app'))</_BundleRoot>
       <_PublishDirFull>$([System.IO.Path]::GetFullPath('$(PublishDir)'))</_PublishDirFull>
@@ -48,12 +57,18 @@
     <ItemGroup>
       <_BundleFiles Include="$(_PublishDirFull)/**/*" />
     </ItemGroup>
-    <Copy SourceFiles="@(_BundleFiles)"
-          DestinationFolder="$(_BundleRoot)/Contents/MacOS/%(RecursiveDir)" />
-    <Copy SourceFiles="$(MSBuildProjectDirectory)/../../packaging/macos/Info.plist"
-          DestinationFiles="$(_BundleRoot)/Contents/Info.plist" />
-    <Copy SourceFiles="$(MSBuildProjectDirectory)/../../packaging/macos/icon.icns"
-          DestinationFiles="$(_BundleRoot)/Contents/Resources/icon.icns" />
+    <Copy
+      SourceFiles="@(_BundleFiles)"
+      DestinationFolder="$(_BundleRoot)/Contents/MacOS/%(RecursiveDir)"
+    />
+    <Copy
+      SourceFiles="$(MSBuildProjectDirectory)/../../packaging/macos/Info.plist"
+      DestinationFiles="$(_BundleRoot)/Contents/Info.plist"
+    />
+    <Copy
+      SourceFiles="$(MSBuildProjectDirectory)/../../packaging/macos/icon.icns"
+      DestinationFiles="$(_BundleRoot)/Contents/Resources/icon.icns"
+    />
     <Exec Command="chmod +x '$(_BundleRoot)/Contents/MacOS/RomForge'" />
     <Message Text="Bundle: $(_BundleRoot)" Importance="High" />
   </Target>

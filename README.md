@@ -39,11 +39,11 @@ RomForge is a modern rewrite of OfflineList — a Windows-only C++ tool that has
 
 Download the latest release for your platform from the [Releases](../../releases) page.
 
-**macOS:** Download `RomForge-macOS-arm64.dmg` (Apple Silicon). Open the `.dmg` and drag `RomForge.app` to your Applications folder. The app is signed and notarized, so it launches normally — no Gatekeeper workaround needed.
+**macOS:** Download `RomForge-<version>-macOS-arm64.dmg` (Apple Silicon). Open the `.dmg` and drag `RomForge.app` to your Applications folder. The app is signed and notarized, so it launches normally — no Gatekeeper workaround needed.
 
-**Windows:** Download `RomForge-Windows-x64.zip`. Extract and run `RomForge.exe`.
+**Windows:** Download `RomForge-<version>-Windows-x64.zip`. Extract and run `RomForge.exe`.
 
-**Linux:** Download `RomForge-Linux-x64.tar.gz`. Extract and run `./RomForge`.
+**Linux:** Download `RomForge-<version>-Linux-x64.tar.gz`. Extract and run `./RomForge`.
 
 ---
 

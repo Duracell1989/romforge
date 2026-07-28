@@ -25,6 +25,11 @@ namespace RomForge.UI.ViewModels;
 
 public partial class MainWindowVM : VMBase
 {
+    // Sibling suffix used to rename the original archive aside during an in-place re-archive,
+    // rather than deleting it up front (see PlaceWorkingArchiveAsync). Same directory as the
+    // original, so both renames stay on one volume and remain atomic.
+    private const string OriginalAsideSuffix = ".bak";
+
     private readonly IFileDialogService _fileDialogs;
     private readonly Func<string, IDatReader> _datReaderFactory;
     private readonly IRomSource _romSource;
@@ -802,13 +807,20 @@ public partial class MainWindowVM : VMBase
     /// success. The returned <c>Consumed</c> flag is <see langword="true"/> whenever the working
     /// archive was moved somewhere (final destination or the recovery folder) and the caller no
     /// longer owns it; it is <see langword="false"/> only when the working archive is still
-    /// sitting untouched at its original path (the original could not be deleted, so nothing was
-    /// attempted), so the caller's own cleanup is still responsible for it. If placement fails
-    /// after the original has already been removed, the compressed archive is moved to
+    /// sitting untouched at its original path (the original could not be renamed aside, so nothing
+    /// was attempted), so the caller's own cleanup is still responsible for it. If placement fails
+    /// after the original has already been renamed aside, that rename is undone so the original is
+    /// restored to <paramref name="fromPath"/>; the compressed archive itself is moved to
     /// <see cref="AppDataService.RecoveredPath"/> — never the destination directory again, since
     /// that is the directory placement just failed against — so the ROM is never lost to the
     /// auto-swept <see cref="AppDataService.TempPath"/>.
     /// </summary>
+    /// <remarks>
+    /// For the in-place case (<paramref name="fromPath"/> equals <paramref name="toPath"/>), the
+    /// original is renamed aside rather than deleted up front. A crash between the rename-aside and
+    /// the final move would otherwise destroy the ROM outright — the aside copy is only deleted
+    /// once the working archive has been placed successfully.
+    /// </remarks>
     private async Task<(string? Error, bool Consumed)> PlaceWorkingArchiveAsync(
         string workingArchive,
         string fromPath,
@@ -816,13 +828,15 @@ public partial class MainWindowVM : VMBase
     )
     {
         bool sameFile = fromPath.Equals(toPath, StringComparison.OrdinalIgnoreCase);
+        string? asidePath = null;
 
         if (sameFile)
         {
-            Result deleteOriginal = await _fileOperations.DeleteAsync(fromPath);
-            if (deleteOriginal.IsFailed)
+            asidePath = fromPath + OriginalAsideSuffix;
+            Result renameAside = await _fileOperations.RenameAsync(fromPath, asidePath);
+            if (renameAside.IsFailed)
                 return (
-                    $"Could not replace original: {Path.GetFileName(fromPath)}: {deleteOriginal.Errors[0].Message}",
+                    $"Could not replace original: {Path.GetFileName(fromPath)}: {renameAside.Errors[0].Message}",
                     false
                 );
         }
@@ -830,6 +844,14 @@ public partial class MainWindowVM : VMBase
         Result move = await _fileOperations.RenameAsync(workingArchive, toPath);
         if (move.IsFailed)
         {
+            var restoreNote = string.Empty;
+            if (asidePath is not null)
+            {
+                Result restoreOriginal = await _fileOperations.RenameAsync(asidePath, fromPath);
+                if (restoreOriginal.IsFailed)
+                    restoreNote = $" The original is still safe at:\n{asidePath}";
+            }
+
             // The primary move failed, so the destination directory itself is the likely
             // problem (offline volume, permissions, full disk). Recovering to a sibling path
             // in that same directory would fail for the same reason, so recover into the app's
@@ -847,7 +869,7 @@ public partial class MainWindowVM : VMBase
                 kept
             );
             return (
-                $"Archived but could not place it at {Path.GetFileName(toPath)} ({move.Errors[0].Message}). A copy was kept at:\n{kept}",
+                $"Archived but could not place it at {Path.GetFileName(toPath)} ({move.Errors[0].Message}). A copy was kept at:\n{kept}{restoreNote}",
                 true
             );
         }
@@ -859,6 +881,16 @@ public partial class MainWindowVM : VMBase
                 return (
                     $"Archived but could not delete original: {Path.GetFileName(fromPath)}: {deleteOriginal.Errors[0].Message}",
                     true
+                );
+        }
+        else
+        {
+            Result deleteAside = await _fileOperations.DeleteAsync(asidePath!);
+            if (deleteAside.IsFailed)
+                _logger.Warning(
+                    "Could not delete original backup at {Aside}: {Error}",
+                    asidePath,
+                    deleteAside.Errors[0].Message
                 );
         }
 

@@ -1,12 +1,12 @@
 using System;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentResults;
 using RomForge.Core.Models;
 using RomForge.Core.Parsers;
-using SharpCompress.Archives;
 
 namespace RomForge.Core.IO;
 
@@ -63,16 +63,20 @@ public sealed class LocalDatReader : IDatReader
         CancellationToken cancellationToken
     )
     {
-        using IArchive archive = ArchiveFactory.OpenArchive(path);
-        IArchiveEntry? entry = archive.Entries.FirstOrDefault(e => !e.IsDirectory);
+        await using ZipArchive archive = await ZipFile
+            .OpenReadAsync(path, cancellationToken)
+            .ConfigureAwait(false);
+        ZipArchiveEntry? entry = archive.Entries.FirstOrDefault(e => !e.FullName.EndsWith('/'));
         if (entry is null)
             throw new InvalidDataException($"ZIP archive contains no entries: {path}");
 
-        MemoryStream ms = new();
-        await using Stream entryStream = await entry
-            .OpenEntryStreamAsync(cancellationToken)
-            .ConfigureAwait(false);
-        await entryStream.CopyToAsync(ms, cancellationToken).ConfigureAwait(false);
+        MemoryStream ms = new MemoryStream();
+        await using (
+            Stream entryStream = await entry.OpenAsync(cancellationToken).ConfigureAwait(false)
+        )
+        {
+            await entryStream.CopyToAsync(ms, cancellationToken).ConfigureAwait(false);
+        }
         ms.Seek(0, SeekOrigin.Begin);
         return ms;
     }
