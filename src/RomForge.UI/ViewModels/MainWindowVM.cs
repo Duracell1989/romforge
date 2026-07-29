@@ -1630,7 +1630,11 @@ public partial class MainWindowVM : VMBase
         progressVm.CurrentFile = "Downloading DAT…";
 
         Task<Result> updateTask = RunDatUpdateAsync(header, progressVm);
-        await _notifier.ShowProgressAsync("Updating DAT", progressVm, updateTask);
+        await _notifier.ShowProgressAsync(
+            $"Updating DAT — {ActiveDat.DisplayTitle}",
+            progressVm,
+            updateTask
+        );
 
         var updateResult = await updateTask;
         if (updateResult.IsFailed)
@@ -1642,7 +1646,7 @@ public partial class MainWindowVM : VMBase
         await LoadDatFromManagedPathAsync(ActiveDat.DatFilePath);
 
         if (ActiveDat?.DatFile.Header.NewImUrl is not null)
-            await RunImageDownloadUiAsync(ActiveDat.DatFile);
+            await RunImageDownloadUiAsync(ActiveDat.DisplayTitle, ActiveDat.DatFile);
     }
 
     private bool CanCheckDatUpdate() =>
@@ -1654,7 +1658,7 @@ public partial class MainWindowVM : VMBase
         if (ActiveDat?.DatFile.Header.NewImUrl is null)
             return;
 
-        await RunImageDownloadUiAsync(ActiveDat.DatFile);
+        await RunImageDownloadUiAsync(ActiveDat.DisplayTitle, ActiveDat.DatFile);
     }
 
     private bool CanDownloadImages() =>
@@ -1664,7 +1668,7 @@ public partial class MainWindowVM : VMBase
     /// Opens the image-download window and runs a missing-image sync for the given DAT. Only images
     /// absent from disk are fetched.
     /// </summary>
-    private async Task RunImageDownloadUiAsync(DatFile datFile)
+    private async Task RunImageDownloadUiAsync(string datDisplayName, DatFile datFile)
     {
         using ImageDownloadWindowVM imageVm = new ImageDownloadWindowVM();
         // CA2025: ShowImageDownloadAsync keeps the modal dialog open until the sync completes
@@ -1672,7 +1676,11 @@ public partial class MainWindowVM : VMBase
         // `using` while syncTask is still running.
 #pragma warning disable CA2025
         Task syncTask = RunImageSyncAsync(datFile, imageVm);
-        await _notifier.ShowImageDownloadAsync(imageVm, syncTask);
+        await _notifier.ShowImageDownloadAsync(
+            $"Downloading Images — {datDisplayName}",
+            imageVm,
+            syncTask
+        );
 #pragma warning restore CA2025
     }
 

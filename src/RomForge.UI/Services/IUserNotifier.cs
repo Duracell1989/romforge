@@ -16,6 +16,6 @@ public interface IUserNotifier
     Task<bool> ShowAboutAsync(string message);
     Task ShowProgressAsync(string title, ProgressWindowVM vm, Task operationTask);
     Task ShowBatchProgressAsync(string title, BatchProgressWindowVM vm, Task operationTask);
-    Task ShowImageDownloadAsync(ImageDownloadWindowVM vm, Task operationTask);
+    Task ShowImageDownloadAsync(string title, ImageDownloadWindowVM vm, Task operationTask);
     Task ShowSettingsAsync(SettingsVM vm);
 }

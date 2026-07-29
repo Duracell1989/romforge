@@ -655,19 +655,28 @@ public sealed class MainWindowVMTests
     }
 
     [Test]
-    public async Task DownloadImages_WhenDatHasImageUrl_ShowsImageDownloadWindow()
+    public async Task DownloadImages_WhenDatHasImageUrl_ShowsImageDownloadWindowNamedForDat()
     {
         _vm.ActiveDat = MakeDatVMWithImageUrl();
         _notifier
             .Setup(n =>
-                n.ShowImageDownloadAsync(It.IsAny<ImageDownloadWindowVM>(), It.IsAny<Task>())
+                n.ShowImageDownloadAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<ImageDownloadWindowVM>(),
+                    It.IsAny<Task>()
+                )
             )
-            .Returns<ImageDownloadWindowVM, Task>((_, task) => task);
+            .Returns<string, ImageDownloadWindowVM, Task>((_, _, task) => task);
 
         await _vm.DownloadImagesCommand.ExecuteAsync(null);
 
         _notifier.Verify(
-            n => n.ShowImageDownloadAsync(It.IsAny<ImageDownloadWindowVM>(), It.IsAny<Task>()),
+            n =>
+                n.ShowImageDownloadAsync(
+                    It.Is<string>(title => title.Contains("Test DAT")),
+                    It.IsAny<ImageDownloadWindowVM>(),
+                    It.IsAny<Task>()
+                ),
             Times.Once
         );
     }
@@ -680,7 +689,12 @@ public sealed class MainWindowVMTests
         await _vm.DownloadImagesCommand.ExecuteAsync(null);
 
         _notifier.Verify(
-            n => n.ShowImageDownloadAsync(It.IsAny<ImageDownloadWindowVM>(), It.IsAny<Task>()),
+            n =>
+                n.ShowImageDownloadAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<ImageDownloadWindowVM>(),
+                    It.IsAny<Task>()
+                ),
             Times.Never
         );
     }
@@ -1092,6 +1106,15 @@ public sealed class MainWindowVMTests
         await _vm.CheckDatUpdateCommand.ExecuteAsync(null);
 
         _notifier.Verify(n => n.NotifyErrorAsync(It.IsAny<string>()), Times.Once);
+        _notifier.Verify(
+            n =>
+                n.ShowProgressAsync(
+                    It.Is<string>(title => title.Contains("Test DAT")),
+                    It.IsAny<ProgressWindowVM>(),
+                    It.IsAny<Task>()
+                ),
+            Times.Once
+        );
     }
 
     [Test]
@@ -1134,14 +1157,23 @@ public sealed class MainWindowVMTests
             );
         _notifier
             .Setup(n =>
-                n.ShowImageDownloadAsync(It.IsAny<ImageDownloadWindowVM>(), It.IsAny<Task>())
+                n.ShowImageDownloadAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<ImageDownloadWindowVM>(),
+                    It.IsAny<Task>()
+                )
             )
-            .Returns<ImageDownloadWindowVM, Task>((_, task) => task);
+            .Returns<string, ImageDownloadWindowVM, Task>((_, _, task) => task);
 
         await _vm.CheckDatUpdateCommand.ExecuteAsync(null);
 
         _notifier.Verify(
-            n => n.ShowImageDownloadAsync(It.IsAny<ImageDownloadWindowVM>(), It.IsAny<Task>()),
+            n =>
+                n.ShowImageDownloadAsync(
+                    It.Is<string>(title => title.Contains("Test DAT")),
+                    It.IsAny<ImageDownloadWindowVM>(),
+                    It.IsAny<Task>()
+                ),
             Times.Once
         );
     }
