@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentResults;
@@ -66,7 +67,7 @@ public sealed class SevenZipSharperCompressor : IArchiveCompressor
 
         ArchiveFormat archiveFormat =
             format == ZipFormatName ? ArchiveFormat.Zip : ArchiveFormat.SevenZip;
-        CompressionParameters parameters = BuildParameters(format);
+        CompressionParameters parameters = BuildParameters(format, romSize);
 
         try
         {
@@ -108,12 +109,18 @@ public sealed class SevenZipSharperCompressor : IArchiveCompressor
                     progress.Report((int)(p.BytesProcessed * 100 / p.TotalBytes));
             });
 
-    // DictionarySize is deliberately not set here: SevenZipSharper 1.0.2 fails to apply ANY
-    // explicit DictionarySize value (HRESULT 0x80070057 / E_INVALIDARG) — even its own built-in
-    // CompressionParameters.MaximumLzma2 preset reproduces this. Filed upstream; revisit once
-    // fixed. Level=Ultra alone still gives 7-Zip's own auto-scaled dictionary, just without
-    // RomForge's own ROM-size-based tuning.
-    internal static CompressionParameters BuildParameters(string format) =>
+    // 1 KB — the library's minimum LZMA/LZMA2 dictionary size.
+    private const uint MinDictionarySize = 1024;
+
+    // 1 GB (2^30) — the largest power-of-2 dictionary that still fits under the library's
+    // 1536 MB LZMA/LZMA2 ceiling; the next power up (2^31 = 2048 MB) would exceed it.
+    private const uint MaxDictionarySize = 1_073_741_824;
+
+    // DictionarySize is deliberately not set for the zip branch: the Zip format handler
+    // rejects it (HRESULT 0x80070057 / E_INVALIDARG) even on SevenZipSharper 2.0.0, where
+    // the same property works for the 7z format handler. Matches the existing WordSize
+    // split below, which hit the same zip-specific quirk.
+    internal static CompressionParameters BuildParameters(string format, long romSize) =>
         format == ZipFormatName
             ? CompressionParameters.Default with
             {
@@ -123,7 +130,22 @@ public sealed class SevenZipSharperCompressor : IArchiveCompressor
             {
                 Level = CompressionLevel.Ultra,
                 WordSize = 273,
+                DictionarySize = DictionarySizeFor(romSize),
             };
+
+    // A dictionary larger than the data being compressed can't improve the ratio for this
+    // single-entry archive — it only costs memory — so use the smallest power-of-2 that still
+    // covers the whole ROM, clamped to the library's supported LZMA/LZMA2 range.
+    internal static uint DictionarySizeFor(long romSize)
+    {
+        if (romSize <= MinDictionarySize)
+            return MinDictionarySize;
+
+        if (romSize >= MaxDictionarySize)
+            return MaxDictionarySize;
+
+        return BitOperations.RoundUpToPowerOf2((uint)romSize);
+    }
 
     private static bool ProbeNativeLibrary(ILogger<SevenZipCompressor> logger)
     {

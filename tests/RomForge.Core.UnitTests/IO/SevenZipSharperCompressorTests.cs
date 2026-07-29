@@ -15,9 +15,13 @@ public sealed class SevenZipSharperCompressorTests
     [Test]
     public void BuildParameters_ZipFormat_UsesUltraLevelWithoutWordSize()
     {
-        CompressionParameters parameters = SevenZipSharperCompressor.BuildParameters("zip");
+        CompressionParameters parameters = SevenZipSharperCompressor.BuildParameters(
+            "zip",
+            romSize: 4 * 1024 * 1024
+        );
 
         parameters.Level.Should().Be(CompressionLevel.Ultra);
+        // DictionarySize is deliberately not set for zip — see BuildParameters for why.
         parameters.DictionarySize.Should().BeNull();
         parameters.WordSize.Should().BeNull();
     }
@@ -25,12 +29,31 @@ public sealed class SevenZipSharperCompressorTests
     [Test]
     public void BuildParameters_SevenZipFormat_SetsUltraLevelAndWordSize()
     {
-        CompressionParameters parameters = SevenZipSharperCompressor.BuildParameters("7z");
+        CompressionParameters parameters = SevenZipSharperCompressor.BuildParameters(
+            "7z",
+            romSize: 4 * 1024 * 1024
+        );
 
         parameters.Level.Should().Be(CompressionLevel.Ultra);
-        // DictionarySize is deliberately not set — see BuildParameters for why.
-        parameters.DictionarySize.Should().BeNull();
+        parameters.DictionarySize.Should().Be(4 * 1024 * 1024);
         parameters.WordSize.Should().Be(273u);
+    }
+
+    [TestCase(0L, 1024u)]
+    [TestCase(1024L, 1024u)]
+    [TestCase(1025L, 2048u)]
+    [TestCase(3 * 1024 * 1024L, 4 * 1024 * 1024u)]
+    [TestCase(4 * 1024 * 1024L, 4 * 1024 * 1024u)]
+    [TestCase(1_073_741_824L, 1_073_741_824u)]
+    [TestCase(2_000_000_000L, 1_073_741_824u)]
+    public void DictionarySizeFor_ReturnsSmallestPowerOfTwoCoveringRomSize_ClampedToRange(
+        long romSize,
+        uint expected
+    )
+    {
+        uint actual = SevenZipSharperCompressor.DictionarySizeFor(romSize);
+
+        actual.Should().Be(expected);
     }
 
     [Test]
