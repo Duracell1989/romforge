@@ -4,6 +4,12 @@ All notable changes to RomForge are documented here. This project follows [Seman
 
 ## [Unreleased]
 
+## [1.4.1] — 2026-07-29
+
+### Fixed
+
+- The "Updating DAT" and "Downloading Images" dialogs now show which DAT they're working on, instead of a generic title
+
 ## [1.4.0] — 2026-07-29
 
 ### Changed
