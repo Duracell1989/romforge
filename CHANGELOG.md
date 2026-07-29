@@ -4,6 +4,16 @@ All notable changes to RomForge are documented here. This project follows [Seman
 
 ## [Unreleased]
 
+## [1.5.0] — 2026-07-29
+
+### Changed
+
+- ROMs are now always renamed as "release - title", regardless of what naming template a DAT's own config specifies
+
+### Fixed
+
+- Fixed a bug where re-archiving or trimming a ROM could give its internal archive entry a corrupted name (a leftover random extension) when the ROM's real extension is empty
+
 ## [1.4.1] — 2026-07-29
 
 ### Fixed
