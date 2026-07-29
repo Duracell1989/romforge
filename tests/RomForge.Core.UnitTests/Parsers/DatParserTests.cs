@@ -77,7 +77,6 @@ public class DatParserTests
         header.DatVersion.Should().Be(20210227);
         header.ScreenshotsWidth.Should().Be(240);
         header.ScreenshotsHeight.Should().Be(160);
-        header.RomTitle.Should().Be("%u - %n");
         header.NewDatVersionUrl.Should().Be("http://example.com/version");
         header.NewDatUrl.Should().Be("http://example.com/gba.zip");
         header.NewDatFileName.Should().Be("gba.zip");

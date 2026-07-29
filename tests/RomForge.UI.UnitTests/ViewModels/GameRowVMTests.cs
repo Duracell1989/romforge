@@ -267,18 +267,7 @@ public sealed class GameRowVMTests
     }
 
     [Test]
-    public void ExpectedFileName_EmptyMask_ReturnsNull()
-    {
-        GameRowVM vm = MakeRow(
-            MakeVerified(incorrectlyNamed: true),
-            header: new DatHeader { RomTitle = string.Empty }
-        );
-
-        vm.ExpectedFileName.Should().BeNull();
-    }
-
-    [Test]
-    public void ExpectedFileName_WithMask_ReturnsExpandedName()
+    public void ExpectedFileName_IncorrectlyNamed_ReturnsDefaultMaskExpandedName()
     {
         GameRowVM vm = MakeRow(
             new MatchResult
@@ -286,11 +275,10 @@ public sealed class GameRowVMTests
                 Game = new Game { ReleaseNumber = 1, Title = "Mario" },
                 Status = MatchStatus.Verified,
                 IsIncorrectlyNamed = true,
-            },
-            header: new DatHeader { RomTitle = "%u %n" }
+            }
         );
 
-        vm.ExpectedFileName.Should().Be("0001 Mario");
+        vm.ExpectedFileName.Should().Be("0001 - Mario");
     }
 
     // --- StatusBrush ---

@@ -7,6 +7,12 @@ namespace RomForge.Core.Matching;
 
 public static class NamingMask
 {
+    /// <summary>
+    /// The naming mask RomForge always applies, regardless of what a DAT's own
+    /// <c>&lt;RomTitle&gt;</c> config specifies.
+    /// </summary>
+    public const string DefaultMask = "%u - %n";
+
     public static string Expand(string mask, Game game)
     {
         ArgumentNullException.ThrowIfNull(mask);

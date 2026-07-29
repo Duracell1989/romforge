@@ -8,7 +8,6 @@ public sealed record DatHeader
     public string? ImFolder { get; init; }
     public int ScreenshotsWidth { get; init; }
     public int ScreenshotsHeight { get; init; }
-    public string RomTitle { get; init; } = string.Empty;
     public string? NewDatVersionUrl { get; init; }
     public string? NewDatUrl { get; init; }
     public string? NewDatFileName { get; init; }

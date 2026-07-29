@@ -47,7 +47,6 @@ internal static class DatParser
             ImFolder = NullIfEmpty((string?)config.ElementCI(nameof(DatHeader.ImFolder))),
             ScreenshotsWidth = ParseInt(config.ElementCI(nameof(DatHeader.ScreenshotsWidth))),
             ScreenshotsHeight = ParseInt(config.ElementCI(nameof(DatHeader.ScreenshotsHeight))),
-            RomTitle = (string?)config.ElementCI(nameof(DatHeader.RomTitle)) ?? string.Empty,
             NewDatVersionUrl = NullIfEmpty((string?)newDat?.ElementCI(Xml.DatVersionURL)),
             NewDatUrl = NullIfEmpty((string?)datUrl),
             NewDatFileName = NullIfEmpty((string?)datUrl?.Attribute(Xml.FileName)),

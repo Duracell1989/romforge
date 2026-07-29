@@ -86,7 +86,7 @@ public sealed class SevenZipSharperCompressorTests
             isAvailable: false
         );
 
-        Result result = await sut.CompressAsync("/src/game.gba", "/out/game.7z", 0);
+        Result result = await sut.CompressAsync("/src/game.gba", "/out/game.7z", "game.gba", 0);
 
         result.IsFailed.Should().BeTrue();
         result.Errors[0].Message.Should().Contain("native library");

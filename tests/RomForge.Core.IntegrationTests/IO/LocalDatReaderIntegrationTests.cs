@@ -68,7 +68,6 @@ public sealed class LocalDatReaderIntegrationTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Header.DatName.Should().Be("Integration Test DAT");
         result.Value.Header.System.Should().Be("GBA");
-        result.Value.Header.RomTitle.Should().Be("%u - %n");
         result.Value.Games.Should().HaveCount(1);
         result.Value.Games[0].Title.Should().Be("Real Game");
         result.Value.Games[0].Files.RomCrc.Should().Be(0xAABBCCDDu);

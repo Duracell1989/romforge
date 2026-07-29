@@ -1308,16 +1308,6 @@ public sealed class MainWindowVMTests
 
     // --- ValidateIntegrityAsync — triggered via BuildDatVmAsync when persisted results exist ---
 
-    private static LoadedDatVM MakeDatVMWithRomTitle(string romTitle = "%n") =>
-        new LoadedDatVM(
-            new DatFile
-            {
-                Header = new DatHeader { DatName = "Test DAT", RomTitle = romTitle },
-                Games = [],
-            },
-            "/test/dat.xml"
-        );
-
     private static GameRowVM MakeGameRowWithScannedRom(
         string filePath,
         bool incorrectlyNamed = false,
@@ -1485,7 +1475,7 @@ public sealed class MainWindowVMTests
             .Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(Result.Ok());
 
-        LoadedDatVM datVm = MakeDatVMWithRomTitle();
+        LoadedDatVM datVm = MakeDatVM();
         GameRowVM gameRow = MakeGameRowWithScannedRom(
             "/roms/Wrong Name.7z",
             incorrectlyNamed: true
@@ -1542,6 +1532,7 @@ public sealed class MainWindowVMTests
                 c.CompressAsync(
                     It.IsAny<string>(),
                     It.IsAny<string>(),
+                    It.IsAny<string>(),
                     It.IsAny<long>(),
                     It.IsAny<IProgress<int>?>(),
                     It.IsAny<string>(),
@@ -1590,6 +1581,7 @@ public sealed class MainWindowVMTests
         availableCompressor
             .Setup(c =>
                 c.CompressAsync(
+                    It.IsAny<string>(),
                     It.IsAny<string>(),
                     It.IsAny<string>(),
                     It.IsAny<long>(),
@@ -1666,7 +1658,7 @@ public sealed class MainWindowVMTests
             .Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(Result.Fail("rename failed"));
 
-        LoadedDatVM datVm = MakeDatVMWithRomTitle();
+        LoadedDatVM datVm = MakeDatVM();
         GameRowVM gameRow = MakeGameRowWithScannedRom(
             "/roms/Wrong Name.7z",
             incorrectlyNamed: true
@@ -1689,7 +1681,7 @@ public sealed class MainWindowVMTests
             .Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(Result.Ok());
 
-        LoadedDatVM datVm = MakeDatVMWithRomTitle();
+        LoadedDatVM datVm = MakeDatVM();
         GameRowVM gameRow = MakeGameRowWithScannedRom(
             "/roms/Wrong Name.7z",
             incorrectlyNamed: true
@@ -1730,6 +1722,28 @@ public sealed class MainWindowVMTests
         );
     }
 
+    // --- BuildEntryName ---
+
+    [Test]
+    public void BuildEntryName_WithRomExtension_AppendsIt()
+    {
+        string result = MainWindowVM.BuildEntryName("/roms/0001 - Mario.7z", "gba");
+
+        result.Should().Be("0001 - Mario.gba");
+    }
+
+    [Test]
+    public void BuildEntryName_WithEmptyRomExtension_ReturnsStemUnchanged()
+    {
+        // A DAT entry can legitimately declare no extension for its ROM. The entry name must
+        // not fabricate one — this guards against deriving the extension from the extracted
+        // temp file's own name instead, which always carries a random extension of its own
+        // (Path.GetRandomFileName()) and would corrupt the result for exactly this case.
+        string result = MainWindowVM.BuildEntryName("/roms/0001 - Mario.7z", string.Empty);
+
+        result.Should().Be("0001 - Mario");
+    }
+
     // --- ReArchiveSelectedAsync sameFile rename-aside failure ---
 
     [Test]
@@ -1742,6 +1756,7 @@ public sealed class MainWindowVMTests
         availableCompressor
             .Setup(c =>
                 c.CompressAsync(
+                    It.IsAny<string>(),
                     It.IsAny<string>(),
                     It.IsAny<string>(),
                     It.IsAny<long>(),
@@ -1757,11 +1772,14 @@ public sealed class MainWindowVMTests
             .Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Ok("/tmp/no_such_extracted.rom"));
         _fileOps
-            .Setup(f => f.RenameAsync("/roms/Test.7z", "/roms/Test.7z.bak"))
+            .Setup(f => f.RenameAsync("/roms/0000 - Test Game.7z", "/roms/0000 - Test Game.7z.bak"))
             .ReturnsAsync(Result.Fail("rename failed"));
 
         LoadedDatVM datVm = MakeDatVM();
-        GameRowVM gameRow = MakeGameRowWithScannedRom("/roms/Test.7z", wrongArchiveType: true);
+        GameRowVM gameRow = MakeGameRowWithScannedRom(
+            "/roms/0000 - Test Game.7z",
+            wrongArchiveType: true
+        );
         datVm.Games.Add(gameRow);
         vm.ActiveDat = datVm;
         vm.SelectedGame = gameRow;
@@ -1791,6 +1809,7 @@ public sealed class MainWindowVMTests
                 c.CompressAsync(
                     It.IsAny<string>(),
                     It.IsAny<string>(),
+                    It.IsAny<string>(),
                     It.IsAny<long>(),
                     It.IsAny<IProgress<int>?>(),
                     It.IsAny<string>(),
@@ -1809,14 +1828,17 @@ public sealed class MainWindowVMTests
         _fileOps.Setup(f => f.DeleteAsync(It.IsAny<string>())).ReturnsAsync(Result.Ok());
 
         LoadedDatVM datVm = MakeDatVM();
-        GameRowVM gameRow = MakeGameRowWithScannedRom("/roms/Test.7z", wrongArchiveType: true);
+        GameRowVM gameRow = MakeGameRowWithScannedRom(
+            "/roms/0000 - Test Game.7z",
+            wrongArchiveType: true
+        );
         datVm.Games.Add(gameRow);
         vm.ActiveDat = datVm;
         vm.SelectedGame = gameRow;
 
         await vm.ReArchiveSelectedCommand.ExecuteAsync(null);
 
-        _fileOps.Verify(f => f.DeleteAsync("/roms/Test.7z.bak"), Times.Once);
+        _fileOps.Verify(f => f.DeleteAsync("/roms/0000 - Test Game.7z.bak"), Times.Once);
         _notifier.Verify(n => n.NotifyErrorAsync(It.IsAny<string>()), Times.Never);
     }
 
@@ -1833,6 +1855,7 @@ public sealed class MainWindowVMTests
                 c.CompressAsync(
                     It.IsAny<string>(),
                     It.IsAny<string>(),
+                    It.IsAny<string>(),
                     It.IsAny<long>(),
                     It.IsAny<IProgress<int>?>(),
                     It.IsAny<string>(),
@@ -1846,13 +1869,13 @@ public sealed class MainWindowVMTests
             .Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Ok("/tmp/no_such_extracted.rom"));
         _fileOps
-            .Setup(f => f.RenameAsync("/roms/Test.7z", "/roms/Test.7z.bak"))
+            .Setup(f => f.RenameAsync("/roms/0000 - Test Game.7z", "/roms/0000 - Test Game.7z.bak"))
             .ReturnsAsync(Result.Ok());
         _fileOps
-            .Setup(f => f.RenameAsync(It.IsAny<string>(), "/roms/Test.7z"))
+            .Setup(f => f.RenameAsync(It.IsAny<string>(), "/roms/0000 - Test Game.7z"))
             .ReturnsAsync(Result.Fail("rename failed"));
         _fileOps
-            .Setup(f => f.RenameAsync("/roms/Test.7z.bak", "/roms/Test.7z"))
+            .Setup(f => f.RenameAsync("/roms/0000 - Test Game.7z.bak", "/roms/0000 - Test Game.7z"))
             .ReturnsAsync(Result.Ok());
         _fileOps
             .Setup(f =>
@@ -1861,14 +1884,20 @@ public sealed class MainWindowVMTests
             .ReturnsAsync(Result.Ok());
 
         LoadedDatVM datVm = MakeDatVM();
-        GameRowVM gameRow = MakeGameRowWithScannedRom("/roms/Test.7z", wrongArchiveType: true);
+        GameRowVM gameRow = MakeGameRowWithScannedRom(
+            "/roms/0000 - Test Game.7z",
+            wrongArchiveType: true
+        );
         datVm.Games.Add(gameRow);
         vm.ActiveDat = datVm;
         vm.SelectedGame = gameRow;
 
         await vm.ReArchiveSelectedCommand.ExecuteAsync(null);
 
-        _fileOps.Verify(f => f.RenameAsync("/roms/Test.7z.bak", "/roms/Test.7z"), Times.Once);
+        _fileOps.Verify(
+            f => f.RenameAsync("/roms/0000 - Test Game.7z.bak", "/roms/0000 - Test Game.7z"),
+            Times.Once
+        );
         _notifier.Verify(
             n =>
                 n.NotifyErrorAsync(
@@ -1893,14 +1922,15 @@ public sealed class MainWindowVMTests
                 c.CompressAsync(
                     It.IsAny<string>(),
                     It.IsAny<string>(),
+                    It.IsAny<string>(),
                     It.IsAny<long>(),
                     It.IsAny<IProgress<int>?>(),
                     It.IsAny<string>(),
                     It.IsAny<CancellationToken>()
                 )
             )
-            .Callback<string, string, long, IProgress<int>?, string, CancellationToken>(
-                (_, dest, _, _, _, _) => compressTarget = dest
+            .Callback<string, string, string, long, IProgress<int>?, string, CancellationToken>(
+                (_, dest, _, _, _, _, _) => compressTarget = dest
             )
             .ReturnsAsync(Result.Ok());
         MainWindowVM vm = MakeVM(compressorMock: availableCompressor);
@@ -1914,7 +1944,10 @@ public sealed class MainWindowVMTests
             .ReturnsAsync(Result.Ok());
 
         LoadedDatVM datVm = MakeDatVM();
-        GameRowVM gameRow = MakeGameRowWithScannedRom("/roms/Test.7z", wrongArchiveType: true);
+        GameRowVM gameRow = MakeGameRowWithScannedRom(
+            "/roms/0000 - Test Game.7z",
+            wrongArchiveType: true
+        );
         datVm.Games.Add(gameRow);
         vm.ActiveDat = datVm;
         vm.SelectedGame = gameRow;
@@ -1925,7 +1958,10 @@ public sealed class MainWindowVMTests
         compressTarget.Should().StartWith(Path.Combine(_tempDir, "temp"));
         compressTarget.Should().NotContain("/roms/");
         // The working archive is then moved onto the final path.
-        _fileOps.Verify(f => f.RenameAsync(compressTarget, "/roms/Test.7z"), Times.Once);
+        _fileOps.Verify(
+            f => f.RenameAsync(compressTarget, "/roms/0000 - Test Game.7z"),
+            Times.Once
+        );
         _notifier.Verify(n => n.NotifyErrorAsync(It.IsAny<string>()), Times.Never);
     }
 
@@ -1944,6 +1980,7 @@ public sealed class MainWindowVMTests
                 c.CompressAsync(
                     It.IsAny<string>(),
                     It.IsAny<string>(),
+                    It.IsAny<string>(),
                     It.IsAny<long>(),
                     It.IsAny<IProgress<int>?>(),
                     It.IsAny<string>(),
@@ -1958,10 +1995,10 @@ public sealed class MainWindowVMTests
             .ReturnsAsync(Result.Ok("/tmp/no_such_extracted.rom"));
         _fileOps.Setup(f => f.DeleteAsync(It.IsAny<string>())).ReturnsAsync(Result.Ok());
         _fileOps
-            .Setup(f => f.RenameAsync("/roms/Test.7z", "/roms/Test.7z.bak"))
+            .Setup(f => f.RenameAsync("/roms/0000 - Test Game.7z", "/roms/0000 - Test Game.7z.bak"))
             .ReturnsAsync(Result.Ok());
         _fileOps
-            .Setup(f => f.RenameAsync(It.IsAny<string>(), "/roms/Test.7z"))
+            .Setup(f => f.RenameAsync(It.IsAny<string>(), "/roms/0000 - Test Game.7z"))
             .ReturnsAsync(Result.Fail("volume offline"));
         _fileOps
             .Setup(f =>
@@ -1970,7 +2007,10 @@ public sealed class MainWindowVMTests
             .ReturnsAsync(Result.Ok());
 
         LoadedDatVM datVm = MakeDatVM();
-        GameRowVM gameRow = MakeGameRowWithScannedRom("/roms/Test.7z", wrongArchiveType: true);
+        GameRowVM gameRow = MakeGameRowWithScannedRom(
+            "/roms/0000 - Test Game.7z",
+            wrongArchiveType: true
+        );
         datVm.Games.Add(gameRow);
         vm.ActiveDat = datVm;
         vm.SelectedGame = gameRow;
@@ -2005,14 +2045,15 @@ public sealed class MainWindowVMTests
                 c.CompressAsync(
                     It.IsAny<string>(),
                     It.IsAny<string>(),
+                    It.IsAny<string>(),
                     It.IsAny<long>(),
                     It.IsAny<IProgress<int>?>(),
                     It.IsAny<string>(),
                     It.IsAny<CancellationToken>()
                 )
             )
-            .Callback<string, string, long, IProgress<int>?, string, CancellationToken>(
-                (_, dest, _, _, _, _) =>
+            .Callback<string, string, string, long, IProgress<int>?, string, CancellationToken>(
+                (_, dest, _, _, _, _, _) =>
                 {
                     workingArchive = dest;
                     File.WriteAllBytes(dest, new byte[] { 1, 2, 3 });
@@ -2102,6 +2143,7 @@ public sealed class MainWindowVMTests
                     c.CompressAsync(
                         It.IsAny<string>(),
                         It.IsAny<string>(),
+                        It.IsAny<string>(),
                         It.IsAny<long>(),
                         It.IsAny<IProgress<int>?>(),
                         It.IsAny<string>(),
@@ -2109,8 +2151,8 @@ public sealed class MainWindowVMTests
                     )
                 )
                 // Simulate a partially-written working archive left behind by the failed compress.
-                .Callback<string, string, long, IProgress<int>?, string, CancellationToken>(
-                    (_, dest, _, _, _, _) =>
+                .Callback<string, string, string, long, IProgress<int>?, string, CancellationToken>(
+                    (_, dest, _, _, _, _, _) =>
                     {
                         workingArchive = dest;
                         File.WriteAllBytes(dest, new byte[] { 1, 2, 3 });
@@ -2215,6 +2257,7 @@ public sealed class MainWindowVMTests
                 c.CompressAsync(
                     It.IsAny<string>(),
                     It.IsAny<string>(),
+                    It.IsAny<string>(),
                     It.IsAny<long>(),
                     It.IsAny<IProgress<int>?>(),
                     It.IsAny<string>(),
@@ -2261,14 +2304,15 @@ public sealed class MainWindowVMTests
                     c.CompressAsync(
                         It.IsAny<string>(),
                         It.IsAny<string>(),
+                        It.IsAny<string>(),
                         It.IsAny<long>(),
                         It.IsAny<IProgress<int>?>(),
                         It.IsAny<string>(),
                         It.IsAny<CancellationToken>()
                     )
                 )
-                .Callback<string, string, long, IProgress<int>?, string, CancellationToken>(
-                    (_, dest, _, _, _, _) =>
+                .Callback<string, string, string, long, IProgress<int>?, string, CancellationToken>(
+                    (_, dest, _, _, _, _, _) =>
                     {
                         workingArchive = dest;
                         File.WriteAllBytes(dest, new byte[] { 1, 2, 3 });
@@ -2318,14 +2362,15 @@ public sealed class MainWindowVMTests
                     c.CompressAsync(
                         It.IsAny<string>(),
                         It.IsAny<string>(),
+                        It.IsAny<string>(),
                         It.IsAny<long>(),
                         It.IsAny<IProgress<int>?>(),
                         It.IsAny<string>(),
                         It.IsAny<CancellationToken>()
                     )
                 )
-                .Callback<string, string, long, IProgress<int>?, string, CancellationToken>(
-                    (_, dest, _, _, _, _) =>
+                .Callback<string, string, string, long, IProgress<int>?, string, CancellationToken>(
+                    (_, dest, _, _, _, _, _) =>
                     {
                         workingArchive = dest;
                         File.WriteAllBytes(dest, new byte[] { 1, 2, 3 });
@@ -2378,6 +2423,7 @@ public sealed class MainWindowVMTests
                 c.CompressAsync(
                     It.IsAny<string>(),
                     It.IsAny<string>(),
+                    It.IsAny<string>(),
                     It.IsAny<long>(),
                     It.IsAny<IProgress<int>?>(),
                     It.IsAny<string>(),
@@ -2422,6 +2468,7 @@ public sealed class MainWindowVMTests
                 c.CompressAsync(
                     It.IsAny<string>(),
                     It.IsAny<string>(),
+                    It.IsAny<string>(),
                     It.IsAny<long>(),
                     It.IsAny<IProgress<int>?>(),
                     It.IsAny<string>(),
@@ -2459,6 +2506,7 @@ public sealed class MainWindowVMTests
         availableCompressor
             .Setup(c =>
                 c.CompressAsync(
+                    It.IsAny<string>(),
                     It.IsAny<string>(),
                     It.IsAny<string>(),
                     It.IsAny<long>(),
