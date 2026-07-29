@@ -4,6 +4,18 @@ All notable changes to RomForge are documented here. This project follows [Seman
 
 ## [Unreleased]
 
+## [1.4.0] — 2026-07-29
+
+### Changed
+
+- Replaced the SharpCompress + external `7zz` CLI archiving engine with SevenZipSharper, a bundled native library — RomForge no longer needs Homebrew's `sevenzip` package installed for compression to work
+- Re-archiving now tunes the 7z dictionary size to each ROM, improving compression ratios
+
+### Fixed
+
+- Fixed a data-loss bug where re-archiving a ROM to its own filename could destroy it if the app was interrupted mid-operation
+- Patched a high-severity vulnerability in a bundled SQLite component (GHSA-2m69-gcr7-jv3q)
+
 ## [1.3.0] — 2026-07-19
 
 ### Added
