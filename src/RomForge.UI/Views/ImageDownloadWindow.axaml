@@ -6,7 +6,6 @@
         mc:Ignorable="d"
         x:Class="RomForge.UI.Views.ImageDownloadWindow"
         x:DataType="vm:ImageDownloadWindowVM"
-        Title="Downloading Images"
         Width="520"
         Height="360"
         CanResize="False"

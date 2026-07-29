@@ -135,10 +135,14 @@ internal sealed class AvaloniaUserNotifier : IUserNotifier
         }
     }
 
-    public async Task ShowImageDownloadAsync(ImageDownloadWindowVM vm, Task operationTask)
+    public async Task ShowImageDownloadAsync(
+        string title,
+        ImageDownloadWindowVM vm,
+        Task operationTask
+    )
     {
         var parent = _getWindow();
-        var window = new ImageDownloadWindow { DataContext = vm };
+        var window = new ImageDownloadWindow { Title = title, DataContext = vm };
         vm.RequestClose = () => window.Close();
 
         // While the download is running, the OS close button cancels but keeps the window open
