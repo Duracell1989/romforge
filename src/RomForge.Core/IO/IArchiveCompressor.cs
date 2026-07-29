@@ -12,6 +12,7 @@ public interface IArchiveCompressor
     Task<Result> CompressAsync(
         string sourceFile,
         string destArchive,
+        string entryName,
         long romSize,
         IProgress<int>? progress = null,
         string format = "7z",

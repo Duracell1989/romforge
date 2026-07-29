@@ -20,7 +20,7 @@ public static class RomMatcher
 
         Dictionary<uint, ScannedRom> byCrc = BuildCrcIndex(scannedRoms);
         Dictionary<uint, ScannedRom> byTrimmedCrc = BuildTrimmedCrcIndex(scannedRoms);
-        string namingMask = datFile.Header.RomTitle;
+        string namingMask = NamingMask.DefaultMask;
 
         List<MatchResult> results = datFile
             .Games.Select(game =>

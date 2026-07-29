@@ -72,7 +72,7 @@ public sealed class SevenZipSharperCompressorIntegrationTests
         string source = await CreateSourceFileAsync();
         string dest = Path.Combine(_tempDir, "out.7z");
 
-        Result result = await _sut.CompressAsync(source, dest, 2048);
+        Result result = await _sut.CompressAsync(source, dest, "source.bin", 2048);
 
         result.IsSuccess.Should().BeTrue();
         File.Exists(dest).Should().BeTrue();
@@ -89,11 +89,30 @@ public sealed class SevenZipSharperCompressorIntegrationTests
         string source = await CreateSourceFileAsync();
         string dest = Path.Combine(_tempDir, "out.zip");
 
-        Result result = await _sut.CompressAsync(source, dest, 2048, format: "zip");
+        Result result = await _sut.CompressAsync(source, dest, "source.bin", 2048, format: "zip");
 
         result.IsSuccess.Should().BeTrue();
         File.Exists(dest).Should().BeTrue();
         (await ListEntryPathsAsync(dest, ArchiveFormat.Zip)).Should().BeEquivalentTo("source.bin");
+    }
+
+    [Test]
+    public async Task CompressAsync_WithEntryName_NamesInternalEntryAccordingly()
+    {
+        Assume.That(_sut.IsAvailable, Is.True, "7-Zip native library not available; skipping.");
+
+        // The temp file extracted before a re-archive/trim has a random GUID-style name, not
+        // the game's real name. entryName lets the caller give the internal archive entry the
+        // proper name even though the source file on disk doesn't have it.
+        string source = await CreateSourceFileAsync();
+        string dest = Path.Combine(_tempDir, "out.7z");
+
+        Result result = await _sut.CompressAsync(source, dest, "0001 - Super Game.bin", 2048);
+
+        result.IsSuccess.Should().BeTrue();
+        (await ListEntryPathsAsync(dest, ArchiveFormat.SevenZip))
+            .Should()
+            .BeEquivalentTo("0001 - Super Game.bin");
     }
 
     [Test]
@@ -107,12 +126,12 @@ public sealed class SevenZipSharperCompressorIntegrationTests
         string stale = Path.Combine(_tempDir, "stale.bin");
         await File.WriteAllBytesAsync(stale, new byte[512]);
         string dest = Path.Combine(_tempDir, "out.7z");
-        (await _sut.CompressAsync(stale, dest, 512)).IsSuccess.Should().BeTrue();
+        (await _sut.CompressAsync(stale, dest, "stale.bin", 512)).IsSuccess.Should().BeTrue();
 
         string source = Path.Combine(_tempDir, "source.bin");
         await File.WriteAllBytesAsync(source, new byte[2048]);
 
-        Result result = await _sut.CompressAsync(source, dest, 2048);
+        Result result = await _sut.CompressAsync(source, dest, "source.bin", 2048);
 
         result.IsSuccess.Should().BeTrue();
         (await ListEntryPathsAsync(dest, ArchiveFormat.SevenZip))
@@ -130,6 +149,7 @@ public sealed class SevenZipSharperCompressorIntegrationTests
         Result result = await _sut.CompressAsync(
             Path.Combine(_tempDir, "nonexistent.bin"),
             dest,
+            "nonexistent.bin",
             0
         );
 
@@ -153,6 +173,7 @@ public sealed class SevenZipSharperCompressorIntegrationTests
         Task<Result> compressTask = _sut.CompressAsync(
             source,
             dest,
+            "big.bin",
             payload.Length,
             cancellationToken: cts.Token
         );
@@ -176,6 +197,7 @@ public sealed class SevenZipSharperCompressorIntegrationTests
         Result result = await _sut.CompressAsync(
             source,
             dest,
+            "source.bin",
             2048,
             new Progress<int>(p => reported.Add(p))
         );

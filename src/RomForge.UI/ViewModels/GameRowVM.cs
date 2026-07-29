@@ -17,7 +17,6 @@ namespace RomForge.UI.ViewModels;
 public sealed partial class GameRowVM : ObservableObject, IDisposable
 {
     private readonly MatchResult _result;
-    private readonly string _namingMask;
     private readonly IReadOnlyList<LanguageBit> _languageBits;
     private readonly string? _im1Path;
     private readonly string? _im2Path;
@@ -40,7 +39,6 @@ public sealed partial class GameRowVM : ObservableObject, IDisposable
         ArgumentNullException.ThrowIfNull(header);
 
         _result = result;
-        _namingMask = header.RomTitle;
         _languageBits = languageBits;
         ScreenshotsWidth = header.ScreenshotsWidth > 0 ? header.ScreenshotsWidth : 240;
         ScreenshotsHeight = header.ScreenshotsHeight > 0 ? header.ScreenshotsHeight : 160;
@@ -117,9 +115,7 @@ public sealed partial class GameRowVM : ObservableObject, IDisposable
     public string ReArchivedText => _result.IsReArchived ? "✓" : "–";
 
     public string? ExpectedFileName =>
-        _result.IsIncorrectlyNamed && !string.IsNullOrEmpty(_namingMask)
-            ? NamingMask.Expand(_namingMask, _result.Game)
-            : null;
+        _result.IsIncorrectlyNamed ? NamingMask.Expand(NamingMask.DefaultMask, _result.Game) : null;
 
     public void Dispose()
     {

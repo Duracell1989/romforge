@@ -39,6 +39,7 @@ public sealed class SevenZipSharperCompressor : IArchiveCompressor
     public async Task<Result> CompressAsync(
         string sourceFile,
         string destArchive,
+        string entryName,
         long romSize,
         IProgress<int>? progress = null,
         string format = "7z",
@@ -79,10 +80,7 @@ public sealed class SevenZipSharperCompressor : IArchiveCompressor
             await using FileStream source = File.OpenRead(sourceFile);
             await using FileStream dest = File.Create(destArchive);
 
-            var entries = new (string EntryPath, Stream Data)[]
-            {
-                (Path.GetFileName(sourceFile), source),
-            };
+            var entries = new (string EntryPath, Stream Data)[] { (entryName, source) };
             Progress<CompressionProgress>? mapped = MapProgress(progress);
 
             return await compressor

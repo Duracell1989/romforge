@@ -41,13 +41,6 @@ public class RomMatcherTests
 
     private static DatFile DatWith(params Game[] games) => new() { Games = [.. games] };
 
-    private static DatFile DatWith(string mask, params Game[] games) =>
-        new()
-        {
-            Header = new DatHeader { RomTitle = mask },
-            Games = [.. games],
-        };
-
     [Test]
     public void Match_CrcAndArchiveExtensionMatch_ReturnsVerified()
     {
@@ -141,7 +134,7 @@ public class RomMatcherTests
     [Test]
     public void Match_CorrectFilename_ReturnsVerified()
     {
-        DatFile dat = DatWith("%u - %n", GameWith(0x12345678, release: 1, title: "Test Game"));
+        DatFile dat = DatWith(GameWith(0x12345678, release: 1, title: "Test Game"));
         List<ScannedRom> roms = [RomWith(0x12345678, path: "/roms/0001 - Test Game.7z")];
 
         IReadOnlyList<MatchResult> results = RomMatcher.Match(dat, roms).Results;
@@ -152,7 +145,7 @@ public class RomMatcherTests
     [Test]
     public void Match_IncorrectFilename_ReturnsVerifiedWithIncorrectlyNamedFlag()
     {
-        DatFile dat = DatWith("%u - %n", GameWith(0x12345678, release: 1, title: "Test Game"));
+        DatFile dat = DatWith(GameWith(0x12345678, release: 1, title: "Test Game"));
         List<ScannedRom> roms = [RomWith(0x12345678, path: "/roms/Wrong Name.7z")];
 
         IReadOnlyList<MatchResult> results = RomMatcher.Match(dat, roms).Results;
@@ -163,23 +156,14 @@ public class RomMatcherTests
     }
 
     [Test]
-    public void Match_EmptyMask_SkipsNameCheck()
-    {
-        DatFile dat = DatWith(GameWith(0x12345678, release: 1, title: "Test Game"));
-        List<ScannedRom> roms = [RomWith(0x12345678, path: "/roms/Wrong Name.7z")];
-
-        IReadOnlyList<MatchResult> results = RomMatcher.Match(dat, roms).Results;
-
-        results[0].Status.Should().Be(MatchStatus.Verified);
-    }
-
-    [Test]
     public void Match_CustomExpectedArchiveExtension_UsesProvidedExtension()
     {
         DatFile dat = DatWith(GameWith(0x12345678));
         List<ScannedRom> roms = [RomWith(0x12345678, fileExt: "zip")];
 
-        IReadOnlyList<MatchResult> results = RomMatcher.Match(dat, roms, expectedArchiveExtension: "zip").Results;
+        IReadOnlyList<MatchResult> results = RomMatcher
+            .Match(dat, roms, expectedArchiveExtension: "zip")
+            .Results;
 
         results[0].Status.Should().Be(MatchStatus.Verified);
     }
@@ -201,11 +185,7 @@ public class RomMatcherTests
     public void Match_FullCrcMatchTakesPriorityOverTrimmedCrc()
     {
         DatFile dat = DatWith(GameWith(0x11111111), GameWith(0x22222222));
-        List<ScannedRom> roms =
-        [
-            RomWith(0x11111111),
-            RomWith(0xDEADBEEF, trimmedCrc: 0x11111111),
-        ];
+        List<ScannedRom> roms = [RomWith(0x11111111), RomWith(0xDEADBEEF, trimmedCrc: 0x11111111)];
 
         IReadOnlyList<MatchResult> results = RomMatcher.Match(dat, roms).Results;
 
@@ -298,7 +278,7 @@ public class RomMatcherTests
     [Test]
     public void Match_BothWrongArchiveAndWrongName_SetsBothFlags()
     {
-        DatFile dat = DatWith("%u - %n", GameWith(0x12345678, release: 1, title: "Correct Name"));
+        DatFile dat = DatWith(GameWith(0x12345678, release: 1, title: "Correct Name"));
         List<ScannedRom> roms = [RomWith(0x12345678, fileExt: "zip", path: "/roms/Wrong Name.zip")];
 
         IReadOnlyList<MatchResult> results = RomMatcher.Match(dat, roms).Results;

@@ -585,7 +585,7 @@ public partial class MainWindowVM : VMBase
                 ScannedRom = SelectedGame.ScannedRom,
                 IsIncorrectlyNamed = SelectedGame.IsIncorrectlyNamed,
             },
-            ActiveDat.DatFile.Header.RomTitle
+            NamingMask.DefaultMask
         );
 
         if (target is null)
@@ -666,7 +666,7 @@ public partial class MainWindowVM : VMBase
                     ScannedRom = game.ScannedRom,
                     IsIncorrectlyNamed = game.IsIncorrectlyNamed,
                 },
-                ActiveDat!.DatFile.Header.RomTitle
+                NamingMask.DefaultMask
             );
 
             if (target is null)
@@ -718,7 +718,7 @@ public partial class MainWindowVM : VMBase
                 ScannedRom = SelectedGame.ScannedRom,
                 IsUntrimmed = SelectedGame.IsUntrimmed,
             },
-            ActiveDat.DatFile.Header.RomTitle,
+            NamingMask.DefaultMask,
             ArchiveFormat
         );
 
@@ -800,6 +800,19 @@ public partial class MainWindowVM : VMBase
     /// </summary>
     private string NewWorkingArchivePath(string format) =>
         Path.Combine(_appData.TempPath, "rearchive-" + Guid.NewGuid().ToString("N") + "." + format);
+
+    /// <summary>
+    /// The name to give the ROM entry inside a freshly-compressed archive: the expected file
+    /// stem with the DAT's declared ROM extension. The extracted temp file's own name can't be
+    /// used for this — it's a <see cref="Path.GetRandomFileName"/>-derived name that always
+    /// carries its own random extension, so deriving the extension from it would fabricate one
+    /// whenever the DAT's real ROM extension is empty.
+    /// </summary>
+    internal static string BuildEntryName(string targetPath, string romExtension)
+    {
+        string stem = Path.GetFileNameWithoutExtension(targetPath);
+        return string.IsNullOrEmpty(romExtension) ? stem : stem + "." + romExtension;
+    }
 
     /// <summary>
     /// Moves a freshly-compressed working archive into its final location, replacing the original
@@ -928,9 +941,11 @@ public partial class MainWindowVM : VMBase
             string compressTarget = NewWorkingArchivePath(archiveFormat);
             tempArchive = compressTarget;
 
+            string entryName = BuildEntryName(target.To, game.Game.Files.RomExtension);
             Result compressResult = await _compressor.CompressAsync(
                 tempFile,
                 compressTarget,
+                entryName,
                 game.Game.RomSize,
                 compressionProgress,
                 archiveFormat,
@@ -1053,7 +1068,7 @@ public partial class MainWindowVM : VMBase
         LoadedDatVM activeDat = ActiveDat!;
         string archiveFormat = ArchiveFormat;
         string datName = activeDat.DatFile.Header.DatName;
-        string namingMask = activeDat.DatFile.Header.RomTitle;
+        string namingMask = NamingMask.DefaultMask;
         CancellationToken ct = progress.CancellationToken;
 
         async Task ProcessGameAsync(GameRowVM game)
@@ -1184,7 +1199,7 @@ public partial class MainWindowVM : VMBase
                 ScannedRom = SelectedGame.ScannedRom,
                 IsUntrimmed = SelectedGame.IsUntrimmed,
             },
-            ActiveDat.DatFile.Header.RomTitle,
+            NamingMask.DefaultMask,
             ArchiveFormat
         );
 
@@ -1232,9 +1247,11 @@ public partial class MainWindowVM : VMBase
             tempArchive = archiveDest;
 
             Progress<int> progressCallback = new Progress<int>(pct => progress.Progress = pct);
+            string entryName = BuildEntryName(target.To, game.Game.Files.RomExtension);
             Result compressResult = await _compressor.CompressAsync(
                 tempRom,
                 archiveDest,
+                entryName,
                 game.Game.RomSize,
                 progressCallback,
                 ArchiveFormat,
@@ -1377,7 +1394,7 @@ public partial class MainWindowVM : VMBase
                 ScannedRom = game.ScannedRom,
                 IsUntrimmed = game.IsUntrimmed,
             },
-            ActiveDat!.DatFile.Header.RomTitle,
+            NamingMask.DefaultMask,
             ArchiveFormat
         );
 
@@ -1410,9 +1427,11 @@ public partial class MainWindowVM : VMBase
                 progress.Progress = fileBase + pct * fileRange / 100
             );
 
+            string entryName = BuildEntryName(target.Value.To, game.Game.Files.RomExtension);
             Result compressResult = await _compressor.CompressAsync(
                 tempRom,
                 archiveDest,
+                entryName,
                 game.Game.RomSize,
                 progressCallback,
                 ArchiveFormat,
