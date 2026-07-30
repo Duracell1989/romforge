@@ -114,6 +114,7 @@ public partial class App : Application
         services.AddSingleton<IAppLifetime, AvaloniaAppLifetime>();
         services.AddSingleton<IRomSource, FileSystemRomSource>();
         services.AddSingleton<IRomFileOperations, LocalRomFileOperations>();
+        services.AddSingleton<IDatLibraryService, DatLibraryService>();
         services.AddSingleton<IRomRenameService, RomRenameService>();
         services.AddSingleton<ArchiveWorkspace>();
         services.AddSingleton<IRomReArchiveService, RomReArchiveService>();

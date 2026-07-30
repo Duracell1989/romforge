@@ -107,10 +107,20 @@ public sealed class MainWindowVMTests
         ScanResultStore scanResultStore = new ScanResultStore(appData, logger);
         ReArchiveStore reArchiveStore = new ReArchiveStore(appData, logger);
         ArchiveWorkspace workspace = new ArchiveWorkspace(appData, _fileOps.Object, logger);
+        DatConfigService configService = new DatConfigService(appData, logger);
+        DatLibraryService datLibrary = new DatLibraryService(
+            _ => _datReader.Object,
+            _datImporter.Object,
+            configService,
+            scanResultStore,
+            _fileOps.Object,
+            appData,
+            logger
+        );
 
         return new MainWindowVM(
             _fileDialogs.Object,
-            _ => _datReader.Object,
+            datLibrary,
             _romSource.Object,
             _fileOps.Object,
             compressor,
@@ -119,10 +129,9 @@ public sealed class MainWindowVMTests
             new UpdateCheckService(_releaseChecker.Object, logger, "1.0.0"),
             logger,
             appData,
-            _datImporter.Object,
             new DatUpdateService(_updateChecker.Object, _downloader.Object, appData),
             new ImageSyncService(_imageDownloader.Object, _fileOps.Object, logger),
-            new DatConfigService(appData, logger),
+            configService,
             scanResultStore,
             reArchiveStore,
             new AppPreferencesService(appData, logger),

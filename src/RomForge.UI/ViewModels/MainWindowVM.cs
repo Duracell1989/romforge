@@ -25,7 +25,7 @@ namespace RomForge.UI.ViewModels;
 public partial class MainWindowVM : VMBase
 {
     private readonly IFileDialogService _fileDialogs;
-    private readonly Func<string, IDatReader> _datReaderFactory;
+    private readonly IDatLibraryService _datLibrary;
     private readonly IRomSource _romSource;
     private readonly IRomFileOperations _fileOperations;
     private readonly IArchiveCompressor _compressor;
@@ -34,7 +34,6 @@ public partial class MainWindowVM : VMBase
     private readonly UpdateCheckService _updateCheck;
     private readonly ILogger _logger;
     private readonly AppDataService _appData;
-    private readonly IDatImporter _datImporter;
     private readonly IDatUpdateService _datUpdateService;
     private readonly ImageSyncService _imageSync;
     private readonly DatConfigService _configService;
@@ -85,7 +84,7 @@ public partial class MainWindowVM : VMBase
 #pragma warning disable S107
     public MainWindowVM(
         IFileDialogService fileDialogs,
-        Func<string, IDatReader> datReaderFactory,
+        IDatLibraryService datLibrary,
         IRomSource romSource,
         IRomFileOperations fileOperations,
         IArchiveCompressor compressor,
@@ -94,7 +93,6 @@ public partial class MainWindowVM : VMBase
         UpdateCheckService updateCheck,
         ILogger logger,
         AppDataService appData,
-        IDatImporter datImporter,
         IDatUpdateService datUpdateService,
         ImageSyncService imageSync,
         DatConfigService configService,
@@ -109,7 +107,7 @@ public partial class MainWindowVM : VMBase
     )
     {
         _fileDialogs = fileDialogs;
-        _datReaderFactory = datReaderFactory;
+        _datLibrary = datLibrary;
         _romSource = romSource;
         _fileOperations = fileOperations;
         _compressor = compressor;
@@ -119,7 +117,6 @@ public partial class MainWindowVM : VMBase
         _updateCheck = updateCheck;
         _logger = logger.ForContext<MainWindowVM>();
         _appData = appData;
-        _datImporter = datImporter;
         _datUpdateService = datUpdateService;
         _imageSync = imageSync;
         _configService = configService;
@@ -233,7 +230,7 @@ public partial class MainWindowVM : VMBase
         if (sourcePath is null)
             return;
 
-        Result<DatFile> readResult = await _datReaderFactory(sourcePath).ReadAsync();
+        Result<DatFile> readResult = await _datLibrary.ReadAsync(sourcePath);
         if (readResult.IsFailed)
         {
             await _notifier.NotifyErrorAsync(
@@ -250,7 +247,7 @@ public partial class MainWindowVM : VMBase
             progressVm.CurrentFile = p.CurrentFile;
             progressVm.Progress = p.Total > 0 ? p.Current * 100 / p.Total : 0;
         });
-        Task<Result<string>> importTask = _datImporter.ImportAsync(
+        Task<Result<string>> importTask = _datLibrary.ImportAsync(
             sourcePath,
             readResult.Value.Header,
             importProgress,
@@ -265,7 +262,6 @@ public partial class MainWindowVM : VMBase
             return;
         }
 
-        await _configService.ImportFromOfflineListAsync(sourcePath, readResult.Value.Header);
         await LoadDatFromManagedPathAsync(importResult.Value);
     }
 
@@ -278,9 +274,9 @@ public partial class MainWindowVM : VMBase
         ArchiveFormat = prefs.DefaultArchiveFormat;
         _unverifiedFolder = prefs.UnverifiedFolder;
 
-        foreach (string path in _appData.GetImportedDatPaths())
+        foreach (string path in _datLibrary.GetImportedDatPaths())
         {
-            Result<DatFile> result = await _datReaderFactory(path).ReadAsync();
+            Result<DatFile> result = await _datLibrary.ReadAsync(path);
             if (result.IsFailed)
             {
                 _logger.Warning(
@@ -353,7 +349,7 @@ public partial class MainWindowVM : VMBase
             }
         }
 
-        Result<DatFile> result = await _datReaderFactory(managedPath).ReadAsync();
+        Result<DatFile> result = await _datLibrary.ReadAsync(managedPath);
         if (result.IsFailed)
         {
             await _notifier.NotifyErrorAsync(
@@ -379,16 +375,12 @@ public partial class MainWindowVM : VMBase
         if (config?.RomFolderPath is not null)
             datVm.RomFolder = config.RomFolderPath;
 
-        IReadOnlyList<MatchResult> persisted = await _scanResultStore.LoadResultsAsync(
-            datFile.Header.DatName,
-            datFile
-        );
-        IReadOnlyList<MatchResult> matchResults =
-            persisted.Count > 0 ? persisted : RomMatcher.Match(datVm.DatFile, []).Results;
+        (IReadOnlyList<MatchResult> matchResults, bool fromCache) =
+            await _datLibrary.LoadResultsAsync(datFile);
 
         datVm.Games = new ObservableCollection<GameRowVM>(matchResults.Select(datVm.BuildGameRow));
 
-        if (persisted.Count > 0)
+        if (fromCache)
             _ = ValidateIntegrityAsync(datVm, matchResults);
 
         return datVm;
@@ -398,43 +390,19 @@ public partial class MainWindowVM : VMBase
     {
         try
         {
-            // If the DAT's ROM folder is not currently available (e.g. the external drive is
-            // unmounted, or has not finished mounting when the app launches), skip the check
-            // entirely. Running it would report every ROM as missing and overwrite the good
-            // persisted results with "Missing", forcing a full re-scan on reconnect.
-            if (datVm.RomFolder is not null && !_fileOperations.DirectoryExists(datVm.RomFolder))
-            {
-                _logger.Information(
-                    "Skipping integrity check for {DatName}: ROM folder {Folder} is not available",
-                    datVm.DatFile.Header.DatName,
-                    datVm.RomFolder
-                );
-                return;
-            }
-
-            IReadOnlyList<MatchResult> stale = await Task.Run(() =>
-                RomIntegrityChecker.FindStaleResults(results)
+            IReadOnlyList<MatchResult> cleared = await _datLibrary.FindAndClearStaleAsync(
+                datVm.DatFile.Header.DatName,
+                datVm.RomFolder,
+                results
             );
 
-            if (stale.Count == 0)
-                return;
-
-            string datName = datVm.DatFile.Header.DatName;
-#pragma warning disable S3267 // async body with multiple sequential awaits cannot be expressed as a LINQ projection
-            foreach (MatchResult staleResult in stale)
+            foreach (MatchResult missing in cleared)
             {
                 GameRowVM? existing = datVm.Games.FirstOrDefault(g =>
-                    g.Game.ReleaseNumber == staleResult.Game.ReleaseNumber
+                    g.Game.ReleaseNumber == missing.Game.ReleaseNumber
                 );
                 if (existing is null)
                     continue;
-
-                MatchResult missing = new MatchResult
-                {
-                    Game = staleResult.Game,
-                    Status = MatchStatus.Missing,
-                };
-                await _scanResultStore.UpdateResultAsync(datName, missing);
 
                 int index = datVm.Games.IndexOf(existing);
                 if (index < 0)
@@ -444,13 +412,6 @@ public partial class MainWindowVM : VMBase
                 if (ReferenceEquals(SelectedGame, existing))
                     SelectedGame = datVm.Games[index];
             }
-#pragma warning restore S3267
-
-            _logger.Information(
-                "Integrity check for {DatName}: {Count} missing file(s) cleared",
-                datName,
-                stale.Count
-            );
         }
         // CA1031: a background integrity check must never abort the app; any failure is logged
         // and swallowed so the UI keeps running.
