@@ -12,6 +12,7 @@ using NUnit.Framework;
 using RomForge.Core.IO;
 using RomForge.Core.Matching;
 using RomForge.Core.Models;
+using RomForge.Core.Operations;
 using RomForge.Core.Scanning;
 using RomForge.Core.Services;
 using RomForge.UI.Services;
@@ -121,7 +122,8 @@ public sealed class MainWindowVMTests
             new ReArchiveStore(appData, logger),
             new AppPreferencesService(appData, logger),
             MakeInlineDispatcher(),
-            _appLifetime.Object
+            _appLifetime.Object,
+            new RomRenameService(_fileOps.Object)
         );
     }
 

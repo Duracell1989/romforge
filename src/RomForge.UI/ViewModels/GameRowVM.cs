@@ -52,6 +52,11 @@ public sealed partial class GameRowVM : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// The underlying match this row wraps, for handing to Core operation services.
+    /// </summary>
+    internal MatchResult Result => _result;
+
     public Game Game => _result.Game;
     public MatchStatus Status => _result.Status;
     public bool IsIncorrectlyNamed => _result.IsIncorrectlyNamed;

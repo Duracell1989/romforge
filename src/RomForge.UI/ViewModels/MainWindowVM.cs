@@ -52,6 +52,7 @@ public partial class MainWindowVM : VMBase
     private readonly IUiDispatcher _uiDispatcher;
     private readonly IAppLifetime _appLifetime;
 
+    private readonly IRomRenameService _renameService;
     private readonly BatchProgressRunner _batchRunner;
     private ObservableCollection<GameRowVM>? _subscribedGames;
     private string? _unverifiedFolder;
@@ -109,7 +110,8 @@ public partial class MainWindowVM : VMBase
         ReArchiveStore reArchiveStore,
         AppPreferencesService preferencesService,
         IUiDispatcher uiDispatcher,
-        IAppLifetime appLifetime
+        IAppLifetime appLifetime,
+        IRomRenameService renameService
     )
     {
         _fileDialogs = fileDialogs;
@@ -134,6 +136,7 @@ public partial class MainWindowVM : VMBase
         _preferencesService = preferencesService;
         _uiDispatcher = uiDispatcher;
         _appLifetime = appLifetime;
+        _renameService = renameService;
         _batchRunner = new BatchProgressRunner(_notifier, _logger);
         LoadedDats = new ObservableCollection<LoadedDatVM>();
         ArchiveFormat = "7z";
@@ -580,43 +583,20 @@ public partial class MainWindowVM : VMBase
         if (SelectedGame is null || ActiveDat is null)
             return;
 
-        (string From, string To)? target = RomRenamer.GetRenameTarget(
-            new MatchResult
-            {
-                Game = SelectedGame.Game,
-                Status = SelectedGame.Status,
-                ScannedRom = SelectedGame.ScannedRom,
-                IsIncorrectlyNamed = SelectedGame.IsIncorrectlyNamed,
-            },
+        GameRowVM snapshot = SelectedGame;
+        Result<MatchResult?> result = await _renameService.RenameAsync(
+            snapshot.Result,
             NamingMask.DefaultMask
         );
 
-        if (target is null)
-            return;
-
-        Result renameResult = await _fileOperations.RenameAsync(target.Value.From, target.Value.To);
-        if (renameResult.IsFailed)
+        if (result.IsFailed)
         {
-            await _notifier.NotifyErrorAsync($"Rename failed.\n{renameResult.Errors[0].Message}");
+            await _notifier.NotifyErrorAsync($"Rename failed.\n{result.Errors[0].Message}");
             return;
         }
 
-        GameRowVM snapshot = SelectedGame;
-        ScannedRom updatedRom = snapshot.ScannedRom! with { FilePath = target.Value.To };
-        await ReplaceSelectedGameAsync(
-            new MatchResult
-            {
-                Game = snapshot.Game,
-                Status = MatchStatus.Verified,
-                ScannedRom = updatedRom,
-                IsIncorrectlyNamed = false,
-                // A rename only moves the outer file; a misnamed inner entry is untouched.
-                IsEntryMisnamed = snapshot.IsEntryMisnamed,
-                IsWrongArchiveType = snapshot.IsWrongArchiveType,
-                IsUntrimmed = snapshot.IsUntrimmed,
-                IsReArchived = snapshot.IsReArchived,
-            }
-        );
+        if (result.Value is not null)
+            await ReplaceGameAsync(snapshot, result.Value);
     }
 
     private bool CanRename() => SelectedGame?.IsIncorrectlyNamed == true;
@@ -647,40 +627,16 @@ public partial class MainWindowVM : VMBase
 
     private async Task<string?> RenameOneAsync(GameRowVM game, ProgressWindowVM progress)
     {
-        (string From, string To)? target = RomRenamer.GetRenameTarget(
-            new MatchResult
-            {
-                Game = game.Game,
-                Status = game.Status,
-                ScannedRom = game.ScannedRom,
-                IsIncorrectlyNamed = game.IsIncorrectlyNamed,
-            },
+        Result<MatchResult?> result = await _renameService.RenameAsync(
+            game.Result,
             NamingMask.DefaultMask
         );
 
-        if (target is null)
-            return null;
-
-        Result result = await _fileOperations.RenameAsync(target.Value.From, target.Value.To);
         if (result.IsFailed)
-            return $"{Path.GetFileName(target.Value.From)}: {result.Errors[0].Message}";
+            return $"{Path.GetFileName(game.ScannedRom?.FilePath ?? string.Empty)}: {result.Errors[0].Message}";
 
-        ScannedRom updatedRom = game.ScannedRom! with { FilePath = target.Value.To };
-        await ReplaceGameAsync(
-            game,
-            new MatchResult
-            {
-                Game = game.Game,
-                Status = MatchStatus.Verified,
-                ScannedRom = updatedRom,
-                IsIncorrectlyNamed = false,
-                // A rename only moves the outer file; a misnamed inner entry is untouched.
-                IsEntryMisnamed = game.IsEntryMisnamed,
-                IsWrongArchiveType = game.IsWrongArchiveType,
-                IsUntrimmed = game.IsUntrimmed,
-                IsReArchived = game.IsReArchived,
-            }
-        );
+        if (result.Value is not null)
+            await ReplaceGameAsync(game, result.Value);
         return null;
     }
 
@@ -1453,9 +1409,6 @@ public partial class MainWindowVM : VMBase
         original.Dispose();
         await _scanResultStore.UpdateResultAsync(ActiveDat.DatFile.Header.DatName, updatedMatch);
     }
-
-    private async Task ReplaceSelectedGameAsync(MatchResult updatedMatch) =>
-        await ReplaceGameAsync(SelectedGame!, updatedMatch);
 
     private async Task UpdateGameRowOnUiThreadAsync(
         LoadedDatVM activeDat,
