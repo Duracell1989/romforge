@@ -115,6 +115,8 @@ public partial class App : Application
         services.AddSingleton<IRomSource, FileSystemRomSource>();
         services.AddSingleton<IRomFileOperations, LocalRomFileOperations>();
         services.AddSingleton<IRomRenameService, RomRenameService>();
+        services.AddSingleton<ArchiveWorkspace>();
+        services.AddSingleton<IRomReArchiveService, RomReArchiveService>();
         services.AddSingleton<IArchiveCompressor, SevenZipSharperCompressor>();
         services.AddSingleton<IArchiveExtractor>(sp => new SevenZipSharperExtractor(
             sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<SevenZipExtractor>>(),

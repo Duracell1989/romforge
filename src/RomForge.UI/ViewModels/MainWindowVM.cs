@@ -25,11 +25,6 @@ namespace RomForge.UI.ViewModels;
 
 public partial class MainWindowVM : VMBase
 {
-    // Sibling suffix used to rename the original archive aside during an in-place re-archive,
-    // rather than deleting it up front (see PlaceWorkingArchiveAsync). Same directory as the
-    // original, so both renames stay on one volume and remain atomic.
-    private const string OriginalAsideSuffix = ".bak";
-
     private readonly IFileDialogService _fileDialogs;
     private readonly Func<string, IDatReader> _datReaderFactory;
     private readonly IRomSource _romSource;
@@ -53,6 +48,8 @@ public partial class MainWindowVM : VMBase
     private readonly IAppLifetime _appLifetime;
 
     private readonly IRomRenameService _renameService;
+    private readonly IRomReArchiveService _reArchiveService;
+    private readonly ArchiveWorkspace _workspace;
     private readonly BatchProgressRunner _batchRunner;
     private ObservableCollection<GameRowVM>? _subscribedGames;
     private string? _unverifiedFolder;
@@ -111,7 +108,9 @@ public partial class MainWindowVM : VMBase
         AppPreferencesService preferencesService,
         IUiDispatcher uiDispatcher,
         IAppLifetime appLifetime,
-        IRomRenameService renameService
+        IRomRenameService renameService,
+        IRomReArchiveService reArchiveService,
+        ArchiveWorkspace workspace
     )
     {
         _fileDialogs = fileDialogs;
@@ -137,6 +136,8 @@ public partial class MainWindowVM : VMBase
         _uiDispatcher = uiDispatcher;
         _appLifetime = appLifetime;
         _renameService = renameService;
+        _reArchiveService = reArchiveService;
+        _workspace = workspace;
         _batchRunner = new BatchProgressRunner(_notifier, _logger);
         LoadedDats = new ObservableCollection<LoadedDatVM>();
         ArchiveFormat = "7z";
@@ -698,8 +699,8 @@ public partial class MainWindowVM : VMBase
             string datName = ActiveDat!.DatFile.Header.DatName;
 
             IProgress<int> compressionProgress = new Progress<int>(pct => progress.Progress = pct);
-            (MatchResult? updated, string? error) = await ReArchiveFileAsync(
-                game,
+            Result<MatchResult> result = await _reArchiveService.ReArchiveAsync(
+                game.Result,
                 target,
                 ArchiveFormat,
                 datName,
@@ -707,12 +708,10 @@ public partial class MainWindowVM : VMBase
                 compressionProgress
             );
 
-            if (error is not null)
-                return error;
+            if (result.IsFailed)
+                return result.Errors[0].Message;
 
-            if (updated is not null)
-                await ReplaceGameAsync(game, updated);
-
+            await ReplaceGameAsync(game, result.Value);
             return null;
         }
         catch (OperationCanceledException ex)
@@ -732,217 +731,6 @@ public partial class MainWindowVM : VMBase
         finally
         {
             IsReArchiving = false;
-        }
-    }
-
-    /// <summary>
-    /// A fresh path for a working archive in the app temp directory. Compression always writes
-    /// here rather than into a ROM folder, so a failed or cancelled operation never leaves a
-    /// partial file next to the user's ROMs. The temp directory is swept on the next launch.
-    /// </summary>
-    private string NewWorkingArchivePath(string format) =>
-        Path.Combine(_appData.TempPath, "rearchive-" + Guid.NewGuid().ToString("N") + "." + format);
-
-    /// <summary>
-    /// The name to give the ROM entry inside a freshly-compressed archive: the expected file
-    /// stem with the DAT's declared ROM extension. The extracted temp file's own name can't be
-    /// used for this — it's a <see cref="Path.GetRandomFileName"/>-derived name that always
-    /// carries its own random extension, so deriving the extension from it would fabricate one
-    /// whenever the DAT's real ROM extension is empty.
-    /// </summary>
-    internal static string BuildEntryName(string targetPath, string romExtension)
-    {
-        string stem = Path.GetFileNameWithoutExtension(targetPath);
-        return string.IsNullOrEmpty(romExtension) ? stem : stem + "." + romExtension;
-    }
-
-    /// <summary>
-    /// Moves a freshly-compressed working archive into its final location, replacing the original
-    /// for an in-place operation. Returns an error message on failure, or <see langword="null"/> on
-    /// success. The returned <c>Consumed</c> flag is <see langword="true"/> whenever the working
-    /// archive was moved somewhere (final destination or the recovery folder) and the caller no
-    /// longer owns it; it is <see langword="false"/> only when the working archive is still
-    /// sitting untouched at its original path (the original could not be renamed aside, so nothing
-    /// was attempted), so the caller's own cleanup is still responsible for it. If placement fails
-    /// after the original has already been renamed aside, that rename is undone so the original is
-    /// restored to <paramref name="fromPath"/>; the compressed archive itself is moved to
-    /// <see cref="AppDataService.RecoveredPath"/> — never the destination directory again, since
-    /// that is the directory placement just failed against — so the ROM is never lost to the
-    /// auto-swept <see cref="AppDataService.TempPath"/>.
-    /// </summary>
-    /// <remarks>
-    /// For the in-place case (<paramref name="fromPath"/> equals <paramref name="toPath"/>), the
-    /// original is renamed aside rather than deleted up front. A crash between the rename-aside and
-    /// the final move would otherwise destroy the ROM outright — the aside copy is only deleted
-    /// once the working archive has been placed successfully.
-    /// </remarks>
-    private async Task<(string? Error, bool Consumed)> PlaceWorkingArchiveAsync(
-        string workingArchive,
-        string fromPath,
-        string toPath
-    )
-    {
-        bool sameFile = fromPath.Equals(toPath, StringComparison.OrdinalIgnoreCase);
-        string? asidePath = null;
-
-        if (sameFile)
-        {
-            asidePath = fromPath + OriginalAsideSuffix;
-            Result renameAside = await _fileOperations.RenameAsync(fromPath, asidePath);
-            if (renameAside.IsFailed)
-                return (
-                    $"Could not replace original: {Path.GetFileName(fromPath)}: {renameAside.Errors[0].Message}",
-                    false
-                );
-        }
-
-        Result move = await _fileOperations.RenameAsync(workingArchive, toPath);
-        if (move.IsFailed)
-        {
-            var restoreNote = string.Empty;
-            if (asidePath is not null)
-            {
-                Result restoreOriginal = await _fileOperations.RenameAsync(asidePath, fromPath);
-                if (restoreOriginal.IsFailed)
-                    restoreNote = $" The original is still safe at:\n{asidePath}";
-            }
-
-            // The primary move failed, so the destination directory itself is the likely
-            // problem (offline volume, permissions, full disk). Recovering to a sibling path
-            // in that same directory would fail for the same reason, so recover into the app's
-            // own recovered/ folder instead — a location whose availability doesn't depend on
-            // the destination that just failed.
-            string recovery = Path.Combine(
-                _appData.RecoveredPath,
-                Path.GetFileName(workingArchive)
-            );
-            Result fallback = await _fileOperations.RenameAsync(workingArchive, recovery);
-            string kept = fallback.IsFailed ? workingArchive : recovery;
-            _logger.Error(
-                "Could not place archive at {To}; kept the compressed copy at {Kept}",
-                toPath,
-                kept
-            );
-            return (
-                $"Archived but could not place it at {Path.GetFileName(toPath)} ({move.Errors[0].Message}). A copy was kept at:\n{kept}{restoreNote}",
-                true
-            );
-        }
-
-        if (!sameFile)
-        {
-            Result deleteOriginal = await _fileOperations.DeleteAsync(fromPath);
-            if (deleteOriginal.IsFailed)
-                return (
-                    $"Archived but could not delete original: {Path.GetFileName(fromPath)}: {deleteOriginal.Errors[0].Message}",
-                    true
-                );
-        }
-        else
-        {
-            Result deleteAside = await _fileOperations.DeleteAsync(asidePath!);
-            if (deleteAside.IsFailed)
-                _logger.Warning(
-                    "Could not delete original backup at {Aside}: {Error}",
-                    asidePath,
-                    deleteAside.Errors[0].Message
-                );
-        }
-
-        return (null, true);
-    }
-
-    private async Task<(MatchResult? Updated, string? Error)> ReArchiveFileAsync(
-        GameRowVM game,
-        (string From, string To) target,
-        string archiveFormat,
-        string datName,
-        CancellationToken cancellationToken,
-        IProgress<int>? compressionProgress = null
-    )
-    {
-        string? tempFile = null;
-        string? tempArchive = null;
-        try
-        {
-            Result<string> extractResult = await _extractor.ExtractToTempFileAsync(
-                target.From,
-                cancellationToken
-            );
-            if (extractResult.IsFailed)
-                return (
-                    null,
-                    $"{Path.GetFileName(target.From)}: {extractResult.Errors[0].Message}"
-                );
-
-            tempFile = extractResult.Value;
-
-            // Compress to a working archive in the app temp directory, then move it into place.
-            // A partial file from a failed or cancelled compress stays in the temp directory
-            // (swept on the next launch) rather than landing next to the user's ROMs.
-            string compressTarget = NewWorkingArchivePath(archiveFormat);
-            tempArchive = compressTarget;
-
-            string entryName = BuildEntryName(target.To, game.Game.Files.RomExtension);
-            Result compressResult = await _compressor.CompressAsync(
-                tempFile,
-                compressTarget,
-                entryName,
-                game.Game.RomSize,
-                compressionProgress,
-                archiveFormat,
-                cancellationToken
-            );
-            if (compressResult.IsFailed)
-                return (
-                    null,
-                    $"{Path.GetFileName(target.From)}: {compressResult.Errors[0].Message}"
-                );
-
-            (string? placeError, bool consumed) = await PlaceWorkingArchiveAsync(
-                compressTarget,
-                target.From,
-                target.To
-            );
-            // Only clear tempArchive once PlaceWorkingArchiveAsync has actually taken ownership
-            // of it (moved to the destination or the recovery folder). If it's still untouched,
-            // leave it set so the finally block cleans it up immediately.
-            if (consumed)
-                tempArchive = null;
-            if (placeError is not null)
-                return (null, $"{Path.GetFileName(target.From)}: {placeError}");
-
-            await _reArchiveStore.MarkAsync(datName, game.Game.ReleaseNumber);
-
-            MatchResult updatedMatch = new MatchResult
-            {
-                Game = game.Game,
-                Status = MatchStatus.Verified,
-                ScannedRom = game.ScannedRom! with
-                {
-                    FilePath = target.To,
-                    FileExtension = archiveFormat,
-                },
-                IsIncorrectlyNamed = false,
-                // Re-archiving repacks the archive with the correct entry name.
-                IsEntryMisnamed = false,
-                IsWrongArchiveType = false,
-                IsUntrimmed = game.IsUntrimmed,
-                IsReArchived = true,
-            };
-
-            await _scanResultStore.UpdateResultAsync(datName, updatedMatch);
-            return (updatedMatch, null);
-        }
-        finally
-        {
-            if (tempFile is not null && File.Exists(tempFile))
-                await _fileOperations.DeleteAsync(tempFile);
-            // Clean up a leftover temp archive from a failed or cancelled in-place
-            // compress. It is nulled once the original is deleted, so this only ever
-            // runs while the original is still intact.
-            if (tempArchive is not null && File.Exists(tempArchive))
-                await _fileOperations.DeleteAsync(tempArchive);
         }
     }
 
@@ -1039,8 +827,8 @@ public partial class MainWindowVM : VMBase
                     slot.Progress = 0;
 
                     IProgress<int> slotProgress = new Progress<int>(pct => slot.Progress = pct);
-                    (MatchResult? updated, string? error) = await ReArchiveFileAsync(
-                        game,
+                    Result<MatchResult> result = await _reArchiveService.ReArchiveAsync(
+                        game.Result,
                         target.Value,
                         archiveFormat,
                         datName,
@@ -1052,14 +840,14 @@ public partial class MainWindowVM : VMBase
                     slot.Progress = 0;
                     slotQueue.Enqueue(slot);
 
-                    if (error is not null)
+                    if (result.IsFailed)
                     {
                         lock (errorsLock)
-                            errors.Add(error);
+                            errors.Add(result.Errors[0].Message);
                     }
-                    else if (updated is not null)
+                    else
                     {
-                        await UpdateGameRowOnUiThreadAsync(activeDat, game, updated);
+                        await UpdateGameRowOnUiThreadAsync(activeDat, game, result.Value);
                     }
                 }
 
@@ -1187,11 +975,14 @@ public partial class MainWindowVM : VMBase
             if (truncateResult.IsFailed)
                 return $"Could not trim ROM.\n{truncateResult.Errors[0].Message}";
 
-            string archiveDest = NewWorkingArchivePath(ArchiveFormat);
+            string archiveDest = _workspace.NewWorkingArchivePath(ArchiveFormat);
             tempArchive = archiveDest;
 
             Progress<int> progressCallback = new Progress<int>(pct => progress.Progress = pct);
-            string entryName = BuildEntryName(target.To, game.Game.Files.RomExtension);
+            string entryName = ArchiveWorkspace.BuildEntryName(
+                target.To,
+                game.Game.Files.RomExtension
+            );
             Result compressResult = await _compressor.CompressAsync(
                 tempRom,
                 archiveDest,
@@ -1204,7 +995,7 @@ public partial class MainWindowVM : VMBase
             if (compressResult.IsFailed)
                 return $"Compression failed.\n{compressResult.Errors[0].Message}";
 
-            (string? placeError, bool consumed) = await PlaceWorkingArchiveAsync(
+            (string? placeError, bool consumed) = await _workspace.PlaceWorkingArchiveAsync(
                 archiveDest,
                 target.From,
                 target.To
@@ -1322,7 +1113,7 @@ public partial class MainWindowVM : VMBase
             if (truncateResult.IsFailed)
                 return $"{Path.GetFileName(target.Value.From)}: {truncateResult.Errors[0].Message}";
 
-            string archiveDest = NewWorkingArchivePath(ArchiveFormat);
+            string archiveDest = _workspace.NewWorkingArchivePath(ArchiveFormat);
             tempArchive = archiveDest;
 
             int fileBase = index * 100 / total;
@@ -1331,7 +1122,10 @@ public partial class MainWindowVM : VMBase
                 progress.Progress = fileBase + pct * fileRange / 100
             );
 
-            string entryName = BuildEntryName(target.Value.To, game.Game.Files.RomExtension);
+            string entryName = ArchiveWorkspace.BuildEntryName(
+                target.Value.To,
+                game.Game.Files.RomExtension
+            );
             Result compressResult = await _compressor.CompressAsync(
                 tempRom,
                 archiveDest,
@@ -1344,7 +1138,7 @@ public partial class MainWindowVM : VMBase
             if (compressResult.IsFailed)
                 return $"{Path.GetFileName(target.Value.From)}: {compressResult.Errors[0].Message}";
 
-            (string? placeError, bool consumed) = await PlaceWorkingArchiveAsync(
+            (string? placeError, bool consumed) = await _workspace.PlaceWorkingArchiveAsync(
                 archiveDest,
                 target.Value.From,
                 target.Value.To
