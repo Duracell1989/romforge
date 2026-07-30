@@ -4,6 +4,12 @@ All notable changes to RomForge are documented here. This project follows [Seman
 
 ## [Unreleased]
 
+## [1.5.1] — 2026-07-30
+
+### Fixed
+
+- ROMs re-archived before the archive entry-naming fix could still show as "Good" despite having a garbage internal archive entry name; RomForge now detects the mismatch and requires a re-archive to clear it
+
 ## [1.5.0] — 2026-07-29
 
 ### Changed
