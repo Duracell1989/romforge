@@ -52,6 +52,7 @@ public partial class MainWindowVM : VMBase
     private readonly IUiDispatcher _uiDispatcher;
     private readonly IAppLifetime _appLifetime;
 
+    private readonly BatchProgressRunner _batchRunner;
     private ObservableCollection<GameRowVM>? _subscribedGames;
     private string? _unverifiedFolder;
 
@@ -133,6 +134,7 @@ public partial class MainWindowVM : VMBase
         _preferencesService = preferencesService;
         _uiDispatcher = uiDispatcher;
         _appLifetime = appLifetime;
+        _batchRunner = new BatchProgressRunner(_notifier, _logger);
         LoadedDats = new ObservableCollection<LoadedDatVM>();
         ArchiveFormat = "7z";
     }
@@ -627,80 +629,59 @@ public partial class MainWindowVM : VMBase
 
         List<GameRowVM> targets = ActiveDat.Games.Where(g => g.IsIncorrectlyNamed).ToList();
 
-        if (targets.Count == 0)
-            return;
-
-        ProgressWindowVM progressVm = new ProgressWindowVM(targets.Count, isCancellable: false);
-        Task<List<string>> operationTask = RenameAllCoreAsync(targets, progressVm);
-        await _notifier.ShowProgressAsync("Renaming ROMs", progressVm, operationTask);
-
-        List<string> errors = await operationTask;
-        _logger.Information(
-            "Rename all: {Succeeded}/{Total} succeeded",
-            targets.Count - errors.Count,
-            targets.Count
+        await _batchRunner.RunAsync(
+            new BatchProgressOperation<GameRowVM>
+            {
+                Title = "Renaming ROMs",
+                LogLabel = "Rename all",
+                FailureLabel = "Rename",
+                CompletedVerb = "succeeded",
+                Targets = targets,
+                FileName = g => g.ScannedRom?.FilePath ?? string.Empty,
+                ProcessAsync = RenameOneAsync,
+                IsCancellable = false,
+                BumpOverallProgress = true,
+            }
         );
-
-        if (errors.Count > 0)
-            await _notifier.NotifyErrorAsync(
-                $"Rename failed for {errors.Count} file(s):\n{string.Join("\n", errors)}"
-            );
     }
 
-    private async Task<List<string>> RenameAllCoreAsync(
-        List<GameRowVM> targets,
-        ProgressWindowVM progress
-    )
+    private async Task<string?> RenameOneAsync(GameRowVM game, ProgressWindowVM progress)
     {
-        List<string> errors = new List<string>();
-
-        for (int i = 0; i < targets.Count; i++)
-        {
-            GameRowVM game = targets[i];
-            progress.Current = i + 1;
-            progress.CurrentFile = Path.GetFileName(game.ScannedRom?.FilePath ?? string.Empty);
-            progress.Progress = (i + 1) * 100 / targets.Count;
-
-            (string From, string To)? target = RomRenamer.GetRenameTarget(
-                new MatchResult
-                {
-                    Game = game.Game,
-                    Status = game.Status,
-                    ScannedRom = game.ScannedRom,
-                    IsIncorrectlyNamed = game.IsIncorrectlyNamed,
-                },
-                NamingMask.DefaultMask
-            );
-
-            if (target is null)
-                continue;
-
-            Result result = await _fileOperations.RenameAsync(target.Value.From, target.Value.To);
-            if (result.IsFailed)
+        (string From, string To)? target = RomRenamer.GetRenameTarget(
+            new MatchResult
             {
-                errors.Add($"{Path.GetFileName(target.Value.From)}: {result.Errors[0].Message}");
-                continue;
+                Game = game.Game,
+                Status = game.Status,
+                ScannedRom = game.ScannedRom,
+                IsIncorrectlyNamed = game.IsIncorrectlyNamed,
+            },
+            NamingMask.DefaultMask
+        );
+
+        if (target is null)
+            return null;
+
+        Result result = await _fileOperations.RenameAsync(target.Value.From, target.Value.To);
+        if (result.IsFailed)
+            return $"{Path.GetFileName(target.Value.From)}: {result.Errors[0].Message}";
+
+        ScannedRom updatedRom = game.ScannedRom! with { FilePath = target.Value.To };
+        await ReplaceGameAsync(
+            game,
+            new MatchResult
+            {
+                Game = game.Game,
+                Status = MatchStatus.Verified,
+                ScannedRom = updatedRom,
+                IsIncorrectlyNamed = false,
+                // A rename only moves the outer file; a misnamed inner entry is untouched.
+                IsEntryMisnamed = game.IsEntryMisnamed,
+                IsWrongArchiveType = game.IsWrongArchiveType,
+                IsUntrimmed = game.IsUntrimmed,
+                IsReArchived = game.IsReArchived,
             }
-
-            ScannedRom updatedRom = game.ScannedRom! with { FilePath = target.Value.To };
-            await ReplaceGameAsync(
-                game,
-                new MatchResult
-                {
-                    Game = game.Game,
-                    Status = MatchStatus.Verified,
-                    ScannedRom = updatedRom,
-                    IsIncorrectlyNamed = false,
-                    // A rename only moves the outer file; a misnamed inner entry is untouched.
-                    IsEntryMisnamed = game.IsEntryMisnamed,
-                    IsWrongArchiveType = game.IsWrongArchiveType,
-                    IsUntrimmed = game.IsUntrimmed,
-                    IsReArchived = game.IsReArchived,
-                }
-            );
-        }
-
-        return errors;
+        );
+        return null;
     }
 
     private bool CanRenameAll() =>
@@ -1330,71 +1311,29 @@ public partial class MainWindowVM : VMBase
 
         List<GameRowVM> targets = ActiveDat.Games.Where(g => g.IsUntrimmed).ToList();
 
-        if (targets.Count == 0)
-            return;
-
-        ProgressWindowVM progressVm = new ProgressWindowVM(targets.Count, isCancellable: true);
-        Task<List<string>> operationTask = TrimAllCoreAsync(targets, progressVm);
-        await _notifier.ShowProgressAsync("Trimming ROMs", progressVm, operationTask);
-
-        List<string> errors = await operationTask;
-        _logger.Information(
-            "Trim all: {Succeeded}/{Total} succeeded",
-            targets.Count - errors.Count,
-            targets.Count
-        );
-
-        if (errors.Count > 0)
-            await _notifier.NotifyErrorAsync(
-                $"Trim failed for {errors.Count} file(s):\n{string.Join("\n", errors)}"
-            );
-    }
-
-    private async Task<List<string>> TrimAllCoreAsync(
-        List<GameRowVM> targets,
-        ProgressWindowVM progress
-    )
-    {
-        IsTrimming = true;
-        List<string> errors = new List<string>();
-
-        try
-        {
-            for (int i = 0; i < targets.Count; i++)
+        await _batchRunner.RunAsync(
+            new BatchProgressOperation<GameRowVM>
             {
-                GameRowVM game = targets[i];
-                progress.Current = i + 1;
-                progress.CurrentFile = Path.GetFileName(game.ScannedRom?.FilePath ?? string.Empty);
-
-                string? error = await TrimOneAsync(game, i, targets.Count, progress);
-                if (error is not null)
-                    errors.Add(error);
+                Title = "Trimming ROMs",
+                LogLabel = "Trim all",
+                FailureLabel = "Trim",
+                CompletedVerb = "succeeded",
+                Targets = targets,
+                FileName = g => g.ScannedRom?.FilePath ?? string.Empty,
+                ProcessAsync = TrimOneAsync,
+                IsCancellable = true,
+                // TrimOneAsync publishes fractional overall progress across items itself.
+                BumpOverallProgress = false,
+                BusyFlag = busy => IsTrimming = busy,
             }
-        }
-        catch (OperationCanceledException ex)
-        {
-            _logger.Information(
-                ex,
-                "Trim all cancelled after {Completed} of {Total}",
-                progress.Current,
-                targets.Count
-            );
-        }
-        finally
-        {
-            IsTrimming = false;
-        }
-
-        return errors;
+        );
     }
 
-    private async Task<string?> TrimOneAsync(
-        GameRowVM game,
-        int index,
-        int total,
-        ProgressWindowVM progress
-    )
+    private async Task<string?> TrimOneAsync(GameRowVM game, ProgressWindowVM progress)
     {
+        int index = progress.Current - 1;
+        int total = progress.Total;
+
         (string From, string To)? target = RomTrimmer.GetTrimTarget(
             new MatchResult
             {
@@ -1551,64 +1490,45 @@ public partial class MainWindowVM : VMBase
                 return;
         }
 
-        List<ScannedRom> targets = ActiveDat.UnmatchedRoms.ToList();
-        ProgressWindowVM progressVm = new ProgressWindowVM(targets.Count, isCancellable: true);
-        Task<List<string>> moveTask = MoveUnverifiedCoreAsync(
-            targets,
-            destFolder,
-            ActiveDat,
-            progressVm
-        );
-        await _notifier.ShowProgressAsync("Moving Unverified Files", progressVm, moveTask);
-
-        List<string> errors = await moveTask;
-        _logger.Information(
-            "Move unverified: {Moved}/{Total} moved",
-            targets.Count - errors.Count,
-            targets.Count
-        );
-
-        if (errors.Count > 0)
-            await _notifier.NotifyErrorAsync(
-                $"Move failed for {errors.Count} file(s):\n{string.Join("\n", errors)}"
-            );
-    }
-
-    private async Task<List<string>> MoveUnverifiedCoreAsync(
-        List<ScannedRom> targets,
-        string destFolder,
-        LoadedDatVM activeDat,
-        ProgressWindowVM progress
-    )
-    {
-        List<string> errors = new List<string>();
+        LoadedDatVM activeDat = ActiveDat;
+        List<ScannedRom> targets = activeDat.UnmatchedRoms.ToList();
         List<ScannedRom> moved = new List<ScannedRom>();
 
-        for (int i = 0; i < targets.Count; i++)
-        {
-            if (progress.CancellationToken.IsCancellationRequested)
-                break;
-
-            ScannedRom rom = targets[i];
-            progress.Current = i + 1;
-            progress.CurrentFile = Path.GetFileName(rom.FilePath);
-            progress.Progress = (i + 1) * 100 / targets.Count;
-
-            string destPath = Path.Combine(destFolder, Path.GetFileName(rom.FilePath));
-            Result result = await _fileOperations.RenameAsync(rom.FilePath, destPath);
-
-            if (result.IsFailed)
-                errors.Add($"{Path.GetFileName(rom.FilePath)}: {result.Errors[0].Message}");
-            else
-                moved.Add(rom);
-        }
+        await _batchRunner.RunAsync(
+            new BatchProgressOperation<ScannedRom>
+            {
+                Title = "Moving Unverified Files",
+                LogLabel = "Move unverified",
+                FailureLabel = "Move",
+                CompletedVerb = "moved",
+                Targets = targets,
+                FileName = rom => rom.FilePath,
+                ProcessAsync = (rom, _) => MoveOneAsync(rom, destFolder, moved),
+                IsCancellable = true,
+                BumpOverallProgress = true,
+            }
+        );
 
         if (moved.Count > 0)
             activeDat.UnmatchedRoms = activeDat
                 .UnmatchedRoms.Where(r => !moved.Contains(r))
                 .ToList();
+    }
 
-        return errors;
+    private async Task<string?> MoveOneAsync(
+        ScannedRom rom,
+        string destFolder,
+        List<ScannedRom> moved
+    )
+    {
+        string destPath = Path.Combine(destFolder, Path.GetFileName(rom.FilePath));
+        Result result = await _fileOperations.RenameAsync(rom.FilePath, destPath);
+
+        if (result.IsFailed)
+            return $"{Path.GetFileName(rom.FilePath)}: {result.Errors[0].Message}";
+
+        moved.Add(rom);
+        return null;
     }
 
     private bool CanMoveUnverified() => ActiveDat?.UnmatchedRoms.Count > 0;
