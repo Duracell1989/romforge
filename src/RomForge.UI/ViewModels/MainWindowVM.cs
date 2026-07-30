@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -36,8 +35,7 @@ public partial class MainWindowVM : VMBase
     private readonly ILogger _logger;
     private readonly AppDataService _appData;
     private readonly IDatImporter _datImporter;
-    private readonly IDatUpdateChecker _updateChecker;
-    private readonly IDatDownloader _downloader;
+    private readonly IDatUpdateService _datUpdateService;
     private readonly ImageSyncService _imageSync;
     private readonly DatConfigService _configService;
     private readonly ScanResultStore _scanResultStore;
@@ -97,8 +95,7 @@ public partial class MainWindowVM : VMBase
         ILogger logger,
         AppDataService appData,
         IDatImporter datImporter,
-        IDatUpdateChecker updateChecker,
-        IDatDownloader downloader,
+        IDatUpdateService datUpdateService,
         ImageSyncService imageSync,
         DatConfigService configService,
         ScanResultStore scanResultStore,
@@ -123,8 +120,7 @@ public partial class MainWindowVM : VMBase
         _logger = logger.ForContext<MainWindowVM>();
         _appData = appData;
         _datImporter = datImporter;
-        _updateChecker = updateChecker;
-        _downloader = downloader;
+        _datUpdateService = datUpdateService;
         _imageSync = imageSync;
         _configService = configService;
         _scanResultStore = scanResultStore;
@@ -1150,35 +1146,27 @@ public partial class MainWindowVM : VMBase
         if (header.NewDatVersionUrl is null)
             return;
 
-        Result<string> versionResult = await _updateChecker.FetchLatestVersionAsync(
-            header.NewDatVersionUrl
-        );
-        if (versionResult.IsFailed)
+        Result<DatUpdateCheck> checkResult = await _datUpdateService.CheckForUpdateAsync(header);
+        if (checkResult.IsFailed)
         {
             await _notifier.NotifyErrorAsync(
-                $"Could not check for updates.\n{versionResult.Errors[0].Message}"
+                $"Could not check for updates.\n{checkResult.Errors[0].Message}"
             );
             return;
         }
 
-        var latestStr = versionResult.Value;
-        var isNewer = int.TryParse(latestStr, out var latestVersion)
-            ? latestVersion > header.DatVersion
-            : !string.Equals(
-                latestStr,
-                header.DatVersion.ToString(CultureInfo.InvariantCulture),
-                StringComparison.Ordinal
-            );
-
-        if (!isNewer)
+        DatUpdateCheck check = checkResult.Value;
+        if (!check.IsNewer)
         {
-            await _notifier.NotifyInfoAsync($"Already up to date (version {header.DatVersion}).");
+            await _notifier.NotifyInfoAsync(
+                $"Already up to date (version {check.CurrentVersion})."
+            );
             return;
         }
 
         var confirmed = await _notifier.ConfirmAsync(
             "Update Available",
-            $"A newer DAT version is available (current: {header.DatVersion}, latest: {latestStr}).\n\nDownload the update now?"
+            $"A newer DAT version is available (current: {check.CurrentVersion}, latest: {check.LatestVersion}).\n\nDownload the update now?"
         );
         if (!confirmed)
             return;
@@ -1186,7 +1174,12 @@ public partial class MainWindowVM : VMBase
         var progressVm = new ProgressWindowVM(0, isCancellable: true);
         progressVm.CurrentFile = "Downloading DAT…";
 
-        Task<Result> updateTask = RunDatUpdateAsync(header, progressVm);
+        IProgress<int> datProgress = new Progress<int>(p => progressVm.Progress = p);
+        Task<Result> updateTask = _datUpdateService.DownloadUpdateAsync(
+            header,
+            datProgress,
+            progressVm.CancellationToken
+        );
         await _notifier.ShowProgressAsync(
             $"Updating DAT — {ActiveDat.DisplayTitle}",
             progressVm,
@@ -1239,29 +1232,6 @@ public partial class MainWindowVM : VMBase
             syncTask
         );
 #pragma warning restore CA2025
-    }
-
-    private async Task<Result> RunDatUpdateAsync(DatHeader header, ProgressWindowVM progressVm)
-    {
-        if (header.NewDatUrl is null)
-            return Result.Fail("DAT download URL is not available.");
-
-        IProgress<int> datProgress = new Progress<int>(p =>
-        {
-            progressVm.Progress = p;
-        });
-
-        Result<string> datResult = await _downloader.DownloadDatAsync(
-            header.NewDatUrl,
-            _appData.DatsPath,
-            header.NewDatFileName,
-            datProgress,
-            progressVm.CancellationToken
-        );
-        if (datResult.IsFailed)
-            return Result.Fail(datResult.Errors[0].Message);
-
-        return Result.Ok();
     }
 
     private async Task RunImageSyncAsync(DatFile datFile, ImageDownloadWindowVM imageVm)

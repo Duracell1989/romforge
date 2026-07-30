@@ -134,6 +134,7 @@ public partial class App : Application
         services.AddSingleton<AppDataService>();
         services.AddSingleton<IDatImporter, LocalDatImporter>();
         services.AddSingleton<IDatUpdateChecker, HttpDatUpdateChecker>();
+        services.AddSingleton<IDatUpdateService, DatUpdateService>();
         services.AddSingleton<IReleaseChecker, GitHubReleaseChecker>();
         services.AddSingleton(sp => new UpdateCheckService(
             sp.GetRequiredService<IReleaseChecker>(),
