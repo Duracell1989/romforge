@@ -114,7 +114,6 @@ public sealed class MainWindowVMTests
             _romSource.Object,
             _fileOps.Object,
             compressor,
-            _extractor.Object,
             _notifier.Object,
             _urlLauncher.Object,
             new UpdateCheckService(_releaseChecker.Object, logger, "1.0.0"),
@@ -139,7 +138,7 @@ public sealed class MainWindowVMTests
                 reArchiveStore,
                 scanResultStore
             ),
-            workspace
+            new RomTrimService(_extractor.Object, compressor, _fileOps.Object, workspace)
         );
     }
 

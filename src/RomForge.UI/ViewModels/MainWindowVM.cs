@@ -30,7 +30,6 @@ public partial class MainWindowVM : VMBase
     private readonly IRomSource _romSource;
     private readonly IRomFileOperations _fileOperations;
     private readonly IArchiveCompressor _compressor;
-    private readonly IArchiveExtractor _extractor;
     private readonly IUserNotifier _notifier;
     private readonly IUrlLauncher _urlLauncher;
     private readonly UpdateCheckService _updateCheck;
@@ -49,7 +48,7 @@ public partial class MainWindowVM : VMBase
 
     private readonly IRomRenameService _renameService;
     private readonly IRomReArchiveService _reArchiveService;
-    private readonly ArchiveWorkspace _workspace;
+    private readonly IRomTrimService _trimService;
     private readonly BatchProgressRunner _batchRunner;
     private ObservableCollection<GameRowVM>? _subscribedGames;
     private string? _unverifiedFolder;
@@ -92,7 +91,6 @@ public partial class MainWindowVM : VMBase
         IRomSource romSource,
         IRomFileOperations fileOperations,
         IArchiveCompressor compressor,
-        IArchiveExtractor extractor,
         IUserNotifier notifier,
         IUrlLauncher urlLauncher,
         UpdateCheckService updateCheck,
@@ -110,7 +108,7 @@ public partial class MainWindowVM : VMBase
         IAppLifetime appLifetime,
         IRomRenameService renameService,
         IRomReArchiveService reArchiveService,
-        ArchiveWorkspace workspace
+        IRomTrimService trimService
     )
     {
         _fileDialogs = fileDialogs;
@@ -118,7 +116,6 @@ public partial class MainWindowVM : VMBase
         _romSource = romSource;
         _fileOperations = fileOperations;
         _compressor = compressor;
-        _extractor = extractor;
         _notifier = notifier;
         _urlLauncher = urlLauncher;
         ArgumentNullException.ThrowIfNull(logger);
@@ -137,7 +134,7 @@ public partial class MainWindowVM : VMBase
         _appLifetime = appLifetime;
         _renameService = renameService;
         _reArchiveService = reArchiveService;
-        _workspace = workspace;
+        _trimService = trimService;
         _batchRunner = new BatchProgressRunner(_notifier, _logger);
         LoadedDats = new ObservableCollection<LoadedDatVM>();
         ArchiveFormat = "7z";
@@ -955,79 +952,22 @@ public partial class MainWindowVM : VMBase
     )
     {
         IsTrimming = true;
-        string? tempRom = null;
-        string? tempArchive = null;
-
         try
         {
             progress.CurrentFile = Path.GetFileName(target.From);
-
-            Result<string> extractResult = await _extractor.ExtractToTempFileAsync(
-                target.From,
-                progress.CancellationToken
-            );
-            if (extractResult.IsFailed)
-                return $"Could not extract archive.\n{extractResult.Errors[0].Message}";
-
-            tempRom = extractResult.Value;
-
-            Result truncateResult = await _fileOperations.TruncateAsync(tempRom, game.Game.RomSize);
-            if (truncateResult.IsFailed)
-                return $"Could not trim ROM.\n{truncateResult.Errors[0].Message}";
-
-            string archiveDest = _workspace.NewWorkingArchivePath(ArchiveFormat);
-            tempArchive = archiveDest;
-
-            Progress<int> progressCallback = new Progress<int>(pct => progress.Progress = pct);
-            string entryName = ArchiveWorkspace.BuildEntryName(
-                target.To,
-                game.Game.Files.RomExtension
-            );
-            Result compressResult = await _compressor.CompressAsync(
-                tempRom,
-                archiveDest,
-                entryName,
-                game.Game.RomSize,
-                progressCallback,
+            IProgress<int> compressionProgress = new Progress<int>(pct => progress.Progress = pct);
+            Result<MatchResult> result = await _trimService.TrimAsync(
+                game.Result,
+                target,
                 ArchiveFormat,
-                progress.CancellationToken
-            );
-            if (compressResult.IsFailed)
-                return $"Compression failed.\n{compressResult.Errors[0].Message}";
-
-            (string? placeError, bool consumed) = await _workspace.PlaceWorkingArchiveAsync(
-                archiveDest,
-                target.From,
-                target.To
-            );
-            if (consumed)
-                tempArchive = null;
-            if (placeError is not null)
-                return $"Trim succeeded but {placeError}";
-
-            ScannedRom updatedRom = game.ScannedRom! with
-            {
-                FilePath = target.To,
-                FileExtension = ArchiveFormat,
-                Crc = game.Game.Files.RomCrc,
-                TrimmedCrc = null,
-            };
-            await ReplaceGameAsync(
-                game,
-                new MatchResult
-                {
-                    Game = game.Game,
-                    Status = MatchStatus.Verified,
-                    ScannedRom = updatedRom,
-                    IsIncorrectlyNamed = false,
-                    // Trimming repacks the archive with the correct entry name.
-                    IsEntryMisnamed = false,
-                    IsWrongArchiveType = false,
-                    IsUntrimmed = false,
-                    IsReArchived = game.IsReArchived,
-                }
+                progress.CancellationToken,
+                compressionProgress
             );
 
+            if (result.IsFailed)
+                return result.Errors[0].Message;
+
+            await ReplaceGameAsync(game, result.Value);
             return null;
         }
         catch (OperationCanceledException ex)
@@ -1038,12 +978,6 @@ public partial class MainWindowVM : VMBase
         finally
         {
             IsTrimming = false;
-            if (tempRom is not null && File.Exists(tempRom))
-                await _fileOperations.DeleteAsync(tempRom);
-            // Remove a leftover temp archive from a failed or cancelled in-place trim. It is
-            // nulled once the original is deleted, so this only runs while the original survives.
-            if (tempArchive is not null && File.Exists(tempArchive))
-                await _fileOperations.DeleteAsync(tempArchive);
         }
     }
 
@@ -1078,17 +1012,8 @@ public partial class MainWindowVM : VMBase
 
     private async Task<string?> TrimOneAsync(GameRowVM game, ProgressWindowVM progress)
     {
-        int index = progress.Current - 1;
-        int total = progress.Total;
-
         (string From, string To)? target = RomTrimmer.GetTrimTarget(
-            new MatchResult
-            {
-                Game = game.Game,
-                Status = game.Status,
-                ScannedRom = game.ScannedRom,
-                IsUntrimmed = game.IsUntrimmed,
-            },
+            game.Result,
             NamingMask.DefaultMask,
             ArchiveFormat
         );
@@ -1096,92 +1021,27 @@ public partial class MainWindowVM : VMBase
         if (target is null)
             return null;
 
-        string? tempRom = null;
-        string? tempArchive = null;
-        try
-        {
-            Result<string> extractResult = await _extractor.ExtractToTempFileAsync(
-                target.Value.From,
-                progress.CancellationToken
-            );
-            if (extractResult.IsFailed)
-                return $"{Path.GetFileName(target.Value.From)}: {extractResult.Errors[0].Message}";
+        // Map this file's compression progress into its slice of the overall bar; the batch
+        // runner leaves BumpOverallProgress off for trim so each file publishes its own fraction.
+        int fileBase = (progress.Current - 1) * 100 / progress.Total;
+        int fileRange = 100 / progress.Total;
+        IProgress<int> compressionProgress = new Progress<int>(pct =>
+            progress.Progress = fileBase + pct * fileRange / 100
+        );
 
-            tempRom = extractResult.Value;
+        Result<MatchResult> result = await _trimService.TrimAsync(
+            game.Result,
+            target.Value,
+            ArchiveFormat,
+            progress.CancellationToken,
+            compressionProgress
+        );
 
-            Result truncateResult = await _fileOperations.TruncateAsync(tempRom, game.Game.RomSize);
-            if (truncateResult.IsFailed)
-                return $"{Path.GetFileName(target.Value.From)}: {truncateResult.Errors[0].Message}";
+        if (result.IsFailed)
+            return result.Errors[0].Message;
 
-            string archiveDest = _workspace.NewWorkingArchivePath(ArchiveFormat);
-            tempArchive = archiveDest;
-
-            int fileBase = index * 100 / total;
-            int fileRange = 100 / total;
-            Progress<int> progressCallback = new Progress<int>(pct =>
-                progress.Progress = fileBase + pct * fileRange / 100
-            );
-
-            string entryName = ArchiveWorkspace.BuildEntryName(
-                target.Value.To,
-                game.Game.Files.RomExtension
-            );
-            Result compressResult = await _compressor.CompressAsync(
-                tempRom,
-                archiveDest,
-                entryName,
-                game.Game.RomSize,
-                progressCallback,
-                ArchiveFormat,
-                progress.CancellationToken
-            );
-            if (compressResult.IsFailed)
-                return $"{Path.GetFileName(target.Value.From)}: {compressResult.Errors[0].Message}";
-
-            (string? placeError, bool consumed) = await _workspace.PlaceWorkingArchiveAsync(
-                archiveDest,
-                target.Value.From,
-                target.Value.To
-            );
-            if (consumed)
-                tempArchive = null;
-            if (placeError is not null)
-                return $"{Path.GetFileName(target.Value.From)}: {placeError}";
-
-            ScannedRom updatedRom = game.ScannedRom! with
-            {
-                FilePath = target.Value.To,
-                FileExtension = ArchiveFormat,
-                Crc = game.Game.Files.RomCrc,
-                TrimmedCrc = null,
-            };
-            await ReplaceGameAsync(
-                game,
-                new MatchResult
-                {
-                    Game = game.Game,
-                    Status = MatchStatus.Verified,
-                    ScannedRom = updatedRom,
-                    IsIncorrectlyNamed = false,
-                    // Trimming repacks the archive with the correct entry name.
-                    IsEntryMisnamed = false,
-                    IsWrongArchiveType = false,
-                    IsUntrimmed = false,
-                    IsReArchived = game.IsReArchived,
-                }
-            );
-
-            return null;
-        }
-        finally
-        {
-            if (tempRom is not null && File.Exists(tempRom))
-                await _fileOperations.DeleteAsync(tempRom);
-            // Remove a leftover temp archive from a failed or cancelled in-place trim. It is
-            // nulled once the original is deleted, so this only runs while the original survives.
-            if (tempArchive is not null && File.Exists(tempArchive))
-                await _fileOperations.DeleteAsync(tempArchive);
-        }
+        await ReplaceGameAsync(game, result.Value);
+        return null;
     }
 
     private bool CanTrimAll() =>
