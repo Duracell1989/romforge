@@ -529,6 +529,7 @@ public partial class MainWindowVM : VMBase
                         Status = r.Status,
                         ScannedRom = r.ScannedRom,
                         IsIncorrectlyNamed = r.IsIncorrectlyNamed,
+                        IsEntryMisnamed = r.IsEntryMisnamed,
                         IsWrongArchiveType = r.IsWrongArchiveType,
                         IsUntrimmed = r.IsUntrimmed,
                         IsReArchived = true,
@@ -607,6 +608,8 @@ public partial class MainWindowVM : VMBase
                 Status = MatchStatus.Verified,
                 ScannedRom = updatedRom,
                 IsIncorrectlyNamed = false,
+                // A rename only moves the outer file; a misnamed inner entry is untouched.
+                IsEntryMisnamed = snapshot.IsEntryMisnamed,
                 IsWrongArchiveType = snapshot.IsWrongArchiveType,
                 IsUntrimmed = snapshot.IsUntrimmed,
                 IsReArchived = snapshot.IsReArchived,
@@ -688,6 +691,8 @@ public partial class MainWindowVM : VMBase
                     Status = MatchStatus.Verified,
                     ScannedRom = updatedRom,
                     IsIncorrectlyNamed = false,
+                    // A rename only moves the outer file; a misnamed inner entry is untouched.
+                    IsEntryMisnamed = game.IsEntryMisnamed,
                     IsWrongArchiveType = game.IsWrongArchiveType,
                     IsUntrimmed = game.IsUntrimmed,
                     IsReArchived = game.IsReArchived,
@@ -982,6 +987,8 @@ public partial class MainWindowVM : VMBase
                     FileExtension = archiveFormat,
                 },
                 IsIncorrectlyNamed = false,
+                // Re-archiving repacks the archive with the correct entry name.
+                IsEntryMisnamed = false,
                 IsWrongArchiveType = false,
                 IsUntrimmed = game.IsUntrimmed,
                 IsReArchived = true,
@@ -1285,6 +1292,8 @@ public partial class MainWindowVM : VMBase
                     Status = MatchStatus.Verified,
                     ScannedRom = updatedRom,
                     IsIncorrectlyNamed = false,
+                    // Trimming repacks the archive with the correct entry name.
+                    IsEntryMisnamed = false,
                     IsWrongArchiveType = false,
                     IsUntrimmed = false,
                     IsReArchived = game.IsReArchived,
@@ -1465,6 +1474,8 @@ public partial class MainWindowVM : VMBase
                     Status = MatchStatus.Verified,
                     ScannedRom = updatedRom,
                     IsIncorrectlyNamed = false,
+                    // Trimming repacks the archive with the correct entry name.
+                    IsEntryMisnamed = false,
                     IsWrongArchiveType = false,
                     IsUntrimmed = false,
                     IsReArchived = game.IsReArchived,

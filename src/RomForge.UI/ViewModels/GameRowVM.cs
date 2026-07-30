@@ -55,6 +55,7 @@ public sealed partial class GameRowVM : ObservableObject, IDisposable
     public Game Game => _result.Game;
     public MatchStatus Status => _result.Status;
     public bool IsIncorrectlyNamed => _result.IsIncorrectlyNamed;
+    public bool IsEntryMisnamed => _result.IsEntryMisnamed;
     public bool IsWrongArchiveType => _result.IsWrongArchiveType;
     public bool IsUntrimmed => _result.IsUntrimmed;
     public bool IsReArchived => _result.IsReArchived;

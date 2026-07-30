@@ -9,6 +9,14 @@ public sealed record MatchResult
     public required MatchStatus Status { get; init; }
     public ScannedRom? ScannedRom { get; init; }
     public bool IsIncorrectlyNamed { get; init; }
+
+    /// <summary>
+    /// True when the ROM entry <em>inside</em> the archive does not match the naming mask, even
+    /// though the outer archive file name may be correct. This cannot be fixed by a plain rename
+    /// (which only moves the outer file) — it requires a re-archive to rewrite the entry, so it
+    /// blocks <see cref="RomStatus.Good"/> and leaves the ROM <see cref="RomStatus.Verified"/>.
+    /// </summary>
+    public bool IsEntryMisnamed { get; init; }
     public bool IsWrongArchiveType { get; init; }
     public bool IsUntrimmed { get; init; }
     public bool IsReArchived { get; init; }
@@ -31,7 +39,9 @@ public sealed record MatchResult
                 return RomStatus.WrongArchive;
             if (IsIncorrectlyNamed)
                 return RomStatus.IncorrectlyNamed;
-            if (IsReArchived)
+            // A misnamed inner entry is never Good — it blocks the re-archived mark from promoting
+            // the ROM to Good and leaves it Verified, so a re-archive is offered to rewrite the entry.
+            if (IsReArchived && !IsEntryMisnamed)
                 return RomStatus.Good;
             return RomStatus.Verified;
         }
