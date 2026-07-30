@@ -46,6 +46,7 @@ public sealed class FileSystemRomSourceTests
         rom.FilePath.Should().Be(path);
         rom.FileExtension.Should().Be("gba");
         rom.RomExtension.Should().Be("gba");
+        rom.EntryName.Should().Be("game");
 
         await using Stream stream = await rom.OpenStreamAsync(default);
         uint crc = await Crc32OfStreamAsync(stream);
@@ -66,10 +67,28 @@ public sealed class FileSystemRomSourceTests
         rom.FilePath.Should().Be(zipPath);
         rom.FileExtension.Should().Be("zip");
         rom.RomExtension.Should().Be("gba");
+        rom.EntryName.Should().Be("game");
 
         await using Stream stream = await rom.OpenStreamAsync(default);
         uint crc = await Crc32OfStreamAsync(stream);
         crc.Should().Be(Crc32Of(romContent));
+    }
+
+    [Test]
+    public async Task EnumerateAsync_ZipFileWithMismatchedEntryName_YieldsActualEntryName()
+    {
+        // Reproduces archives whose outer filename doesn't reflect what's inside — e.g. a
+        // leftover random name from a temp-file-based re-archive that predates the entry-naming
+        // fix. RomContent.EntryName must reflect the archive's real internal entry, not the
+        // outer filename, so RomMatcher can detect the mismatch.
+        byte[] romContent = [0x01, 0x02, 0x03, 0x04];
+        string zipPath = Path.Combine(_tempDir, "0001 - Test Game.zip");
+        CreateZip(zipPath, "tmpAB12CD.tmp", romContent);
+
+        List<RomContent> results = await _source.EnumerateAsync(_tempDir).ToListAsync();
+
+        results.Should().HaveCount(1);
+        results[0].EntryName.Should().Be("tmpAB12CD");
     }
 
     [Test]

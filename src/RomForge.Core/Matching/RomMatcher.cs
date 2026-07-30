@@ -80,11 +80,13 @@ public static class RomMatcher
             {
                 string expectedName = NamingMask.Expand(namingMask, game);
                 string actualName = Path.GetFileNameWithoutExtension(rom.FilePath);
-                isIncorrectlyNamed = !string.Equals(
-                    actualName,
-                    expectedName,
-                    StringComparison.OrdinalIgnoreCase
-                );
+                isIncorrectlyNamed =
+                    !string.Equals(actualName, expectedName, StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(
+                        rom.EntryName,
+                        expectedName,
+                        StringComparison.OrdinalIgnoreCase
+                    );
             }
 
             return new MatchResult
