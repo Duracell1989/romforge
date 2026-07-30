@@ -95,6 +95,7 @@ public sealed class FileSystemRomSource : IRomSource
             FilePath = filePath,
             FileExtension = ext,
             RomExtension = ext,
+            EntryName = Path.GetFileNameWithoutExtension(filePath),
             FileSize = fileInfo.Length,
             LastModified = fileInfo.LastWriteTimeUtc,
             OpenStreamAsync = ct => new ValueTask<Stream>(File.OpenRead(filePath)),
@@ -110,23 +111,27 @@ public sealed class FileSystemRomSource : IRomSource
         CancellationToken cancellationToken
     )
     {
-        var romExt = await PeekEntryExtensionAsync(filePath, cancellationToken)
+        (string RomExtension, string EntryName)? entryInfo = await PeekEntryAsync(
+                filePath,
+                cancellationToken
+            )
             .ConfigureAwait(false);
-        if (romExt is null)
+        if (entryInfo is null)
             return null;
 
         return new RomContent
         {
             FilePath = filePath,
             FileExtension = fileExt.TrimStart('.'),
-            RomExtension = romExt,
+            RomExtension = entryInfo.Value.RomExtension,
+            EntryName = entryInfo.Value.EntryName,
             FileSize = fileInfo.Length,
             LastModified = fileInfo.LastWriteTimeUtc,
             OpenStreamAsync = ct => OpenArchiveEntryStreamAsync(filePath, ct),
         };
     }
 
-    private async Task<string?> PeekEntryExtensionAsync(
+    private async Task<(string RomExtension, string EntryName)?> PeekEntryAsync(
         string filePath,
         CancellationToken cancellationToken
     )
@@ -151,9 +156,14 @@ public sealed class FileSystemRomSource : IRomSource
             return null;
 
         ArchiveEntry? entry = entriesResult.Value.FirstOrDefault(e => !e.IsDirectory);
-        return entry is null
-            ? null
-            : ToLowerExtension(Path.GetExtension(entry.Path).TrimStart('.'));
+        if (entry is null)
+            return null;
+
+        string entryFileName = Path.GetFileName(entry.Path);
+        return (
+            ToLowerExtension(Path.GetExtension(entryFileName).TrimStart('.')),
+            Path.GetFileNameWithoutExtension(entryFileName)
+        );
     }
 
     private async ValueTask<Stream> OpenArchiveEntryStreamAsync(

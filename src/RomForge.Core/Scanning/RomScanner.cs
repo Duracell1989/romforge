@@ -67,6 +67,7 @@ public static class RomScanner
                     FilePath = c.FilePath,
                     FileExtension = c.FileExtension,
                     RomExtension = c.RomExtension,
+                    EntryName = c.EntryName,
                     Crc = cachedCrc,
                     TrimmedCrc = cache.GetTrimmedCrc(
                         c.FilePath,
@@ -140,6 +141,7 @@ public static class RomScanner
             FilePath = content.FilePath,
             FileExtension = content.FileExtension,
             RomExtension = content.RomExtension,
+            EntryName = content.EntryName,
             Crc = crc,
             TrimmedCrc = trimmedCrc,
             LastModified = content.LastModified,

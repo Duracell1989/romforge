@@ -28,7 +28,8 @@ public class RomMatcherTests
         string fileExt = "7z",
         string romExt = "gba",
         string path = "/roms/game.7z",
-        uint? trimmedCrc = null
+        uint? trimmedCrc = null,
+        string? entryName = null
     ) =>
         new()
         {
@@ -37,6 +38,7 @@ public class RomMatcherTests
             FileExtension = fileExt,
             FilePath = path,
             TrimmedCrc = trimmedCrc,
+            EntryName = entryName ?? System.IO.Path.GetFileNameWithoutExtension(path),
         };
 
     private static DatFile DatWith(params Game[] games) => new() { Games = [.. games] };
@@ -140,6 +142,7 @@ public class RomMatcherTests
         IReadOnlyList<MatchResult> results = RomMatcher.Match(dat, roms).Results;
 
         results[0].Status.Should().Be(MatchStatus.Verified);
+        results[0].IsIncorrectlyNamed.Should().BeFalse();
     }
 
     [Test]
@@ -153,6 +156,24 @@ public class RomMatcherTests
         results[0].Status.Should().Be(MatchStatus.Verified);
         results[0].IsIncorrectlyNamed.Should().BeTrue();
         results[0].ScannedRom.Should().NotBeNull();
+    }
+
+    [Test]
+    public void Match_CorrectFilenameButWrongEntryName_ReturnsIncorrectlyNamedFlag()
+    {
+        // Reproduces archives re-archived before the entry-naming fix: the outer archive
+        // filename matches the mask, but its internal entry still carries a leftover name
+        // (e.g. from the extractor's random temp file).
+        DatFile dat = DatWith(GameWith(0x12345678, release: 1, title: "Test Game"));
+        List<ScannedRom> roms =
+        [
+            RomWith(0x12345678, path: "/roms/0001 - Test Game.7z", entryName: "tmpAB12CD.tmp"),
+        ];
+
+        IReadOnlyList<MatchResult> results = RomMatcher.Match(dat, roms).Results;
+
+        results[0].Status.Should().Be(MatchStatus.Verified);
+        results[0].IsIncorrectlyNamed.Should().BeTrue();
     }
 
     [Test]
