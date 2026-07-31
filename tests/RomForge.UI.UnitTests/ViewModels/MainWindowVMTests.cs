@@ -12,6 +12,7 @@ using NUnit.Framework;
 using RomForge.Core.IO;
 using RomForge.Core.Matching;
 using RomForge.Core.Models;
+using RomForge.Core.Operations;
 using RomForge.Core.Scanning;
 using RomForge.Core.Services;
 using RomForge.UI.Services;
@@ -49,6 +50,9 @@ public sealed class MainWindowVMTests
         _notifier = new Mock<IUserNotifier>();
         _datImporter = new Mock<IDatImporter>();
         _fileOps = new Mock<IRomFileOperations>();
+        // Temp-file cleanup guards check the real filesystem; mirror it so tests that write real
+        // working files (and those that don't) behave as they did under the previous File.Exists.
+        _fileOps.Setup(f => f.FileExists(It.IsAny<string>())).Returns<string>(File.Exists);
         _compressor = new Mock<IArchiveCompressor>();
         _extractor = new Mock<IArchiveExtractor>();
         _updateChecker = new Mock<IDatUpdateChecker>();
@@ -99,29 +103,50 @@ public sealed class MainWindowVMTests
     {
         ILogger logger = new LoggerConfiguration().CreateLogger();
         AppDataService appData = new AppDataService(_tempDir);
+        IArchiveCompressor compressor = compressorMock?.Object ?? _compressor.Object;
+        ScanResultStore scanResultStore = new ScanResultStore(appData, logger);
+        ReArchiveStore reArchiveStore = new ReArchiveStore(appData, logger);
+        ArchiveWorkspace workspace = new ArchiveWorkspace(appData, _fileOps.Object, logger);
+        DatConfigService configService = new DatConfigService(appData, logger);
+        DatLibraryService datLibrary = new DatLibraryService(
+            _ => _datReader.Object,
+            _datImporter.Object,
+            configService,
+            scanResultStore,
+            _fileOps.Object,
+            appData,
+            logger
+        );
 
         return new MainWindowVM(
             _fileDialogs.Object,
-            _ => _datReader.Object,
+            datLibrary,
             _romSource.Object,
             _fileOps.Object,
-            compressorMock?.Object ?? _compressor.Object,
-            _extractor.Object,
+            compressor,
             _notifier.Object,
             _urlLauncher.Object,
             new UpdateCheckService(_releaseChecker.Object, logger, "1.0.0"),
             logger,
             appData,
-            _datImporter.Object,
-            _updateChecker.Object,
-            _downloader.Object,
+            new DatUpdateService(_updateChecker.Object, _downloader.Object, appData),
             new ImageSyncService(_imageDownloader.Object, _fileOps.Object, logger),
-            new DatConfigService(appData, logger),
-            new ScanResultStore(appData, logger),
-            new ReArchiveStore(appData, logger),
+            configService,
+            scanResultStore,
+            reArchiveStore,
             new AppPreferencesService(appData, logger),
             MakeInlineDispatcher(),
-            _appLifetime.Object
+            _appLifetime.Object,
+            new RomRenameService(_fileOps.Object),
+            new RomReArchiveService(
+                _extractor.Object,
+                compressor,
+                _fileOps.Object,
+                workspace,
+                reArchiveStore,
+                scanResultStore
+            ),
+            new RomTrimService(_extractor.Object, compressor, _fileOps.Object, workspace)
         );
     }
 
@@ -1720,28 +1745,6 @@ public sealed class MainWindowVMTests
             n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("extract failed"))),
             Times.Once
         );
-    }
-
-    // --- BuildEntryName ---
-
-    [Test]
-    public void BuildEntryName_WithRomExtension_AppendsIt()
-    {
-        string result = MainWindowVM.BuildEntryName("/roms/0001 - Mario.7z", "gba");
-
-        result.Should().Be("0001 - Mario.gba");
-    }
-
-    [Test]
-    public void BuildEntryName_WithEmptyRomExtension_ReturnsStemUnchanged()
-    {
-        // A DAT entry can legitimately declare no extension for its ROM. The entry name must
-        // not fabricate one — this guards against deriving the extension from the extracted
-        // temp file's own name instead, which always carries a random extension of its own
-        // (Path.GetRandomFileName()) and would corrupt the result for exactly this case.
-        string result = MainWindowVM.BuildEntryName("/roms/0001 - Mario.7z", string.Empty);
-
-        result.Should().Be("0001 - Mario");
     }
 
     // --- ReArchiveSelectedAsync sameFile rename-aside failure ---

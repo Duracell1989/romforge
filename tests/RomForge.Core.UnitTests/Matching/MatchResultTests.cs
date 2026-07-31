@@ -10,6 +10,7 @@ public sealed class MatchResultTests
 {
     private static MatchResult Verified(
         bool incorrectlyNamed = false,
+        bool entryMisnamed = false,
         bool wrongArchiveType = false,
         bool untrimmed = false,
         bool reArchived = false
@@ -19,6 +20,7 @@ public sealed class MatchResultTests
             Game = new Game(),
             Status = MatchStatus.Verified,
             IsIncorrectlyNamed = incorrectlyNamed,
+            IsEntryMisnamed = entryMisnamed,
             IsWrongArchiveType = wrongArchiveType,
             IsUntrimmed = untrimmed,
             IsReArchived = reArchived,
@@ -88,6 +90,21 @@ public sealed class MatchResultTests
             .DisplayStatus.Should()
             .Be(RomStatus.WrongArchive);
 
+    [Test]
+    public void DisplayStatus_EntryMisnamedNotReArchived_ReturnsVerified() =>
+        // A wrong entry name inside the archive is not a distinct status; the ROM is simply not
+        // yet Good. It stays Verified so a re-archive is offered — unlike IncorrectlyNamed, it is
+        // never fixable by a plain rename.
+        Verified(entryMisnamed: true).DisplayStatus.Should().Be(RomStatus.Verified);
+
+    [Test]
+    public void DisplayStatus_ReArchivedButEntryMisnamed_ReturnsVerified() =>
+        // A misnamed inner entry blocks Good even when the re-archived mark is set: the archive
+        // still needs repacking to rewrite the entry.
+        Verified(reArchived: true, entryMisnamed: true)
+            .DisplayStatus.Should()
+            .Be(RomStatus.Verified);
+
     // --- IsGood is derived from DisplayStatus ---
 
     [Test]
@@ -99,6 +116,10 @@ public sealed class MatchResultTests
     [Test]
     public void IsGood_VerifiedAndReArchived_ReturnsTrue() =>
         Verified(reArchived: true).IsGood.Should().BeTrue();
+
+    [Test]
+    public void IsGood_ReArchivedButEntryMisnamed_ReturnsFalse() =>
+        Verified(reArchived: true, entryMisnamed: true).IsGood.Should().BeFalse();
 
     [Test]
     public void IsGood_Missing_ReturnsFalse() => Missing().IsGood.Should().BeFalse();

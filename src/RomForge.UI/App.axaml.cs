@@ -9,6 +9,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
 using RomForge.Core.IO;
+using RomForge.Core.Operations;
 using RomForge.Core.Services;
 using RomForge.UI.Services;
 using RomForge.UI.ViewModels;
@@ -113,6 +114,11 @@ public partial class App : Application
         services.AddSingleton<IAppLifetime, AvaloniaAppLifetime>();
         services.AddSingleton<IRomSource, FileSystemRomSource>();
         services.AddSingleton<IRomFileOperations, LocalRomFileOperations>();
+        services.AddSingleton<IDatLibraryService, DatLibraryService>();
+        services.AddSingleton<IRomRenameService, RomRenameService>();
+        services.AddSingleton<ArchiveWorkspace>();
+        services.AddSingleton<IRomReArchiveService, RomReArchiveService>();
+        services.AddSingleton<IRomTrimService, RomTrimService>();
         services.AddSingleton<IArchiveCompressor, SevenZipSharperCompressor>();
         services.AddSingleton<IArchiveExtractor>(sp => new SevenZipSharperExtractor(
             sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<SevenZipExtractor>>(),
@@ -129,6 +135,7 @@ public partial class App : Application
         services.AddSingleton<AppDataService>();
         services.AddSingleton<IDatImporter, LocalDatImporter>();
         services.AddSingleton<IDatUpdateChecker, HttpDatUpdateChecker>();
+        services.AddSingleton<IDatUpdateService, DatUpdateService>();
         services.AddSingleton<IReleaseChecker, GitHubReleaseChecker>();
         services.AddSingleton(sp => new UpdateCheckService(
             sp.GetRequiredService<IReleaseChecker>(),

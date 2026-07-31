@@ -4,6 +4,12 @@ All notable changes to RomForge are documented here. This project follows [Seman
 
 ## [Unreleased]
 
+## [1.5.2] — 2026-07-31
+
+### Fixed
+
+- "Rename All" no longer reports success while changing nothing for ROMs whose only problem was a misnamed internal archive entry; the outer-filename rename and the internal entry name are now tracked separately, so these ROMs are correctly routed to Re-Archive instead. A re-scan is required to reclassify ROMs stored under the previous version.
+
 ## [1.5.1] — 2026-07-30
 
 ### Fixed

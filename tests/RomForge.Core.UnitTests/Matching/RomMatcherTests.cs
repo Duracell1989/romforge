@@ -159,11 +159,13 @@ public class RomMatcherTests
     }
 
     [Test]
-    public void Match_CorrectFilenameButWrongEntryName_ReturnsIncorrectlyNamedFlag()
+    public void Match_CorrectFilenameButWrongEntryName_FlagsEntryMisnamedNotIncorrectlyNamed()
     {
-        // Reproduces archives re-archived before the entry-naming fix: the outer archive
-        // filename matches the mask, but its internal entry still carries a leftover name
-        // (e.g. from the extractor's random temp file).
+        // Archives re-archived before the entry-naming fix: the outer archive filename matches
+        // the mask, but its internal entry still carries a leftover name (e.g. from the
+        // extractor's random temp file). This is NOT an IncorrectlyNamed case — a plain rename
+        // (File.Move on the outer file) cannot fix it, and would silently no-op. It is flagged
+        // IsEntryMisnamed instead, which keeps the ROM Verified (not Good) so a re-archive fixes it.
         DatFile dat = DatWith(GameWith(0x12345678, release: 1, title: "Test Game"));
         List<ScannedRom> roms =
         [
@@ -173,7 +175,24 @@ public class RomMatcherTests
         IReadOnlyList<MatchResult> results = RomMatcher.Match(dat, roms).Results;
 
         results[0].Status.Should().Be(MatchStatus.Verified);
-        results[0].IsIncorrectlyNamed.Should().BeTrue();
+        results[0].IsIncorrectlyNamed.Should().BeFalse();
+        results[0].IsEntryMisnamed.Should().BeTrue();
+        results[0].DisplayStatus.Should().Be(RomStatus.Verified);
+    }
+
+    [Test]
+    public void Match_CorrectFilenameAndEntryName_FlagsNeitherNamingIssue()
+    {
+        DatFile dat = DatWith(GameWith(0x12345678, release: 1, title: "Test Game"));
+        List<ScannedRom> roms =
+        [
+            RomWith(0x12345678, path: "/roms/0001 - Test Game.7z", entryName: "0001 - Test Game"),
+        ];
+
+        IReadOnlyList<MatchResult> results = RomMatcher.Match(dat, roms).Results;
+
+        results[0].IsIncorrectlyNamed.Should().BeFalse();
+        results[0].IsEntryMisnamed.Should().BeFalse();
     }
 
     [Test]

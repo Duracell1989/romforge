@@ -75,18 +75,26 @@ public static class RomMatcher
                 StringComparison.OrdinalIgnoreCase
             );
 
+            // The outer archive file name and the entry name inside the archive are two distinct
+            // problems with two distinct fixes: a wrong outer name is fixed by a rename (File.Move),
+            // a wrong entry name only by a re-archive that rewrites the entry. They are flagged
+            // separately so each routes to the operation that can actually resolve it.
             bool isIncorrectlyNamed = false;
+            bool isEntryMisnamed = false;
             if (!string.IsNullOrEmpty(namingMask))
             {
                 string expectedName = NamingMask.Expand(namingMask, game);
                 string actualName = Path.GetFileNameWithoutExtension(rom.FilePath);
-                isIncorrectlyNamed =
-                    !string.Equals(actualName, expectedName, StringComparison.OrdinalIgnoreCase)
-                    || !string.Equals(
-                        rom.EntryName,
-                        expectedName,
-                        StringComparison.OrdinalIgnoreCase
-                    );
+                isIncorrectlyNamed = !string.Equals(
+                    actualName,
+                    expectedName,
+                    StringComparison.OrdinalIgnoreCase
+                );
+                isEntryMisnamed = !string.Equals(
+                    rom.EntryName,
+                    expectedName,
+                    StringComparison.OrdinalIgnoreCase
+                );
             }
 
             return new MatchResult
@@ -96,6 +104,7 @@ public static class RomMatcher
                 ScannedRom = rom,
                 IsWrongArchiveType = isWrongArchiveType,
                 IsIncorrectlyNamed = isIncorrectlyNamed,
+                IsEntryMisnamed = isEntryMisnamed,
             };
         }
 
