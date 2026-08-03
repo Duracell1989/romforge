@@ -9,6 +9,13 @@ namespace RomForge.Core.IO
     {
         bool IsAvailable { get; }
 
+        /// <summary>
+        /// Estimates the peak working-set memory (in bytes) a single compression of a ROM of the
+        /// given size in the given format will hold. Used to bound how many re-archives may run
+        /// concurrently without exhausting physical memory.
+        /// </summary>
+        long EstimateWorkingSetBytes(long romSize, string format);
+
         Task<Result> CompressAsync(
             string sourceFile,
             string destArchive,

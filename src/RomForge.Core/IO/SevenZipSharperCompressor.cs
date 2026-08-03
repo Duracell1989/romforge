@@ -131,6 +131,20 @@ namespace RomForge.Core.IO
                     DictionarySize = DictionarySizeFor(romSize),
                 };
 
+        // The LZMA2 BT4 match finder needs roughly this many times the dictionary size as working
+        // memory while encoding, so a 1 GB dictionary costs ~11 GB resident per encoder. This is
+        // the dominant cost that limits how many large re-archives can run at once.
+        private const int Lzma2EncoderMemoryMultiplier = 11;
+
+        // Deflate (the zip format) uses a fixed 32 KB window, so its encoder memory is negligible
+        // next to LZMA2. A small flat estimate keeps zip jobs from ever throttling the memory gate.
+        private const long ZipEncoderWorkingSetBytes = 64L * 1024 * 1024;
+
+        public long EstimateWorkingSetBytes(long romSize, string format) =>
+            format == ZipFormatName
+                ? ZipEncoderWorkingSetBytes
+                : (long)DictionarySizeFor(romSize) * Lzma2EncoderMemoryMultiplier;
+
         // A dictionary larger than the data being compressed can't improve the ratio for this
         // single-entry archive — it only costs memory — so use the smallest power-of-2 that still
         // covers the whole ROM, clamped to the library's supported LZMA/LZMA2 range.
