@@ -1,18 +1,19 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 
-namespace RomForge.UI.Services;
-
-internal sealed class AvaloniaAppLifetime : IAppLifetime
+namespace RomForge.UI.Services
 {
-    public void Shutdown()
+    internal sealed class AvaloniaAppLifetime : IAppLifetime
     {
-        if (
-            Application.Current?.ApplicationLifetime
-            is IClassicDesktopStyleApplicationLifetime lifetime
-        )
+        public void Shutdown()
         {
-            lifetime.Shutdown();
+            if (
+                Application.Current?.ApplicationLifetime
+                is IClassicDesktopStyleApplicationLifetime lifetime
+            )
+            {
+                lifetime.Shutdown();
+            }
         }
     }
 }

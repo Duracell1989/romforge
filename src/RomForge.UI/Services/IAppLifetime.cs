@@ -1,12 +1,13 @@
-namespace RomForge.UI.Services;
-
-/// <summary>
-/// Controls the application lifetime.
-/// </summary>
-public interface IAppLifetime
+namespace RomForge.UI.Services
 {
     /// <summary>
-    /// Requests the application to shut down.
+    /// Controls the application lifetime.
     /// </summary>
-    void Shutdown();
+    public interface IAppLifetime
+    {
+        /// <summary>
+        /// Requests the application to shut down.
+        /// </summary>
+        void Shutdown();
+    }
 }

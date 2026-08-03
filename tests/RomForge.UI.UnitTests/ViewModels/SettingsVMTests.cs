@@ -10,145 +10,150 @@ using RomForge.UI.Services;
 using RomForge.UI.ViewModels;
 using Serilog;
 
-namespace RomForge.UI.UnitTests.ViewModels;
-
-[TestOf(typeof(SettingsVM))]
-public sealed class SettingsVMTests
+namespace RomForge.UI.UnitTests.ViewModels
 {
-    private string _tempDir = null!;
-    private AppPreferencesService _preferencesService = null!;
-    private Mock<IFileDialogService> _fileDialogs = null!;
-
-    [SetUp]
-    public void SetUp()
+    [TestOf(typeof(SettingsVM))]
+    public sealed class SettingsVMTests
     {
-        _tempDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-        Directory.CreateDirectory(_tempDir);
-        AppDataService appData = new AppDataService(_tempDir);
-        ILogger logger = new LoggerConfiguration().CreateLogger();
-        _preferencesService = new AppPreferencesService(appData, logger);
-        _fileDialogs = new Mock<IFileDialogService>();
-    }
+        private string _tempDir = null!;
+        private AppPreferencesService _preferencesService = null!;
+        private Mock<IFileDialogService> _fileDialogs = null!;
 
-    [TearDown]
-    public void TearDown()
-    {
-        _preferencesService.Dispose();
-        if (Directory.Exists(_tempDir))
-            Directory.Delete(_tempDir, recursive: true);
-    }
+        [SetUp]
+        public void SetUp()
+        {
+            _tempDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+            Directory.CreateDirectory(_tempDir);
+            AppDataService appData = new AppDataService(_tempDir);
+            ILogger logger = new LoggerConfiguration().CreateLogger();
+            _preferencesService = new AppPreferencesService(appData, logger);
+            _fileDialogs = new Mock<IFileDialogService>();
+        }
 
-    private SettingsVM MakeVM(AppPreferences? current = null) =>
-        new SettingsVM(_preferencesService, _fileDialogs.Object, current ?? new AppPreferences());
+        [TearDown]
+        public void TearDown()
+        {
+            _preferencesService.Dispose();
+            if (Directory.Exists(_tempDir))
+                Directory.Delete(_tempDir, recursive: true);
+        }
 
-    [Test]
-    public void Constructor_InitializesFromCurrentPreferences()
-    {
-        SettingsVM vm = MakeVM(
-            new AppPreferences { DefaultArchiveFormat = "zip", UnverifiedFolder = "/roms/unv" }
-        );
+        private SettingsVM MakeVM(AppPreferences? current = null) =>
+            new SettingsVM(
+                _preferencesService,
+                _fileDialogs.Object,
+                current ?? new AppPreferences()
+            );
 
-        vm.ArchiveFormat.Should().Be("zip");
-        vm.UnverifiedFolder.Should().Be("/roms/unv");
-    }
+        [Test]
+        public void Constructor_InitializesFromCurrentPreferences()
+        {
+            SettingsVM vm = MakeVM(
+                new AppPreferences { DefaultArchiveFormat = "zip", UnverifiedFolder = "/roms/unv" }
+            );
 
-    [Test]
-    public void ArchiveFormats_Contains7zAndZip()
-    {
-        SettingsVM vm = MakeVM();
+            vm.ArchiveFormat.Should().Be("zip");
+            vm.UnverifiedFolder.Should().Be("/roms/unv");
+        }
 
-        vm.ArchiveFormats.Should().BeEquivalentTo("7z", "zip");
-    }
+        [Test]
+        public void ArchiveFormats_Contains7zAndZip()
+        {
+            SettingsVM vm = MakeVM();
 
-    [Test]
-    public void Constructor_InitializesCheckForUpdatesOnStartup_FromCurrentPreferences()
-    {
-        SettingsVM vm = MakeVM(new AppPreferences { CheckForUpdatesOnStartup = false });
+            vm.ArchiveFormats.Should().BeEquivalentTo("7z", "zip");
+        }
 
-        vm.CheckForUpdatesOnStartup.Should().BeFalse();
-    }
+        [Test]
+        public void Constructor_InitializesCheckForUpdatesOnStartup_FromCurrentPreferences()
+        {
+            SettingsVM vm = MakeVM(new AppPreferences { CheckForUpdatesOnStartup = false });
 
-    [Test]
-    public void CheckForUpdatesOnStartup_DefaultsToTrue()
-    {
-        SettingsVM vm = MakeVM();
+            vm.CheckForUpdatesOnStartup.Should().BeFalse();
+        }
 
-        vm.CheckForUpdatesOnStartup.Should().BeTrue();
-    }
+        [Test]
+        public void CheckForUpdatesOnStartup_DefaultsToTrue()
+        {
+            SettingsVM vm = MakeVM();
 
-    [Test]
-    public async Task Save_PersistsCheckForUpdatesOnStartup()
-    {
-        SettingsVM vm = MakeVM();
-        vm.CheckForUpdatesOnStartup = false;
+            vm.CheckForUpdatesOnStartup.Should().BeTrue();
+        }
 
-        await vm.SaveCommand.ExecuteAsync(null);
+        [Test]
+        public async Task Save_PersistsCheckForUpdatesOnStartup()
+        {
+            SettingsVM vm = MakeVM();
+            vm.CheckForUpdatesOnStartup = false;
 
-        (await _preferencesService.LoadAsync()).CheckForUpdatesOnStartup.Should().BeFalse();
-    }
+            await vm.SaveCommand.ExecuteAsync(null);
 
-    [Test]
-    public async Task BrowseUnverifiedFolder_WhenPicked_SetsFolder()
-    {
-        _fileDialogs.Setup(d => d.PickUnverifiedDestinationAsync()).ReturnsAsync("/picked");
-        SettingsVM vm = MakeVM();
+            (await _preferencesService.LoadAsync()).CheckForUpdatesOnStartup.Should().BeFalse();
+        }
 
-        await vm.BrowseUnverifiedFolderCommand.ExecuteAsync(null);
+        [Test]
+        public async Task BrowseUnverifiedFolder_WhenPicked_SetsFolder()
+        {
+            _fileDialogs.Setup(d => d.PickUnverifiedDestinationAsync()).ReturnsAsync("/picked");
+            SettingsVM vm = MakeVM();
 
-        vm.UnverifiedFolder.Should().Be("/picked");
-    }
+            await vm.BrowseUnverifiedFolderCommand.ExecuteAsync(null);
 
-    [Test]
-    public async Task BrowseUnverifiedFolder_WhenCancelled_LeavesFolderUnchanged()
-    {
-        _fileDialogs.Setup(d => d.PickUnverifiedDestinationAsync()).ReturnsAsync((string?)null);
-        SettingsVM vm = MakeVM(new AppPreferences { UnverifiedFolder = "/existing" });
+            vm.UnverifiedFolder.Should().Be("/picked");
+        }
 
-        await vm.BrowseUnverifiedFolderCommand.ExecuteAsync(null);
+        [Test]
+        public async Task BrowseUnverifiedFolder_WhenCancelled_LeavesFolderUnchanged()
+        {
+            _fileDialogs.Setup(d => d.PickUnverifiedDestinationAsync()).ReturnsAsync((string?)null);
+            SettingsVM vm = MakeVM(new AppPreferences { UnverifiedFolder = "/existing" });
 
-        vm.UnverifiedFolder.Should().Be("/existing");
-    }
+            await vm.BrowseUnverifiedFolderCommand.ExecuteAsync(null);
 
-    [Test]
-    public void ClearUnverifiedFolder_SetsNull()
-    {
-        SettingsVM vm = MakeVM(new AppPreferences { UnverifiedFolder = "/existing" });
+            vm.UnverifiedFolder.Should().Be("/existing");
+        }
 
-        vm.ClearUnverifiedFolderCommand.Execute(null);
+        [Test]
+        public void ClearUnverifiedFolder_SetsNull()
+        {
+            SettingsVM vm = MakeVM(new AppPreferences { UnverifiedFolder = "/existing" });
 
-        vm.UnverifiedFolder.Should().BeNull();
-    }
+            vm.ClearUnverifiedFolderCommand.Execute(null);
 
-    [Test]
-    public async Task Save_PersistsPreferencesAndRequestsCloseWithTrue()
-    {
-        SettingsVM vm = MakeVM();
-        vm.ArchiveFormat = "zip";
-        vm.UnverifiedFolder = "/dest";
-        bool? closedWith = null;
-        vm.RequestClose = result => closedWith = result;
+            vm.UnverifiedFolder.Should().BeNull();
+        }
 
-        await vm.SaveCommand.ExecuteAsync(null);
+        [Test]
+        public async Task Save_PersistsPreferencesAndRequestsCloseWithTrue()
+        {
+            SettingsVM vm = MakeVM();
+            vm.ArchiveFormat = "zip";
+            vm.UnverifiedFolder = "/dest";
+            bool? closedWith = null;
+            vm.RequestClose = result => closedWith = result;
 
-        closedWith.Should().BeTrue();
-        AppPreferences loaded = await _preferencesService.LoadAsync();
-        loaded.DefaultArchiveFormat.Should().Be("zip");
-        loaded.UnverifiedFolder.Should().Be("/dest");
-    }
+            await vm.SaveCommand.ExecuteAsync(null);
 
-    [Test]
-    public async Task Cancel_DoesNotPersistAndRequestsCloseWithFalse()
-    {
-        await _preferencesService.UpdateSettingsAsync("7z", null);
-        SettingsVM vm = MakeVM();
-        vm.ArchiveFormat = "zip";
-        bool? closedWith = null;
-        vm.RequestClose = result => closedWith = result;
+            closedWith.Should().BeTrue();
+            AppPreferences loaded = await _preferencesService.LoadAsync();
+            loaded.DefaultArchiveFormat.Should().Be("zip");
+            loaded.UnverifiedFolder.Should().Be("/dest");
+        }
 
-        vm.CancelCommand.Execute(null);
+        [Test]
+        public async Task Cancel_DoesNotPersistAndRequestsCloseWithFalse()
+        {
+            await _preferencesService.UpdateSettingsAsync("7z", null);
+            SettingsVM vm = MakeVM();
+            vm.ArchiveFormat = "zip";
+            bool? closedWith = null;
+            vm.RequestClose = result => closedWith = result;
 
-        closedWith.Should().BeFalse();
-        AppPreferences loaded = await _preferencesService.LoadAsync();
-        loaded.DefaultArchiveFormat.Should().Be("7z");
+            vm.CancelCommand.Execute(null);
+
+            closedWith.Should().BeFalse();
+            AppPreferences loaded = await _preferencesService.LoadAsync();
+            loaded.DefaultArchiveFormat.Should().Be("7z");
+        }
     }
 }

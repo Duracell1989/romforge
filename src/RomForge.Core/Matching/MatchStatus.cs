@@ -1,7 +1,8 @@
-namespace RomForge.Core.Matching;
-
-public enum MatchStatus
+namespace RomForge.Core.Matching
 {
-    Missing = 0,
-    Verified = 1,
+    public enum MatchStatus
+    {
+        Missing = 0,
+        Verified = 1,
+    }
 }

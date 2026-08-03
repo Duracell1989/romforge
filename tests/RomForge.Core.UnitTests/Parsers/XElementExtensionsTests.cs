@@ -5,95 +5,96 @@ using AwesomeAssertions;
 using NUnit.Framework;
 using RomForge.Core.Parsers;
 
-namespace RomForge.Core.UnitTests.Parsers;
-
-[TestOf(typeof(XElementExtensions))]
-public sealed class XElementExtensionsTests
+namespace RomForge.Core.UnitTests.Parsers
 {
-    // --- ElementCI ---
-
-    [Test]
-    public void ElementCI_ExactMatch_ReturnsElement()
+    [TestOf(typeof(XElementExtensions))]
+    public sealed class XElementExtensionsTests
     {
-        XElement parent = new XElement("root", new XElement("game", "value"));
+        // --- ElementCI ---
 
-        XElement? result = parent.ElementCI("game");
+        [Test]
+        public void ElementCI_ExactMatch_ReturnsElement()
+        {
+            XElement parent = new XElement("root", new XElement("game", "value"));
 
-        result.Should().NotBeNull();
-        result.Value.Should().Be("value");
-    }
+            XElement? result = parent.ElementCI("game");
 
-    [Test]
-    public void ElementCI_UppercaseName_ReturnsElement()
-    {
-        XElement parent = new XElement("root", new XElement("game", "value"));
+            result.Should().NotBeNull();
+            result.Value.Should().Be("value");
+        }
 
-        XElement? result = parent.ElementCI("GAME");
+        [Test]
+        public void ElementCI_UppercaseName_ReturnsElement()
+        {
+            XElement parent = new XElement("root", new XElement("game", "value"));
 
-        result.Should().NotBeNull();
-    }
+            XElement? result = parent.ElementCI("GAME");
 
-    [Test]
-    public void ElementCI_MixedCaseName_ReturnsElement()
-    {
-        XElement parent = new XElement("root", new XElement("game", "value"));
+            result.Should().NotBeNull();
+        }
 
-        XElement? result = parent.ElementCI("GaMe");
+        [Test]
+        public void ElementCI_MixedCaseName_ReturnsElement()
+        {
+            XElement parent = new XElement("root", new XElement("game", "value"));
 
-        result.Should().NotBeNull();
-    }
+            XElement? result = parent.ElementCI("GaMe");
 
-    [Test]
-    public void ElementCI_NoMatch_ReturnsNull()
-    {
-        XElement parent = new XElement("root", new XElement("game", "value"));
+            result.Should().NotBeNull();
+        }
 
-        XElement? result = parent.ElementCI("rom");
+        [Test]
+        public void ElementCI_NoMatch_ReturnsNull()
+        {
+            XElement parent = new XElement("root", new XElement("game", "value"));
 
-        result.Should().BeNull();
-    }
+            XElement? result = parent.ElementCI("rom");
 
-    [Test]
-    public void ElementCI_MultipleChildren_ReturnsFirst()
-    {
-        XElement parent = new XElement(
-            "root",
-            new XElement("game", "first"),
-            new XElement("game", "second")
-        );
+            result.Should().BeNull();
+        }
 
-        XElement? result = parent.ElementCI("game");
+        [Test]
+        public void ElementCI_MultipleChildren_ReturnsFirst()
+        {
+            XElement parent = new XElement(
+                "root",
+                new XElement("game", "first"),
+                new XElement("game", "second")
+            );
 
-        result.Should().NotBeNull();
-        result.Value.Should().Be("first");
-    }
+            XElement? result = parent.ElementCI("game");
 
-    // --- ElementsCI ---
+            result.Should().NotBeNull();
+            result.Value.Should().Be("first");
+        }
 
-    [Test]
-    public void ElementsCI_ReturnsAllMatches()
-    {
-        XElement parent = new XElement(
-            "root",
-            new XElement("game", "a"),
-            new XElement("GAME", "b"),
-            new XElement("Game", "c"),
-            new XElement("other", "d")
-        );
+        // --- ElementsCI ---
 
-        List<XElement> result = parent.ElementsCI("game").ToList();
+        [Test]
+        public void ElementsCI_ReturnsAllMatches()
+        {
+            XElement parent = new XElement(
+                "root",
+                new XElement("game", "a"),
+                new XElement("GAME", "b"),
+                new XElement("Game", "c"),
+                new XElement("other", "d")
+            );
 
-        result.Should().HaveCount(3);
-        result.Select(e => e.Value).Should().ContainInOrder("a", "b", "c");
-    }
+            List<XElement> result = parent.ElementsCI("game").ToList();
 
-    [Test]
-    public void ElementsCI_NoMatch_ReturnsEmpty()
-    {
-        XElement parent = new XElement("root", new XElement("rom", "value"));
+            result.Should().HaveCount(3);
+            result.Select(e => e.Value).Should().ContainInOrder("a", "b", "c");
+        }
 
-        List<XElement> result = parent.ElementsCI("game").ToList();
+        [Test]
+        public void ElementsCI_NoMatch_ReturnsEmpty()
+        {
+            XElement parent = new XElement("root", new XElement("rom", "value"));
 
-        result.Should().BeEmpty();
+            List<XElement> result = parent.ElementsCI("game").ToList();
+
+            result.Should().BeEmpty();
+        }
     }
 }

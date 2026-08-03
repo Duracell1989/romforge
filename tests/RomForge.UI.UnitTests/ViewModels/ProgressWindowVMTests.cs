@@ -3,143 +3,144 @@ using AwesomeAssertions;
 using NUnit.Framework;
 using RomForge.UI.ViewModels;
 
-namespace RomForge.UI.UnitTests.ViewModels;
-
-[TestOf(typeof(ProgressWindowVM))]
-public class ProgressWindowVMTests
+namespace RomForge.UI.UnitTests.ViewModels
 {
-    [Test]
-    public void IsIndeterminate_WhenTotalIsZero_IsTrue()
+    [TestOf(typeof(ProgressWindowVM))]
+    public class ProgressWindowVMTests
     {
-        ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: false);
+        [Test]
+        public void IsIndeterminate_WhenTotalIsZero_IsTrue()
+        {
+            ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: false);
 
-        vm.IsIndeterminate.Should().BeTrue();
-    }
+            vm.IsIndeterminate.Should().BeTrue();
+        }
 
-    [Test]
-    public void IsIndeterminate_WhenTotalIsPositive_IsFalse()
-    {
-        ProgressWindowVM vm = new ProgressWindowVM(10, isCancellable: false);
+        [Test]
+        public void IsIndeterminate_WhenTotalIsPositive_IsFalse()
+        {
+            ProgressWindowVM vm = new ProgressWindowVM(10, isCancellable: false);
 
-        vm.IsIndeterminate.Should().BeFalse();
-    }
+            vm.IsIndeterminate.Should().BeFalse();
+        }
 
-    [Test]
-    public void IsIndeterminate_RaisesPropertyChanged_WhenTotalChangesFromZeroToPositive()
-    {
-        ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: false);
-        List<string?> raised = [];
-        vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+        [Test]
+        public void IsIndeterminate_RaisesPropertyChanged_WhenTotalChangesFromZeroToPositive()
+        {
+            ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: false);
+            List<string?> raised = [];
+            vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
 
-        vm.Total = 5;
+            vm.Total = 5;
 
-        raised.Should().Contain(nameof(ProgressWindowVM.IsIndeterminate));
-    }
+            raised.Should().Contain(nameof(ProgressWindowVM.IsIndeterminate));
+        }
 
-    [Test]
-    public void IsIndeterminate_TotalGoesFromPositiveToZero_BecomesTrue()
-    {
-        ProgressWindowVM vm = new ProgressWindowVM(10, isCancellable: false);
+        [Test]
+        public void IsIndeterminate_TotalGoesFromPositiveToZero_BecomesTrue()
+        {
+            ProgressWindowVM vm = new ProgressWindowVM(10, isCancellable: false);
 
-        vm.Total = 0;
+            vm.Total = 0;
 
-        vm.IsIndeterminate.Should().BeTrue();
-    }
+            vm.IsIndeterminate.Should().BeTrue();
+        }
 
-    [Test]
-    public void HasPhase_EmptyString_ReturnsFalse()
-    {
-        ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: false);
+        [Test]
+        public void HasPhase_EmptyString_ReturnsFalse()
+        {
+            ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: false);
 
-        vm.HasPhase.Should().BeFalse();
-    }
+            vm.HasPhase.Should().BeFalse();
+        }
 
-    [Test]
-    public void HasPhase_NonEmptyString_ReturnsTrue()
-    {
-        ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: false);
+        [Test]
+        public void HasPhase_NonEmptyString_ReturnsTrue()
+        {
+            ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: false);
 
-        vm.Phase = "Enumerating files...";
+            vm.Phase = "Enumerating files...";
 
-        vm.HasPhase.Should().BeTrue();
-    }
+            vm.HasPhase.Should().BeTrue();
+        }
 
-    [Test]
-    public void HasPhase_RaisesPropertyChanged_WhenPhaseChanges()
-    {
-        ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: false);
-        List<string?> raised = [];
-        vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+        [Test]
+        public void HasPhase_RaisesPropertyChanged_WhenPhaseChanges()
+        {
+            ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: false);
+            List<string?> raised = [];
+            vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
 
-        vm.Phase = "Computing CRCs...";
+            vm.Phase = "Computing CRCs...";
 
-        raised.Should().Contain(nameof(ProgressWindowVM.HasPhase));
-    }
+            raised.Should().Contain(nameof(ProgressWindowVM.HasPhase));
+        }
 
-    // --- Cancellation ---
+        // --- Cancellation ---
 
-    [Test]
-    public void CancellationToken_WhenNotCancellable_IsNone()
-    {
-        ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: false);
+        [Test]
+        public void CancellationToken_WhenNotCancellable_IsNone()
+        {
+            ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: false);
 
-        vm.CancellationToken.Should().Be(System.Threading.CancellationToken.None);
-    }
+            vm.CancellationToken.Should().Be(System.Threading.CancellationToken.None);
+        }
 
-    [Test]
-    public void CancellationToken_WhenCancellable_IsNotNone()
-    {
-        ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: true);
+        [Test]
+        public void CancellationToken_WhenCancellable_IsNotNone()
+        {
+            ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: true);
 
-        vm.CancellationToken.Should().NotBe(System.Threading.CancellationToken.None);
-    }
+            vm.CancellationToken.Should().NotBe(System.Threading.CancellationToken.None);
+        }
 
-    [Test]
-    public void CancelCommand_WhenCancellable_SetsCancellationRequested()
-    {
-        ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: true);
+        [Test]
+        public void CancelCommand_WhenCancellable_SetsCancellationRequested()
+        {
+            ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: true);
 
-        vm.CancelCommand.Execute(null);
+            vm.CancelCommand.Execute(null);
 
-        vm.CancellationToken.IsCancellationRequested.Should().BeTrue();
-    }
+            vm.CancellationToken.IsCancellationRequested.Should().BeTrue();
+        }
 
-    [Test]
-    public void IsCancellable_WhenConstructedWithTrue_IsTrue()
-    {
-        ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: true);
+        [Test]
+        public void IsCancellable_WhenConstructedWithTrue_IsTrue()
+        {
+            ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: true);
 
-        vm.IsCancellable.Should().BeTrue();
-    }
+            vm.IsCancellable.Should().BeTrue();
+        }
 
-    [Test]
-    public void IsCancellable_WhenConstructedWithFalse_IsFalse()
-    {
-        ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: false);
+        [Test]
+        public void IsCancellable_WhenConstructedWithFalse_IsFalse()
+        {
+            ProgressWindowVM vm = new ProgressWindowVM(0, isCancellable: false);
 
-        vm.IsCancellable.Should().BeFalse();
-    }
+            vm.IsCancellable.Should().BeFalse();
+        }
 
-    // --- CountText ---
+        // --- CountText ---
 
-    [Test]
-    public void CountText_ReflectsCurrentAndTotal()
-    {
-        ProgressWindowVM vm = new ProgressWindowVM(100, isCancellable: false);
-        vm.Current = 42;
+        [Test]
+        public void CountText_ReflectsCurrentAndTotal()
+        {
+            ProgressWindowVM vm = new ProgressWindowVM(100, isCancellable: false);
+            vm.Current = 42;
 
-        vm.CountText.Should().Be("42 of 100");
-    }
+            vm.CountText.Should().Be("42 of 100");
+        }
 
-    [Test]
-    public void CountText_RaisesPropertyChanged_WhenCurrentChanges()
-    {
-        ProgressWindowVM vm = new ProgressWindowVM(10, isCancellable: false);
-        List<string?> raised = [];
-        vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+        [Test]
+        public void CountText_RaisesPropertyChanged_WhenCurrentChanges()
+        {
+            ProgressWindowVM vm = new ProgressWindowVM(10, isCancellable: false);
+            List<string?> raised = [];
+            vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
 
-        vm.Current = 5;
+            vm.Current = 5;
 
-        raised.Should().Contain(nameof(ProgressWindowVM.CountText));
+            raised.Should().Contain(nameof(ProgressWindowVM.CountText));
+        }
     }
 }
