@@ -72,6 +72,12 @@ namespace RomForge.UI.ViewModels
 
             try
             {
+                // Yield so this task is still pending when the caller hands it to the progress
+                // window. A worker that completes synchronously (e.g. a File.Move-backed rename)
+                // would otherwise run the whole batch here — before the window is shown — leaving
+                // the window to open onto an already-finished task and close instantly.
+                await Task.Yield();
+
                 for (var i = 0; i < operation.Targets.Count; i++)
                 {
                     if (progress.CancellationToken.IsCancellationRequested)

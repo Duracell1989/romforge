@@ -208,6 +208,48 @@ namespace RomForge.UI.UnitTests.ViewModels
         }
 
         [Test]
+        public async Task RunAsync_WithSynchronousWorker_ShowsProgressBeforeProcessingAnyItem()
+        {
+            // A worker that completes synchronously (e.g. a File.Move-backed rename) must not run
+            // the whole batch before the progress window is shown. Otherwise the window is handed
+            // an already-completed task and closes immediately — the work happens with no UI on
+            // screen, then the popup only flashes.
+            int processed = 0;
+            int processedWhenShown = -1;
+            _notifier
+                .Setup(n =>
+                    n.ShowProgressAsync(
+                        It.IsAny<string>(),
+                        It.IsAny<ProgressWindowVM>(),
+                        It.IsAny<Task>()
+                    )
+                )
+                .Returns<string, ProgressWindowVM, Task>(
+                    (_, _, task) =>
+                    {
+                        processedWhenShown = processed;
+                        return task;
+                    }
+                );
+
+            await _runner.RunAsync(
+                Operation(
+                    ["a", "b", "c"],
+                    (_, _) =>
+                    {
+                        processed++;
+                        return Task.FromResult<string?>(null);
+                    }
+                )
+            );
+
+            processedWhenShown
+                .Should()
+                .Be(0, "the progress window must be shown before any item is processed");
+            processed.Should().Be(3);
+        }
+
+        [Test]
         public async Task RunAsync_BusyFlag_ResetEvenWhenWorkerThrowsOperationCanceled()
         {
             List<bool> transitions = new List<bool>();
