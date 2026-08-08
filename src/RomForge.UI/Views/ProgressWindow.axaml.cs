@@ -1,11 +1,12 @@
 using Avalonia.Controls;
 
-namespace RomForge.UI.Views;
-
-public partial class ProgressWindow : Window
+namespace RomForge.UI.Views
 {
-    public ProgressWindow()
+    public partial class ProgressWindow : Window
     {
-        InitializeComponent();
+        public ProgressWindow()
+        {
+            InitializeComponent();
+        }
     }
 }

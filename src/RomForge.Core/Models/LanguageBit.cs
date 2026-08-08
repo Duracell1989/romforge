@@ -1,3 +1,4 @@
-namespace RomForge.Core.Models;
-
-public readonly record struct LanguageBit(int BitIndex, string Label);
+namespace RomForge.Core.Models
+{
+    public readonly record struct LanguageBit(int BitIndex, string Label);
+}

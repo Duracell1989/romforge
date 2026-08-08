@@ -1,11 +1,12 @@
 using Avalonia.Controls;
 
-namespace RomForge.UI.Views;
-
-public partial class BatchProgressWindow : Window
+namespace RomForge.UI.Views
 {
-    public BatchProgressWindow()
+    public partial class BatchProgressWindow : Window
     {
-        InitializeComponent();
+        public BatchProgressWindow()
+        {
+            InitializeComponent();
+        }
     }
 }

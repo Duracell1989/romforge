@@ -6,65 +6,66 @@ using System.Threading.Tasks;
 using FluentResults;
 using Serilog;
 
-namespace RomForge.Core.IO;
-
-public sealed class HttpImageDownloader : IImageDownloader
+namespace RomForge.Core.IO
 {
-    private readonly HttpClient _http;
-    private readonly ILogger _logger;
-
-    public HttpImageDownloader(HttpClient http, ILogger logger)
+    public sealed class HttpImageDownloader : IImageDownloader
     {
-        ArgumentNullException.ThrowIfNull(logger);
-        _http = http;
-        _logger = logger.ForContext<HttpImageDownloader>();
-    }
+        private readonly HttpClient _http;
+        private readonly ILogger _logger;
 
-    public async Task<Result> DownloadImageAsync(
-        string imageUrl,
-        string destPath,
-        CancellationToken ct = default
-    )
-    {
-        try
+        public HttpImageDownloader(HttpClient http, ILogger logger)
         {
-            using HttpResponseMessage response = await _http.GetAsync(
-                new Uri(imageUrl),
-                HttpCompletionOption.ResponseHeadersRead,
-                ct
-            );
-            response.EnsureSuccessStatusCode();
+            ArgumentNullException.ThrowIfNull(logger);
+            _http = http;
+            _logger = logger.ForContext<HttpImageDownloader>();
+        }
 
-            Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
-            await using Stream src = await response.Content.ReadAsStreamAsync(ct);
-            await using FileStream dst = File.Create(destPath);
-            await src.CopyToAsync(dst, ct);
-            return Result.Ok();
-        }
-        catch (OperationCanceledException)
+        public async Task<Result> DownloadImageAsync(
+            string imageUrl,
+            string destPath,
+            CancellationToken ct = default
+        )
         {
-            TryDelete(destPath);
-            throw;
-        }
-        catch (Exception ex)
-            when (ex is HttpRequestException or IOException or UnauthorizedAccessException)
-        {
-            TryDelete(destPath);
-            _logger.Debug(ex, "Failed to download image {Url}", imageUrl);
-            return Result.Fail($"Image download failed: {ex.Message}");
-        }
-    }
+            try
+            {
+                using HttpResponseMessage response = await _http.GetAsync(
+                    new Uri(imageUrl),
+                    HttpCompletionOption.ResponseHeadersRead,
+                    ct
+                );
+                response.EnsureSuccessStatusCode();
 
-    private void TryDelete(string path)
-    {
-        try
-        {
-            if (File.Exists(path))
-                File.Delete(path);
+                Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
+                await using Stream src = await response.Content.ReadAsStreamAsync(ct);
+                await using FileStream dst = File.Create(destPath);
+                await src.CopyToAsync(dst, ct);
+                return Result.Ok();
+            }
+            catch (OperationCanceledException)
+            {
+                TryDelete(destPath);
+                throw;
+            }
+            catch (Exception ex)
+                when (ex is HttpRequestException or IOException or UnauthorizedAccessException)
+            {
+                TryDelete(destPath);
+                _logger.Debug(ex, "Failed to download image {Url}", imageUrl);
+                return Result.Fail($"Image download failed: {ex.Message}");
+            }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+
+        private void TryDelete(string path)
         {
-            _logger.Debug(ex, "Could not delete partial image {Path}", path);
+            try
+            {
+                if (File.Exists(path))
+                    File.Delete(path);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.Debug(ex, "Could not delete partial image {Path}", path);
+            }
         }
     }
 }

@@ -5,87 +5,88 @@ using System.IO.Hashing;
 using System.Linq;
 using System.Text;
 
-namespace RomForge.Core.Services;
-
-/// <summary>
-/// Manages the application's owned data directory under LocalApplicationData/RomForge/.
-/// </summary>
-public sealed class AppDataService
+namespace RomForge.Core.Services
 {
-    public string RootPath { get; }
-    public string DatsPath { get; }
-    public string ImgsPath { get; }
-    public string ConfigPath { get; }
-    public string CachesPath { get; }
-    public string TempPath { get; }
-
     /// <summary>
-    /// Holds working archives that could not be placed at their final destination and could not
-    /// be moved back next to it either (e.g. the destination volume went offline mid-operation).
-    /// Unlike <see cref="TempPath"/>, this directory is never swept, so a file placed here survives
-    /// until the user manually recovers it.
+    /// Manages the application's owned data directory under LocalApplicationData/RomForge/.
     /// </summary>
-    public string RecoveredPath { get; }
-    public string StatusDbPath { get; }
-
-    public AppDataService()
-        : this(
-            Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "RomForge"
-            )
-        ) { }
-
-    internal AppDataService(string rootPath)
+    public sealed class AppDataService
     {
-        RootPath = rootPath;
-        DatsPath = Path.Combine(RootPath, "dats");
-        ImgsPath = Path.Combine(RootPath, "imgs");
-        ConfigPath = Path.Combine(RootPath, "config");
-        CachesPath = Path.Combine(RootPath, "caches");
-        TempPath = Path.Combine(RootPath, "temp");
-        RecoveredPath = Path.Combine(RootPath, "recovered");
-        StatusDbPath = Path.Combine(RootPath, "status.db");
+        public string RootPath { get; }
+        public string DatsPath { get; }
+        public string ImgsPath { get; }
+        public string ConfigPath { get; }
+        public string CachesPath { get; }
+        public string TempPath { get; }
 
-        Directory.CreateDirectory(DatsPath);
-        Directory.CreateDirectory(ImgsPath);
-        Directory.CreateDirectory(ConfigPath);
-        Directory.CreateDirectory(CachesPath);
-        Directory.CreateDirectory(TempPath);
-        Directory.CreateDirectory(RecoveredPath);
+        /// <summary>
+        /// Holds working archives that could not be placed at their final destination and could not
+        /// be moved back next to it either (e.g. the destination volume went offline mid-operation).
+        /// Unlike <see cref="TempPath"/>, this directory is never swept, so a file placed here survives
+        /// until the user manually recovers it.
+        /// </summary>
+        public string RecoveredPath { get; }
+        public string StatusDbPath { get; }
 
-        CleanTemp();
-    }
+        public AppDataService()
+            : this(
+                Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "RomForge"
+                )
+            ) { }
 
-    /// <summary>
-    /// Returns the path to the scan cache file for a given ROM folder.
-    /// The filename is derived from a CRC32 hash of the folder path so it is
-    /// stable and unique per folder without encoding the full path on disk.
-    /// </summary>
-    public string GetScanCachePath(string romFolderPath)
-    {
-        uint hash = Crc32.HashToUInt32(Encoding.UTF8.GetBytes(romFolderPath));
-        return Path.Combine(CachesPath, $"{hash:X8}.json");
-    }
-
-    public IReadOnlyList<string> GetImportedDatPaths() =>
-        Directory
-            .GetFiles(DatsPath, "*.zip")
-            .Concat(Directory.GetFiles(DatsPath, "*.xml"))
-            .OrderBy(p => p)
-            .ToList<string>();
-
-    private void CleanTemp()
-    {
-        foreach (string file in Directory.GetFiles(TempPath))
+        internal AppDataService(string rootPath)
         {
-            try
+            RootPath = rootPath;
+            DatsPath = Path.Combine(RootPath, "dats");
+            ImgsPath = Path.Combine(RootPath, "imgs");
+            ConfigPath = Path.Combine(RootPath, "config");
+            CachesPath = Path.Combine(RootPath, "caches");
+            TempPath = Path.Combine(RootPath, "temp");
+            RecoveredPath = Path.Combine(RootPath, "recovered");
+            StatusDbPath = Path.Combine(RootPath, "status.db");
+
+            Directory.CreateDirectory(DatsPath);
+            Directory.CreateDirectory(ImgsPath);
+            Directory.CreateDirectory(ConfigPath);
+            Directory.CreateDirectory(CachesPath);
+            Directory.CreateDirectory(TempPath);
+            Directory.CreateDirectory(RecoveredPath);
+
+            CleanTemp();
+        }
+
+        /// <summary>
+        /// Returns the path to the scan cache file for a given ROM folder.
+        /// The filename is derived from a CRC32 hash of the folder path so it is
+        /// stable and unique per folder without encoding the full path on disk.
+        /// </summary>
+        public string GetScanCachePath(string romFolderPath)
+        {
+            uint hash = Crc32.HashToUInt32(Encoding.UTF8.GetBytes(romFolderPath));
+            return Path.Combine(CachesPath, $"{hash:X8}.json");
+        }
+
+        public IReadOnlyList<string> GetImportedDatPaths() =>
+            Directory
+                .GetFiles(DatsPath, "*.zip")
+                .Concat(Directory.GetFiles(DatsPath, "*.xml"))
+                .OrderBy(p => p)
+                .ToList<string>();
+
+        private void CleanTemp()
+        {
+            foreach (string file in Directory.GetFiles(TempPath))
             {
-                File.Delete(file);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                // orphan from a previous crash — skip
+                try
+                {
+                    File.Delete(file);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // orphan from a previous crash — skip
+                }
             }
         }
     }

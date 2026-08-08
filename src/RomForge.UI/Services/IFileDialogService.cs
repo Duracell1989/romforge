@@ -1,10 +1,11 @@
 using System.Threading.Tasks;
 
-namespace RomForge.UI.Services;
-
-public interface IFileDialogService
+namespace RomForge.UI.Services
 {
-    Task<string?> PickDatFileAsync();
-    Task<string?> PickRomFolderAsync();
-    Task<string?> PickUnverifiedDestinationAsync();
+    public interface IFileDialogService
+    {
+        Task<string?> PickDatFileAsync();
+        Task<string?> PickRomFolderAsync();
+        Task<string?> PickUnverifiedDestinationAsync();
+    }
 }

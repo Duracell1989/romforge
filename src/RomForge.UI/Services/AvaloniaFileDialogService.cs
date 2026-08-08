@@ -1,59 +1,58 @@
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 
-namespace RomForge.UI.Services;
-
-internal sealed class AvaloniaFileDialogService : IFileDialogService
+namespace RomForge.UI.Services
 {
-    private readonly Func<Window?> _getWindow;
-
-    private static readonly FilePickerFileType DatFileType = new("OfflineList DAT")
+    internal sealed class AvaloniaFileDialogService : IFileDialogService
     {
-        Patterns = ["*.zip", "*.xml"],
-    };
+        private readonly Func<Window?> _getWindow;
 
-    public AvaloniaFileDialogService(Func<Window?> getWindow)
-    {
-        _getWindow = getWindow;
-    }
+        private static readonly FilePickerFileType DatFileType = new("OfflineList DAT")
+        {
+            Patterns = ["*.zip", "*.xml"],
+        };
 
-    public async Task<string?> PickDatFileAsync()
-    {
-        Window? topLevel = _getWindow();
-        if (topLevel is null)
-            return null;
+        public AvaloniaFileDialogService(Func<Window?> getWindow)
+        {
+            _getWindow = getWindow;
+        }
 
-        var files = await topLevel.StorageProvider.OpenFilePickerAsync(
-            new FilePickerOpenOptions
-            {
-                Title = "Open DAT File",
-                AllowMultiple = false,
-                FileTypeFilter = [DatFileType],
-            }
-        );
+        public async Task<string?> PickDatFileAsync()
+        {
+            var topLevel = _getWindow();
+            if (topLevel is null)
+                return null;
 
-        return files.Count == 1 ? files[0].Path.LocalPath : null;
-    }
+            var files = await topLevel.StorageProvider.OpenFilePickerAsync(
+                new FilePickerOpenOptions
+                {
+                    Title = "Open DAT File",
+                    AllowMultiple = false,
+                    FileTypeFilter = [DatFileType],
+                }
+            );
 
-    public Task<string?> PickRomFolderAsync() => PickFolderAsync("Select ROM Folder");
+            return files.Count == 1 ? files[0].Path.LocalPath : null;
+        }
 
-    public Task<string?> PickUnverifiedDestinationAsync() =>
-        PickFolderAsync("Move Unverified Files To…");
+        public Task<string?> PickRomFolderAsync() => PickFolderAsync("Select ROM Folder");
 
-    private async Task<string?> PickFolderAsync(string title)
-    {
-        var topLevel = _getWindow();
-        if (topLevel is null)
-            return null;
+        public Task<string?> PickUnverifiedDestinationAsync() =>
+            PickFolderAsync("Move Unverified Files To…");
 
-        IReadOnlyList<IStorageFolder> folders =
-            await topLevel.StorageProvider.OpenFolderPickerAsync(
+        private async Task<string?> PickFolderAsync(string title)
+        {
+            var topLevel = _getWindow();
+            if (topLevel is null)
+                return null;
+
+            var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(
                 new FolderPickerOpenOptions { Title = title, AllowMultiple = false }
             );
 
-        return folders.Count == 1 ? folders[0].Path.LocalPath : null;
+            return folders.Count == 1 ? folders[0].Path.LocalPath : null;
+        }
     }
 }

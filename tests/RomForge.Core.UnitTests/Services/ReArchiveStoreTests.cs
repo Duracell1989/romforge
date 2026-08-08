@@ -7,132 +7,133 @@ using NUnit.Framework;
 using RomForge.Core.Services;
 using Serilog;
 
-namespace RomForge.Core.UnitTests.Services;
-
-[TestOf(typeof(ReArchiveStore))]
-public sealed class ReArchiveStoreTests
+namespace RomForge.Core.UnitTests.Services
 {
-    private string _tempDir = string.Empty;
-    private AppDataService _appData = null!;
-    private ReArchiveStore _store = null!;
-
-    [SetUp]
-    public void SetUp()
+    [TestOf(typeof(ReArchiveStore))]
+    public sealed class ReArchiveStoreTests
     {
-        _tempDir = Path.Combine(Path.GetTempPath(), System.Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_tempDir);
-        _appData = new AppDataService(_tempDir);
-        _store = new ReArchiveStore(_appData, new LoggerConfiguration().CreateLogger());
-    }
+        private string _tempDir = string.Empty;
+        private AppDataService _appData = null!;
+        private ReArchiveStore _store = null!;
 
-    [TearDown]
-    public void TearDown() => Directory.Delete(_tempDir, recursive: true);
-
-    [Test]
-    public async Task InitializeAsync_Succeeds_WithoutError()
-    {
-        await _store.Invoking(s => s.InitializeAsync()).Should().NotThrowAsync();
-    }
-
-    [Test]
-    public async Task InitializeAsync_EnablesWalJournalMode()
-    {
-        // WAL lets concurrent re-archive tasks share the status DB without a writer being
-        // starved into a swallowed SQLITE_BUSY that would drop a persisted re-archive mark.
-        await _store.InitializeAsync();
-
-        string journalMode = await ReadJournalModeAsync(_appData.StatusDbPath);
-
-        journalMode.Should().Be("wal");
-    }
-
-    private static async Task<string> ReadJournalModeAsync(string dbPath)
-    {
-        string connectionString = new SqliteConnectionStringBuilder
+        [SetUp]
+        public void SetUp()
         {
-            DataSource = dbPath,
-        }.ToString();
-        await using SqliteConnection conn = new SqliteConnection(connectionString);
-        await conn.OpenAsync();
-        await using SqliteCommand cmd = conn.CreateCommand();
-        cmd.CommandText = "PRAGMA journal_mode";
-        object? result = await cmd.ExecuteScalarAsync();
-        return (string)result!;
-    }
+            _tempDir = Path.Combine(Path.GetTempPath(), System.Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(_tempDir);
+            _appData = new AppDataService(_tempDir);
+            _store = new ReArchiveStore(_appData, new LoggerConfiguration().CreateLogger());
+        }
 
-    [Test]
-    public async Task GetReArchivedReleasesAsync_BeforeInit_ReturnsEmpty()
-    {
-        HashSet<int> result = await _store.GetReArchivedReleasesAsync("TestDat");
+        [TearDown]
+        public void TearDown() => Directory.Delete(_tempDir, recursive: true);
 
-        result.Should().BeEmpty();
-    }
+        [Test]
+        public async Task InitializeAsync_Succeeds_WithoutError()
+        {
+            await _store.Invoking(s => s.InitializeAsync()).Should().NotThrowAsync();
+        }
 
-    [Test]
-    public async Task GetReArchivedReleasesAsync_AfterInit_NoData_ReturnsEmpty()
-    {
-        await _store.InitializeAsync();
+        [Test]
+        public async Task InitializeAsync_EnablesWalJournalMode()
+        {
+            // WAL lets concurrent re-archive tasks share the status DB without a writer being
+            // starved into a swallowed SQLITE_BUSY that would drop a persisted re-archive mark.
+            await _store.InitializeAsync();
 
-        HashSet<int> result = await _store.GetReArchivedReleasesAsync("TestDat");
+            string journalMode = await ReadJournalModeAsync(_appData.StatusDbPath);
 
-        result.Should().BeEmpty();
-    }
+            journalMode.Should().Be("wal");
+        }
 
-    [Test]
-    public async Task MarkAndGet_RoundTrips()
-    {
-        await _store.InitializeAsync();
+        private static async Task<string> ReadJournalModeAsync(string dbPath)
+        {
+            string connectionString = new SqliteConnectionStringBuilder
+            {
+                DataSource = dbPath,
+            }.ToString();
+            await using SqliteConnection conn = new SqliteConnection(connectionString);
+            await conn.OpenAsync();
+            await using SqliteCommand cmd = conn.CreateCommand();
+            cmd.CommandText = "PRAGMA journal_mode";
+            object? result = await cmd.ExecuteScalarAsync();
+            return (string)result!;
+        }
 
-        await _store.MarkAsync("TestDat", 5);
-        HashSet<int> result = await _store.GetReArchivedReleasesAsync("TestDat");
+        [Test]
+        public async Task GetReArchivedReleasesAsync_BeforeInit_ReturnsEmpty()
+        {
+            HashSet<int> result = await _store.GetReArchivedReleasesAsync("TestDat");
 
-        result.Should().Contain(5);
-    }
+            result.Should().BeEmpty();
+        }
 
-    [Test]
-    public async Task MarkAsync_DuplicateKey_InsertOrReplace_ReturnsSingleEntry()
-    {
-        await _store.InitializeAsync();
+        [Test]
+        public async Task GetReArchivedReleasesAsync_AfterInit_NoData_ReturnsEmpty()
+        {
+            await _store.InitializeAsync();
 
-        await _store.MarkAsync("TestDat", 5);
-        await _store.MarkAsync("TestDat", 5);
-        HashSet<int> result = await _store.GetReArchivedReleasesAsync("TestDat");
+            HashSet<int> result = await _store.GetReArchivedReleasesAsync("TestDat");
 
-        result.Should().HaveCount(1);
-        result.Should().Contain(5);
-    }
+            result.Should().BeEmpty();
+        }
 
-    [Test]
-    public async Task GetReArchivedReleasesAsync_MultipleDats_IsolatedPerDat()
-    {
-        await _store.InitializeAsync();
+        [Test]
+        public async Task MarkAndGet_RoundTrips()
+        {
+            await _store.InitializeAsync();
 
-        await _store.MarkAsync("DatA", 1);
-        await _store.MarkAsync("DatB", 2);
+            await _store.MarkAsync("TestDat", 5);
+            HashSet<int> result = await _store.GetReArchivedReleasesAsync("TestDat");
 
-        HashSet<int> resultA = await _store.GetReArchivedReleasesAsync("DatA");
-        HashSet<int> resultB = await _store.GetReArchivedReleasesAsync("DatB");
+            result.Should().Contain(5);
+        }
 
-        resultA.Should().Contain(1);
-        resultA.Should().NotContain(2);
-        resultB.Should().Contain(2);
-        resultB.Should().NotContain(1);
-    }
+        [Test]
+        public async Task MarkAsync_DuplicateKey_InsertOrReplace_ReturnsSingleEntry()
+        {
+            await _store.InitializeAsync();
 
-    [Test]
-    public async Task MarkAndGet_MultipleReleases_ReturnsAll()
-    {
-        await _store.InitializeAsync();
+            await _store.MarkAsync("TestDat", 5);
+            await _store.MarkAsync("TestDat", 5);
+            HashSet<int> result = await _store.GetReArchivedReleasesAsync("TestDat");
 
-        await _store.MarkAsync("TestDat", 1);
-        await _store.MarkAsync("TestDat", 7);
-        await _store.MarkAsync("TestDat", 42);
+            result.Should().HaveCount(1);
+            result.Should().Contain(5);
+        }
 
-        HashSet<int> result = await _store.GetReArchivedReleasesAsync("TestDat");
+        [Test]
+        public async Task GetReArchivedReleasesAsync_MultipleDats_IsolatedPerDat()
+        {
+            await _store.InitializeAsync();
 
-        result.Should().HaveCount(3);
-        result.Should().Contain(1);
-        result.Should().Contain(7);
-        result.Should().Contain(42);
+            await _store.MarkAsync("DatA", 1);
+            await _store.MarkAsync("DatB", 2);
+
+            HashSet<int> resultA = await _store.GetReArchivedReleasesAsync("DatA");
+            HashSet<int> resultB = await _store.GetReArchivedReleasesAsync("DatB");
+
+            resultA.Should().Contain(1);
+            resultA.Should().NotContain(2);
+            resultB.Should().Contain(2);
+            resultB.Should().NotContain(1);
+        }
+
+        [Test]
+        public async Task MarkAndGet_MultipleReleases_ReturnsAll()
+        {
+            await _store.InitializeAsync();
+
+            await _store.MarkAsync("TestDat", 1);
+            await _store.MarkAsync("TestDat", 7);
+            await _store.MarkAsync("TestDat", 42);
+
+            HashSet<int> result = await _store.GetReArchivedReleasesAsync("TestDat");
+
+            result.Should().HaveCount(3);
+            result.Should().Contain(1);
+            result.Should().Contain(7);
+            result.Should().Contain(42);
+        }
     }
 }

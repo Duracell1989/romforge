@@ -8,76 +8,78 @@ using FluentResults;
 using RomForge.Core.Models;
 using RomForge.Core.Parsers;
 
-namespace RomForge.Core.IO;
-
-public sealed class LocalDatReader : IDatReader
+namespace RomForge.Core.IO
 {
-    private readonly string _filePath;
-
-    public LocalDatReader(string filePath)
+    public sealed class LocalDatReader : IDatReader
     {
-        _filePath = filePath;
-    }
+        private readonly string _filePath;
 
-    public async Task<Result<DatFile>> ReadAsync(CancellationToken cancellationToken = default)
-    {
-        if (!File.Exists(_filePath))
-            return Result.Fail($"DAT file not found: {_filePath}");
-
-        try
+        public LocalDatReader(string filePath)
         {
-            var xmlStream = IsZip(_filePath)
-                ? await ExtractXmlFromZipAsync(_filePath, cancellationToken).ConfigureAwait(false)
-                : File.OpenRead(_filePath);
+            _filePath = filePath;
+        }
 
-            await using (xmlStream)
+        public async Task<Result<DatFile>> ReadAsync(CancellationToken cancellationToken = default)
+        {
+            if (!File.Exists(_filePath))
+                return Result.Fail($"DAT file not found: {_filePath}");
+
+            try
             {
-                var datFile = await DatParser
-                    .ParseAsync(xmlStream, cancellationToken)
-                    .ConfigureAwait(false);
-                return Result.Ok(datFile);
+                var xmlStream = IsZip(_filePath)
+                    ? await ExtractXmlFromZipAsync(_filePath, cancellationToken)
+                        .ConfigureAwait(false)
+                    : File.OpenRead(_filePath);
+
+                await using (xmlStream)
+                {
+                    var datFile = await DatParser
+                        .ParseAsync(xmlStream, cancellationToken)
+                        .ConfigureAwait(false);
+                    return Result.Ok(datFile);
+                }
+            }
+            catch (Exception ex)
+                when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+            {
+                return Result.Fail(new ExceptionalError(ex));
             }
         }
-        catch (Exception ex)
-            when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+
+        private static bool IsZip(string path)
         {
-            return Result.Fail(new ExceptionalError(ex));
+            Span<byte> header = stackalloc byte[4];
+            using var fs = File.OpenRead(path);
+            var read = fs.Read(header);
+            // PK signature: 0x50 0x4B 0x03 0x04
+            return read >= 4
+                && header[0] == 0x50
+                && header[1] == 0x4B
+                && header[2] == 0x03
+                && header[3] == 0x04;
         }
-    }
 
-    private static bool IsZip(string path)
-    {
-        Span<byte> header = stackalloc byte[4];
-        using var fs = File.OpenRead(path);
-        var read = fs.Read(header);
-        // PK signature: 0x50 0x4B 0x03 0x04
-        return read >= 4
-            && header[0] == 0x50
-            && header[1] == 0x4B
-            && header[2] == 0x03
-            && header[3] == 0x04;
-    }
-
-    private static async Task<Stream> ExtractXmlFromZipAsync(
-        string path,
-        CancellationToken cancellationToken
-    )
-    {
-        await using ZipArchive archive = await ZipFile
-            .OpenReadAsync(path, cancellationToken)
-            .ConfigureAwait(false);
-        ZipArchiveEntry? entry = archive.Entries.FirstOrDefault(e => !e.FullName.EndsWith('/'));
-        if (entry is null)
-            throw new InvalidDataException($"ZIP archive contains no entries: {path}");
-
-        MemoryStream ms = new MemoryStream();
-        await using (
-            Stream entryStream = await entry.OpenAsync(cancellationToken).ConfigureAwait(false)
+        private static async Task<Stream> ExtractXmlFromZipAsync(
+            string path,
+            CancellationToken cancellationToken
         )
         {
-            await entryStream.CopyToAsync(ms, cancellationToken).ConfigureAwait(false);
+            await using ZipArchive archive = await ZipFile
+                .OpenReadAsync(path, cancellationToken)
+                .ConfigureAwait(false);
+            ZipArchiveEntry? entry = archive.Entries.FirstOrDefault(e => !e.FullName.EndsWith('/'));
+            if (entry is null)
+                throw new InvalidDataException($"ZIP archive contains no entries: {path}");
+
+            MemoryStream ms = new MemoryStream();
+            await using (
+                Stream entryStream = await entry.OpenAsync(cancellationToken).ConfigureAwait(false)
+            )
+            {
+                await entryStream.CopyToAsync(ms, cancellationToken).ConfigureAwait(false);
+            }
+            ms.Seek(0, SeekOrigin.Begin);
+            return ms;
         }
-        ms.Seek(0, SeekOrigin.Begin);
-        return ms;
     }
 }

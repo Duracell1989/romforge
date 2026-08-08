@@ -10,76 +10,77 @@ using RomForge.Core.IntegrationTests.Helpers;
 using RomForge.Core.IO;
 using Serilog;
 
-namespace RomForge.Core.IntegrationTests.IO;
-
-[TestOf(typeof(HttpImageDownloader))]
-public sealed class HttpImageDownloaderIntegrationTests
+namespace RomForge.Core.IntegrationTests.IO
 {
-    private string _tempDir = string.Empty;
-
-    [SetUp]
-    public void SetUp()
+    [TestOf(typeof(HttpImageDownloader))]
+    public sealed class HttpImageDownloaderIntegrationTests
     {
-        _tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_tempDir);
-    }
+        private string _tempDir = string.Empty;
 
-    [TearDown]
-    public void TearDown() => Directory.Delete(_tempDir, recursive: true);
+        [SetUp]
+        public void SetUp()
+        {
+            _tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(_tempDir);
+        }
 
-    private static HttpImageDownloader MakeDownloader(HttpStatusCode statusCode, byte[] content)
-    {
-        FakeHttpMessageHandler handler = new FakeHttpMessageHandler(statusCode, content);
-        HttpClient client = new HttpClient(handler);
-        return new HttpImageDownloader(client, new LoggerConfiguration().CreateLogger());
-    }
+        [TearDown]
+        public void TearDown() => Directory.Delete(_tempDir, recursive: true);
 
-    [Test]
-    public async Task DownloadImageAsync_Success_WritesFileAndCreatesDirectories()
-    {
-        byte[] png = [0x89, 0x50, 0x4E, 0x47];
-        HttpImageDownloader downloader = MakeDownloader(HttpStatusCode.OK, png);
-        string dest = Path.Combine(_tempDir, "TestDat", "1-500", "1a.png");
+        private static HttpImageDownloader MakeDownloader(HttpStatusCode statusCode, byte[] content)
+        {
+            FakeHttpMessageHandler handler = new FakeHttpMessageHandler(statusCode, content);
+            HttpClient client = new HttpClient(handler);
+            return new HttpImageDownloader(client, new LoggerConfiguration().CreateLogger());
+        }
 
-        FluentResults.Result result = await downloader.DownloadImageAsync(
-            "http://host/imgs/1-500/1a.png",
-            dest,
-            CancellationToken.None
-        );
+        [Test]
+        public async Task DownloadImageAsync_Success_WritesFileAndCreatesDirectories()
+        {
+            byte[] png = [0x89, 0x50, 0x4E, 0x47];
+            HttpImageDownloader downloader = MakeDownloader(HttpStatusCode.OK, png);
+            string dest = Path.Combine(_tempDir, "TestDat", "1-500", "1a.png");
 
-        result.IsSuccess.Should().BeTrue();
-        File.Exists(dest).Should().BeTrue();
-        (await File.ReadAllBytesAsync(dest)).Should().Equal(png);
-    }
+            FluentResults.Result result = await downloader.DownloadImageAsync(
+                "http://host/imgs/1-500/1a.png",
+                dest,
+                CancellationToken.None
+            );
 
-    [Test]
-    public async Task DownloadImageAsync_NotFound_ReturnsFailedAndLeavesNoFile()
-    {
-        HttpImageDownloader downloader = MakeDownloader(HttpStatusCode.NotFound, []);
-        string dest = Path.Combine(_tempDir, "TestDat", "1-500", "1b.png");
+            result.IsSuccess.Should().BeTrue();
+            File.Exists(dest).Should().BeTrue();
+            (await File.ReadAllBytesAsync(dest)).Should().Equal(png);
+        }
 
-        FluentResults.Result result = await downloader.DownloadImageAsync(
-            "http://host/imgs/1-500/1b.png",
-            dest,
-            CancellationToken.None
-        );
+        [Test]
+        public async Task DownloadImageAsync_NotFound_ReturnsFailedAndLeavesNoFile()
+        {
+            HttpImageDownloader downloader = MakeDownloader(HttpStatusCode.NotFound, []);
+            string dest = Path.Combine(_tempDir, "TestDat", "1-500", "1b.png");
 
-        result.IsFailed.Should().BeTrue();
-        File.Exists(dest).Should().BeFalse();
-    }
+            FluentResults.Result result = await downloader.DownloadImageAsync(
+                "http://host/imgs/1-500/1b.png",
+                dest,
+                CancellationToken.None
+            );
 
-    [Test]
-    public async Task DownloadImageAsync_Cancellation_ThrowsAndLeavesNoFile()
-    {
-        using CancellationTokenSource cts = new CancellationTokenSource();
-        await cts.CancelAsync();
-        HttpImageDownloader downloader = MakeDownloader(HttpStatusCode.OK, [0x00]);
-        string dest = Path.Combine(_tempDir, "TestDat", "1-500", "1a.png");
+            result.IsFailed.Should().BeTrue();
+            File.Exists(dest).Should().BeFalse();
+        }
 
-        Func<Task> act = () =>
-            downloader.DownloadImageAsync("http://host/img.png", dest, cts.Token);
+        [Test]
+        public async Task DownloadImageAsync_Cancellation_ThrowsAndLeavesNoFile()
+        {
+            using CancellationTokenSource cts = new CancellationTokenSource();
+            await cts.CancelAsync();
+            HttpImageDownloader downloader = MakeDownloader(HttpStatusCode.OK, [0x00]);
+            string dest = Path.Combine(_tempDir, "TestDat", "1-500", "1a.png");
 
-        await act.Should().ThrowAsync<OperationCanceledException>();
-        File.Exists(dest).Should().BeFalse();
+            Func<Task> act = () =>
+                downloader.DownloadImageAsync("http://host/img.png", dest, cts.Token);
+
+            await act.Should().ThrowAsync<OperationCanceledException>();
+            File.Exists(dest).Should().BeFalse();
+        }
     }
 }

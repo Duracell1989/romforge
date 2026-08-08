@@ -1,15 +1,16 @@
 using System;
 
-namespace RomForge.Core.IntegrationTests.Helpers;
-
-internal sealed class SyncProgress<T> : IProgress<T>
+namespace RomForge.Core.IntegrationTests.Helpers
 {
-    private readonly Action<T> _callback;
-
-    internal SyncProgress(Action<T> callback)
+    internal sealed class SyncProgress<T> : IProgress<T>
     {
-        _callback = callback;
-    }
+        private readonly Action<T> _callback;
 
-    public void Report(T value) => _callback(value);
+        internal SyncProgress(Action<T> callback)
+        {
+            _callback = callback;
+        }
+
+        public void Report(T value) => _callback(value);
+    }
 }

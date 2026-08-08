@@ -5,121 +5,122 @@ using NUnit.Framework;
 using RomForge.Core.IO;
 using RomForge.Core.Models;
 
-namespace RomForge.Core.UnitTests.IO;
-
-[TestOf(typeof(ImagePathResolver))]
-public sealed class ImagePathResolverTests
+namespace RomForge.Core.UnitTests.IO
 {
-    private string _tempDir = string.Empty;
-
-    [SetUp]
-    public void SetUp()
+    [TestOf(typeof(ImagePathResolver))]
+    public sealed class ImagePathResolverTests
     {
-        _tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_tempDir);
-    }
+        private string _tempDir = string.Empty;
 
-    [TearDown]
-    public void TearDown() => Directory.Delete(_tempDir, recursive: true);
+        [SetUp]
+        public void SetUp()
+        {
+            _tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(_tempDir);
+        }
 
-    [TestCase(1, "1-500")]
-    [TestCase(500, "1-500")]
-    [TestCase(501, "501-1000")]
-    [TestCase(1000, "501-1000")]
-    [TestCase(1001, "1001-1500")]
-    [TestCase(2500, "2001-2500")]
-    public void GetSubfolder_ReturnsCorrectRange(int imageNumber, string expected)
-    {
-        ImagePathResolver.GetSubfolder(imageNumber).Should().Be(expected);
-    }
+        [TearDown]
+        public void TearDown() => Directory.Delete(_tempDir, recursive: true);
 
-    [Test]
-    public void ResolveIm1Path_ImageNumberZero_ReturnsNull()
-    {
-        DatHeader header = new() { DatName = "TestDat" };
+        [TestCase(1, "1-500")]
+        [TestCase(500, "1-500")]
+        [TestCase(501, "501-1000")]
+        [TestCase(1000, "501-1000")]
+        [TestCase(1001, "1001-1500")]
+        [TestCase(2500, "2001-2500")]
+        public void GetSubfolder_ReturnsCorrectRange(int imageNumber, string expected)
+        {
+            ImagePathResolver.GetSubfolder(imageNumber).Should().Be(expected);
+        }
 
-        string? result = ImagePathResolver.ResolveIm1Path(_tempDir, header, 0);
+        [Test]
+        public void ResolveIm1Path_ImageNumberZero_ReturnsNull()
+        {
+            DatHeader header = new() { DatName = "TestDat" };
 
-        result.Should().BeNull();
-    }
+            string? result = ImagePathResolver.ResolveIm1Path(_tempDir, header, 0);
 
-    [Test]
-    public void ResolveIm1Path_FileExists_ReturnsFullPath()
-    {
-        DatHeader header = new() { DatName = "TestDat" };
-        string expectedPath = CreateImageFile("TestDat", "1-500", "1a.png");
+            result.Should().BeNull();
+        }
 
-        string? result = ImagePathResolver.ResolveIm1Path(_tempDir, header, 1);
+        [Test]
+        public void ResolveIm1Path_FileExists_ReturnsFullPath()
+        {
+            DatHeader header = new() { DatName = "TestDat" };
+            string expectedPath = CreateImageFile("TestDat", "1-500", "1a.png");
 
-        result.Should().Be(expectedPath);
-    }
+            string? result = ImagePathResolver.ResolveIm1Path(_tempDir, header, 1);
 
-    [Test]
-    public void ResolveIm2Path_FileExists_ReturnsFullPath()
-    {
-        DatHeader header = new() { DatName = "TestDat" };
-        string expectedPath = CreateImageFile("TestDat", "1-500", "1b.png");
+            result.Should().Be(expectedPath);
+        }
 
-        string? result = ImagePathResolver.ResolveIm2Path(_tempDir, header, 1);
+        [Test]
+        public void ResolveIm2Path_FileExists_ReturnsFullPath()
+        {
+            DatHeader header = new() { DatName = "TestDat" };
+            string expectedPath = CreateImageFile("TestDat", "1-500", "1b.png");
 
-        result.Should().Be(expectedPath);
-    }
+            string? result = ImagePathResolver.ResolveIm2Path(_tempDir, header, 1);
 
-    [Test]
-    public void ResolveIm1Path_FileMissing_ReturnsNull()
-    {
-        DatHeader header = new() { DatName = "TestDat" };
+            result.Should().Be(expectedPath);
+        }
 
-        string? result = ImagePathResolver.ResolveIm1Path(_tempDir, header, 1);
+        [Test]
+        public void ResolveIm1Path_FileMissing_ReturnsNull()
+        {
+            DatHeader header = new() { DatName = "TestDat" };
 
-        result.Should().BeNull();
-    }
+            string? result = ImagePathResolver.ResolveIm1Path(_tempDir, header, 1);
 
-    [Test]
-    public void ResolveIm1Path_ImFolderOverridesDatName()
-    {
-        DatHeader header = new() { DatName = "WrongFolder", ImFolder = "RightFolder" };
-        string expectedPath = CreateImageFile("RightFolder", "1-500", "1a.png");
+            result.Should().BeNull();
+        }
 
-        string? result = ImagePathResolver.ResolveIm1Path(_tempDir, header, 1);
+        [Test]
+        public void ResolveIm1Path_ImFolderOverridesDatName()
+        {
+            DatHeader header = new() { DatName = "WrongFolder", ImFolder = "RightFolder" };
+            string expectedPath = CreateImageFile("RightFolder", "1-500", "1a.png");
 
-        result.Should().Be(expectedPath);
-    }
+            string? result = ImagePathResolver.ResolveIm1Path(_tempDir, header, 1);
 
-    [Test]
-    public void BuildRelativeLocalPath_UsesDatNameFolderSubfolderAndSuffix()
-    {
-        DatHeader header = new() { DatName = "TestDat" };
+            result.Should().Be(expectedPath);
+        }
 
-        string result = ImagePathResolver.BuildRelativeLocalPath(header, 501, "b");
+        [Test]
+        public void BuildRelativeLocalPath_UsesDatNameFolderSubfolderAndSuffix()
+        {
+            DatHeader header = new() { DatName = "TestDat" };
 
-        result.Should().Be(Path.Combine("TestDat", "501-1000", "501b.png"));
-    }
+            string result = ImagePathResolver.BuildRelativeLocalPath(header, 501, "b");
 
-    [Test]
-    public void BuildRelativeLocalPath_ImFolderOverridesDatName()
-    {
-        DatHeader header = new() { DatName = "WrongFolder", ImFolder = "RightFolder" };
+            result.Should().Be(Path.Combine("TestDat", "501-1000", "501b.png"));
+        }
 
-        string result = ImagePathResolver.BuildRelativeLocalPath(header, 1, "a");
+        [Test]
+        public void BuildRelativeLocalPath_ImFolderOverridesDatName()
+        {
+            DatHeader header = new() { DatName = "WrongFolder", ImFolder = "RightFolder" };
 
-        result.Should().Be(Path.Combine("RightFolder", "1-500", "1a.png"));
-    }
+            string result = ImagePathResolver.BuildRelativeLocalPath(header, 1, "a");
 
-    [Test]
-    public void BuildRelativeUrlPath_OmitsFolderAndUsesForwardSlashes()
-    {
-        string result = ImagePathResolver.BuildRelativeUrlPath(501, "a");
+            result.Should().Be(Path.Combine("RightFolder", "1-500", "1a.png"));
+        }
 
-        result.Should().Be("501-1000/501a.png");
-    }
+        [Test]
+        public void BuildRelativeUrlPath_OmitsFolderAndUsesForwardSlashes()
+        {
+            string result = ImagePathResolver.BuildRelativeUrlPath(501, "a");
 
-    private string CreateImageFile(string folderName, string subFolder, string fileName)
-    {
-        string dir = Path.Combine(_tempDir, folderName, subFolder);
-        Directory.CreateDirectory(dir);
-        string path = Path.Combine(dir, fileName);
-        File.WriteAllBytes(path, [0x89, 0x50, 0x4E, 0x47]); // PNG magic
-        return path;
+            result.Should().Be("501-1000/501a.png");
+        }
+
+        private string CreateImageFile(string folderName, string subFolder, string fileName)
+        {
+            string dir = Path.Combine(_tempDir, folderName, subFolder);
+            Directory.CreateDirectory(dir);
+            string path = Path.Combine(dir, fileName);
+            File.WriteAllBytes(path, [0x89, 0x50, 0x4E, 0x47]); // PNG magic
+            return path;
+        }
     }
 }

@@ -5,34 +5,35 @@ using System.Threading.Tasks;
 using FluentResults;
 using Serilog;
 
-namespace RomForge.Core.IO;
-
-public sealed class HttpDatUpdateChecker : IDatUpdateChecker
+namespace RomForge.Core.IO
 {
-    private readonly HttpClient _http;
-    private readonly ILogger _logger;
-
-    public HttpDatUpdateChecker(HttpClient http, ILogger logger)
+    public sealed class HttpDatUpdateChecker : IDatUpdateChecker
     {
-        ArgumentNullException.ThrowIfNull(logger);
-        _http = http;
-        _logger = logger.ForContext<HttpDatUpdateChecker>();
-    }
+        private readonly HttpClient _http;
+        private readonly ILogger _logger;
 
-    public async Task<Result<string>> FetchLatestVersionAsync(
-        string versionUrl,
-        CancellationToken ct = default
-    )
-    {
-        try
+        public HttpDatUpdateChecker(HttpClient http, ILogger logger)
         {
-            var body = await _http.GetStringAsync(new Uri(versionUrl), ct);
-            return Result.Ok(body.Trim());
+            ArgumentNullException.ThrowIfNull(logger);
+            _http = http;
+            _logger = logger.ForContext<HttpDatUpdateChecker>();
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+
+        public async Task<Result<string>> FetchLatestVersionAsync(
+            string versionUrl,
+            CancellationToken ct = default
+        )
         {
-            _logger.Warning(ex, "Failed to fetch DAT version from {Url}", versionUrl);
-            return Result.Fail($"Could not reach update server: {ex.Message}");
+            try
+            {
+                var body = await _http.GetStringAsync(new Uri(versionUrl), ct);
+                return Result.Ok(body.Trim());
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.Warning(ex, "Failed to fetch DAT version from {Url}", versionUrl);
+                return Result.Fail($"Could not reach update server: {ex.Message}");
+            }
         }
     }
 }

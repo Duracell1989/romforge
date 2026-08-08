@@ -1,11 +1,12 @@
 using Avalonia.Controls;
 
-namespace RomForge.UI.Views;
-
-public partial class SettingsWindow : Window
+namespace RomForge.UI.Views
 {
-    public SettingsWindow()
+    public partial class SettingsWindow : Window
     {
-        InitializeComponent();
+        public SettingsWindow()
+        {
+            InitializeComponent();
+        }
     }
 }
