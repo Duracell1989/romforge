@@ -4,6 +4,14 @@ All notable changes to RomForge are documented here. This project follows [Seman
 
 ## [Unreleased]
 
+## [1.5.3] — 2026-08-08
+
+### Fixed
+
+- Cancelling a bulk re-archive no longer crashes in-flight files with a `NullReferenceException`
+- "Rename All" no longer runs its work before the progress window appears, then flashes the window closed instantly
+- Re-archiving large ROMs (e.g. 3DS) concurrently is now also throttled by estimated memory usage, not just CPU core count, to prevent exhausting system memory
+
 ## [1.5.2] — 2026-07-31
 
 ### Fixed
