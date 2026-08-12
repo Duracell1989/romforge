@@ -99,11 +99,19 @@ namespace RomForge.UI.UnitTests.ViewModels
                 Directory.Delete(dir, recursive: true);
         }
 
-        private MainWindowVM MakeVM(Mock<IArchiveCompressor>? compressorMock = null)
+        private MainWindowVM MakeVM(
+            Mock<IArchiveCompressor>? compressorMock = null,
+            WorkingSetBudgetGate? memoryGate = null
+        )
         {
             ILogger logger = new LoggerConfiguration().CreateLogger();
             AppDataService appData = new AppDataService(_tempDir);
             IArchiveCompressor compressor = compressorMock?.Object ?? _compressor.Object;
+            // One gate shared by the VM and both services, matching App.axaml.cs's DI singleton —
+            // separate instances here would each get their own full budget, which is precisely the
+            // wiring the shared-gate change exists to eliminate.
+            WorkingSetBudgetGate sharedGate =
+                memoryGate ?? new WorkingSetBudgetGate(1_000_000_000_000L);
             ScanResultStore scanResultStore = new ScanResultStore(appData, logger);
             ReArchiveStore reArchiveStore = new ReArchiveStore(appData, logger);
             ArchiveWorkspace workspace = new ArchiveWorkspace(appData, _fileOps.Object, logger);
@@ -144,9 +152,17 @@ namespace RomForge.UI.UnitTests.ViewModels
                     _fileOps.Object,
                     workspace,
                     reArchiveStore,
-                    scanResultStore
+                    scanResultStore,
+                    sharedGate
                 ),
-                new RomTrimService(_extractor.Object, compressor, _fileOps.Object, workspace)
+                new RomTrimService(
+                    _extractor.Object,
+                    compressor,
+                    _fileOps.Object,
+                    workspace,
+                    sharedGate
+                ),
+                sharedGate
             );
         }
 
@@ -518,6 +534,80 @@ namespace RomForge.UI.UnitTests.ViewModels
             _vm.SelectedGame = MakeGameRow(untrimmed: true);
 
             _vm.TrimSelectedCommand.CanExecute(null).Should().BeTrue();
+        }
+
+        [Test]
+        public async Task TrimSelectedCommand_CannotExecute_WhileReArchiveAllIsRunning()
+        {
+            // Regression: CanTrim() previously omitted `&& !IsReArchiving`, unlike its three
+            // sibling guards (CanReArchive/CanReArchiveAll/CanTrimAll) — a trim could be started
+            // on a ROM mid-batch-re-archive and race the same file.
+            Mock<IArchiveCompressor> availableCompressor = new Mock<IArchiveCompressor>();
+            availableCompressor.Setup(c => c.IsAvailable).Returns(true);
+            MainWindowVM vm = MakeVM(compressorMock: availableCompressor);
+
+            TaskCompletionSource<Result<string>> extractGate =
+                new TaskCompletionSource<Result<string>>();
+            _extractor
+                .Setup(e =>
+                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
+                )
+                .Returns(extractGate.Task);
+
+            LoadedDatVM datVm = MakeDatVM();
+            datVm.Games.Add(MakeGameRowWithScannedRom("/roms/Test.zip", wrongArchiveType: true));
+            vm.ActiveDat = datVm;
+            vm.SelectedGame = MakeGameRow(untrimmed: true);
+
+            Task reArchiveTask = vm.ReArchiveAllCommand.ExecuteAsync(null);
+            try
+            {
+                vm.TrimSelectedCommand.CanExecute(null).Should().BeFalse();
+            }
+            finally
+            {
+                extractGate.SetResult(Result.Fail("stop"));
+                await reArchiveTask;
+            }
+        }
+
+        [Test]
+        public async Task ReArchiveAllAsync_WhenStarted_RaisesCanExecuteChangedOnTrimSelectedCommand()
+        {
+            // Regression: CanTrim()'s !IsReArchiving check (added above) is correct, but
+            // OnIsReArchivingChanged never called TrimSelectedCommand.NotifyCanExecuteChanged() —
+            // unlike its ReArchiveSelected/ReArchiveAll/RenameAll/TrimAll siblings — so Avalonia's
+            // bound Trim button never re-queried CanExecute and could stay clickable mid-batch.
+            Mock<IArchiveCompressor> availableCompressor = new Mock<IArchiveCompressor>();
+            availableCompressor.Setup(c => c.IsAvailable).Returns(true);
+            MainWindowVM vm = MakeVM(compressorMock: availableCompressor);
+
+            TaskCompletionSource<Result<string>> extractGate =
+                new TaskCompletionSource<Result<string>>();
+            _extractor
+                .Setup(e =>
+                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
+                )
+                .Returns(extractGate.Task);
+
+            LoadedDatVM datVm = MakeDatVM();
+            datVm.Games.Add(MakeGameRowWithScannedRom("/roms/Test.zip", wrongArchiveType: true));
+            vm.ActiveDat = datVm;
+            vm.SelectedGame = MakeGameRow(untrimmed: true);
+
+            bool commandNotified = false;
+            vm.TrimSelectedCommand.CanExecuteChanged += (_, _) => commandNotified = true;
+
+            Task reArchiveTask = vm.ReArchiveAllCommand.ExecuteAsync(null);
+            try
+            {
+                commandNotified.Should().BeTrue();
+            }
+            finally
+            {
+                extractGate.SetResult(Result.Fail("stop"));
+                await reArchiveTask;
+            }
         }
 
         [Test]
@@ -2322,6 +2412,61 @@ namespace RomForge.UI.UnitTests.ViewModels
 
             await act.Should().NotThrowAsync();
             _notifier.Verify(n => n.NotifyErrorAsync(It.IsAny<string>()), Times.Never);
+        }
+
+        [Test]
+        public async Task ReArchiveAllAsync_WhenBudgetOnlyAffordsOneJob_UsesOneConcurrencySlotRegardlessOfCoreCount()
+        {
+            // Plan step 4 ("Machine-adaptive sizing") names concurrency as RAM budget ÷ actual
+            // per-job cost, capped by cores — not derived from cores alone. A tight budget that
+            // can afford only one job at a time must produce one slot, even though the core-based
+            // floor (Math.Clamp(cores/2, 2, 4)) is always at least 2.
+            Mock<IArchiveCompressor> availableCompressor = new Mock<IArchiveCompressor>();
+            availableCompressor.Setup(c => c.IsAvailable).Returns(true);
+            availableCompressor
+                .Setup(c => c.EstimateWorkingSetBytes(It.IsAny<long>(), It.IsAny<string>()))
+                .Returns(10_000_000_000L);
+            WorkingSetBudgetGate tightGate = new WorkingSetBudgetGate(12_000_000_000L);
+            MainWindowVM vm = MakeVM(compressorMock: availableCompressor, memoryGate: tightGate);
+
+            TaskCompletionSource<Result<string>> extractGate =
+                new TaskCompletionSource<Result<string>>();
+            _extractor
+                .Setup(e =>
+                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
+                )
+                .Returns(extractGate.Task);
+
+            BatchProgressWindowVM? capturedProgress = null;
+            _notifier
+                .Setup(n =>
+                    n.ShowBatchProgressAsync(
+                        It.IsAny<string>(),
+                        It.IsAny<BatchProgressWindowVM>(),
+                        It.IsAny<Task>()
+                    )
+                )
+                .Callback<string, BatchProgressWindowVM, Task>(
+                    (_, progressVm, _) => capturedProgress = progressVm
+                )
+                .Returns(Task.CompletedTask);
+
+            LoadedDatVM datVm = MakeDatVM();
+            datVm.Games.Add(MakeGameRowWithScannedRom("/roms/Test0.zip", wrongArchiveType: true));
+            datVm.Games.Add(MakeGameRowWithScannedRom("/roms/Test1.zip", wrongArchiveType: true));
+            vm.ActiveDat = datVm;
+
+            Task reArchiveTask = vm.ReArchiveAllCommand.ExecuteAsync(null);
+            try
+            {
+                capturedProgress.Should().NotBeNull();
+                capturedProgress.Slots.Count.Should().Be(1);
+            }
+            finally
+            {
+                extractGate.SetResult(Result.Fail("stop"));
+                await reArchiveTask;
+            }
         }
 
         [Test]

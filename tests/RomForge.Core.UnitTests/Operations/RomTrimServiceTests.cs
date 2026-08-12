@@ -49,7 +49,8 @@ namespace RomForge.Core.UnitTests.Operations
                 _extractor.Object,
                 _compressor.Object,
                 _fileOps.Object,
-                workspace
+                workspace,
+                new WorkingSetBudgetGate(1_000_000_000_000L)
             );
         }
 

@@ -4,9 +4,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using AwesomeAssertions;
 using NUnit.Framework;
-using RomForge.UI.ViewModels;
+using RomForge.Core.IO;
 
-namespace RomForge.UI.UnitTests.ViewModels
+namespace RomForge.Core.UnitTests.IO
 {
     [TestOf(typeof(WorkingSetBudgetGate))]
     public sealed class WorkingSetBudgetGateTests
@@ -17,6 +17,25 @@ namespace RomForge.UI.UnitTests.ViewModels
             Action act = () => _ = new WorkingSetBudgetGate(0);
 
             act.Should().Throw<ArgumentOutOfRangeException>();
+        }
+
+        [Test]
+        public void BudgetBytes_ReturnsConstructorValue()
+        {
+            WorkingSetBudgetGate gate = new WorkingSetBudgetGate(42);
+
+            gate.BudgetBytes.Should().Be(42);
+        }
+
+        [Test]
+        public void CreateDefault_ReturnsPositiveBudget()
+        {
+            // GC.GetGCMemoryInfo().TotalAvailableMemoryBytes varies by machine and CI runner, so
+            // this only pins the invariant the constructor itself already enforces: a real budget
+            // is always positive, never zero or negative regardless of what the runtime reports.
+            WorkingSetBudgetGate gate = WorkingSetBudgetGate.CreateDefault();
+
+            gate.BudgetBytes.Should().BePositive();
         }
 
         [Test]
@@ -97,6 +116,60 @@ namespace RomForge.UI.UnitTests.ViewModels
             await Task.WhenAll(Enumerable.Range(0, 5).Select(_ => RunJob()));
 
             maxActive.Should().Be(2, "20 / 10 == 2 jobs fit the budget at once");
+        }
+
+        [Test]
+        public async Task AcquireAsync_NewcomerThatWouldFit_DoesNotOvertakeAnAlreadyWaitingJob()
+        {
+            // Fairness: admission is FIFO, so a cheap newcomer may not barge past an expensive job
+            // already in the queue. Without this, Release woke every waiter outside the lock and a
+            // fresh caller could take the lock first — on a mixed DAT (GBA ~0.4 GB/job vs 3DS
+            // ~2.9 GB/job) the expensive waiter is overtaken every cycle and only makes progress
+            // when the batch happens to run out of cheap jobs.
+            WorkingSetBudgetGate gate = new WorkingSetBudgetGate(10);
+            IDisposable held = await gate.AcquireAsync(8, CancellationToken.None);
+
+            // 8 + 5 > 10, so the expensive job queues.
+            Task<IDisposable> expensive = gate.AcquireAsync(5, CancellationToken.None);
+            await Task.WhenAny(expensive, Task.Delay(100));
+            expensive.IsCompleted.Should().BeFalse();
+
+            // 8 + 1 <= 10, so this newcomer *would* fit — but it arrived second and must wait.
+            Task<IDisposable> cheap = gate.AcquireAsync(1, CancellationToken.None);
+            await Task.WhenAny(cheap, Task.Delay(100));
+            cheap.IsCompleted.Should().BeFalse("a newcomer must not overtake a queued job");
+
+            // Releasing frees the whole budget: the expensive job goes first, then the cheap one
+            // (5 + 1 <= 10, so both fit once the queue is drained in order).
+            held.Dispose();
+            IDisposable first = await expensive;
+            IDisposable second = await cheap;
+
+            first.Dispose();
+            second.Dispose();
+        }
+
+        [Test]
+        public async Task AcquireAsync_WaiterCancelledWhileQueued_DoesNotStrandTheJobsBehindIt()
+        {
+            // A cancelled waiter must be removed from the FIFO queue and must not leave its cost
+            // charged against the budget, or everything behind it blocks forever.
+            WorkingSetBudgetGate gate = new WorkingSetBudgetGate(10);
+            IDisposable held = await gate.AcquireAsync(8, CancellationToken.None);
+            using CancellationTokenSource cts = new CancellationTokenSource();
+
+            Task<IDisposable> cancelled = gate.AcquireAsync(5, cts.Token);
+            await Task.WhenAny(cancelled, Task.Delay(100));
+            Task<IDisposable> behind = gate.AcquireAsync(5, CancellationToken.None);
+
+            await cts.CancelAsync();
+            Func<Task> act = async () => await cancelled;
+            await act.Should().ThrowAsync<OperationCanceledException>();
+
+            held.Dispose();
+            IDisposable admitted = await behind;
+            admitted.Should().NotBeNull();
+            admitted.Dispose();
         }
 
         [Test]

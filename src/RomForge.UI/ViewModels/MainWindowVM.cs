@@ -46,6 +46,7 @@ namespace RomForge.UI.ViewModels
         private readonly IRomRenameService _renameService;
         private readonly IRomReArchiveService _reArchiveService;
         private readonly IRomTrimService _trimService;
+        private readonly WorkingSetBudgetGate _memoryGate;
         private readonly BatchProgressRunner _batchRunner;
         private ObservableCollection<GameRowVM>? _subscribedGames;
         private string? _unverifiedFolder;
@@ -103,7 +104,8 @@ namespace RomForge.UI.ViewModels
             IAppLifetime appLifetime,
             IRomRenameService renameService,
             IRomReArchiveService reArchiveService,
-            IRomTrimService trimService
+            IRomTrimService trimService,
+            WorkingSetBudgetGate memoryGate
         )
         {
             _fileDialogs = fileDialogs;
@@ -128,6 +130,7 @@ namespace RomForge.UI.ViewModels
             _renameService = renameService;
             _reArchiveService = reArchiveService;
             _trimService = trimService;
+            _memoryGate = memoryGate;
             _batchRunner = new BatchProgressRunner(_notifier, _logger);
             LoadedDats = new ObservableCollection<LoadedDatVM>();
             ArchiveFormat = "7z";
@@ -147,6 +150,7 @@ namespace RomForge.UI.ViewModels
             ReArchiveAllCommand.NotifyCanExecuteChanged();
             RenameAllCommand.NotifyCanExecuteChanged();
             TrimAllCommand.NotifyCanExecuteChanged();
+            TrimSelectedCommand.NotifyCanExecuteChanged();
         }
 
         partial void OnIsTrimmingChanged(bool value)
@@ -707,19 +711,13 @@ namespace RomForge.UI.ViewModels
             if (targets.Count == 0)
                 return;
 
-            var maxConcurrency = Math.Clamp(Environment.ProcessorCount / 2, 2, 4);
-            long memoryBudget = ComputeReArchiveMemoryBudget();
+            int maxConcurrency = ComputeReArchiveConcurrency(targets);
             var progressVm = new BatchProgressWindowVM(
                 targets.Count,
                 maxConcurrency,
                 isCancellable: true
             );
-            var operationTask = ReArchiveAllCoreAsync(
-                targets,
-                progressVm,
-                maxConcurrency,
-                memoryBudget
-            );
+            var operationTask = ReArchiveAllCoreAsync(targets, progressVm, maxConcurrency);
             await _notifier.ShowBatchProgressAsync(
                 $"Re-Archiving ROMs to {ArchiveFormat}",
                 progressVm,
@@ -739,35 +737,45 @@ namespace RomForge.UI.ViewModels
                 );
         }
 
-        // Fraction of physical memory the concurrent re-archive working sets may occupy together.
-        // Kept well under 1.0 so the OS, the app and file-cache pressure keep headroom — exceeding
-        // physical memory during a large-ROM (3DS) batch previously thrashed swap hard enough to
-        // trip the kernel watchdog and hang the machine.
-        private const double ReArchiveMemoryBudgetFraction = 0.6;
+        // Plan step 4 ("Machine-adaptive sizing"): concurrency must derive from the RAM budget
+        // divided by the actual per-job cost, capped by cores — not from cores alone. The count
+        // throttle previously ignored memory entirely, so a low-RAM machine would still spin up
+        // to 4 concurrent extraction phases (each with its own workspace) even when the memory
+        // gate could only ever admit one of their compress phases at a time. Using the batch's
+        // worst-case (largest) job cost keeps the slot count from ever promising more parallelism
+        // than the memory gate can actually sustain.
+        private int ComputeReArchiveConcurrency(List<GameRowVM> targets)
+        {
+            int coreCap = Math.Clamp(Environment.ProcessorCount / 2, 2, 4);
 
-        private static long ComputeReArchiveMemoryBudget() =>
-            Math.Max(
-                1,
-                (long)(
-                    GC.GetGCMemoryInfo().TotalAvailableMemoryBytes * ReArchiveMemoryBudgetFraction
-                )
-            );
+            // EstimateWorkingSetBytes is monotonic non-decreasing in romSize (the dictionary is the
+            // ROM size rounded up to a power of two, then clamped), so the largest ROM gives the
+            // worst-case cost in one call — estimating per target would repeat the same work once
+            // per ROM, ~6,750 times for a full NDS library, on the UI thread.
+            long largestRomSize = targets.Select(g => g.Game.RomSize).DefaultIfEmpty(0).Max();
+            long worstJobCost = _compressor.EstimateWorkingSetBytes(largestRomSize, ArchiveFormat);
+
+            if (worstJobCost <= 0)
+                return coreCap;
+
+            long memoryCap = _memoryGate.BudgetBytes / worstJobCost;
+            return (int)Math.Clamp(Math.Min(coreCap, memoryCap), 1, coreCap);
+        }
 
         private async Task<List<string>> ReArchiveAllCoreAsync(
             List<GameRowVM> targets,
             BatchProgressWindowVM progress,
-            int maxConcurrency,
-            long memoryBudgetBytes
+            int maxConcurrency
         )
         {
             IsReArchiving = true;
             var errors = new List<string>();
             var errorsLock = new object();
             var completed = 0;
+            // The count throttle bounds threads/disk; RomReArchiveService itself gates on the
+            // shared WorkingSetBudgetGate DI singleton so total working set never exceeds the
+            // machine's memory budget, no matter which compress-based operation is in flight.
             using var semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
-            // The count throttle bounds threads/disk; the memory gate bounds total working set so a
-            // batch of multi-GB ROMs runs fewer at once instead of exhausting RAM.
-            var memoryGate = new WorkingSetBudgetGate(memoryBudgetBytes);
             var slotQueue = new ConcurrentQueue<BatchSlotVM>(progress.Slots);
             var activeDat = ActiveDat!;
             var archiveFormat = ArchiveFormat;
@@ -793,60 +801,44 @@ namespace RomForge.UI.ViewModels
                         archiveFormat
                     );
 
-                    if (target is not null)
+                    if (target is not null && slotQueue.TryDequeue(out BatchSlotVM? slot))
                     {
-                        // Reserve this job's estimated working set before it starts compressing, so
-                        // a batch of multi-GB ROMs runs fewer at a time rather than all
-                        // maxConcurrency at once. The lease is released when the job finishes.
-                        long cost = _compressor.EstimateWorkingSetBytes(
-                            game.Game.RomSize,
-                            archiveFormat
-                        );
-                        using IDisposable memoryLease = await memoryGate.AcquireAsync(cost, ct);
-
-                        if (slotQueue.TryDequeue(out BatchSlotVM? slot))
+                        try
                         {
-                            try
-                            {
-                                slot.FileName = Path.GetFileName(target.Value.From);
-                                slot.Progress = 0;
+                            slot.FileName = Path.GetFileName(target.Value.From);
+                            slot.Progress = 0;
 
-                                IProgress<int> slotProgress = new Progress<int>(pct =>
-                                    slot.Progress = pct
-                                );
-                                Result<MatchResult> result = await _reArchiveService.ReArchiveAsync(
-                                    game.Result,
-                                    target.Value,
-                                    archiveFormat,
-                                    datName,
-                                    ct,
-                                    slotProgress
-                                );
+                            IProgress<int> slotProgress = new Progress<int>(pct =>
+                                slot.Progress = pct
+                            );
+                            Result<MatchResult> result = await _reArchiveService.ReArchiveAsync(
+                                game.Result,
+                                target.Value,
+                                archiveFormat,
+                                datName,
+                                ct,
+                                slotProgress
+                            );
 
-                                if (result.IsFailed)
-                                {
-                                    lock (errorsLock)
-                                        errors.Add(result.Errors[0].Message);
-                                }
-                                else
-                                {
-                                    await UpdateGameRowOnUiThreadAsync(
-                                        activeDat,
-                                        game,
-                                        result.Value
-                                    );
-                                }
-                            }
-                            finally
+                            if (result.IsFailed)
                             {
-                                // Always return the slot, even when the re-archive throws (e.g. a
-                                // cancellation). Enqueuing only on success drained the queue while
-                                // the semaphore was released, so a later file dequeued nothing and
-                                // threw an NRE on the slot.
-                                slot.FileName = null;
-                                slot.Progress = 0;
-                                slotQueue.Enqueue(slot);
+                                lock (errorsLock)
+                                    errors.Add(result.Errors[0].Message);
                             }
+                            else
+                            {
+                                await UpdateGameRowOnUiThreadAsync(activeDat, game, result.Value);
+                            }
+                        }
+                        finally
+                        {
+                            // Always return the slot, even when the re-archive throws (e.g. a
+                            // cancellation). Enqueuing only on success drained the queue while
+                            // the semaphore was released, so a later file dequeued nothing and
+                            // threw an NRE on the slot.
+                            slot.FileName = null;
+                            slot.Progress = 0;
+                            slotQueue.Enqueue(slot);
                         }
                     }
 
@@ -989,7 +981,10 @@ namespace RomForge.UI.ViewModels
         }
 
         private bool CanTrim() =>
-            !IsTrimming && SelectedGame?.IsUntrimmed == true && _compressor.IsAvailable;
+            !IsTrimming
+            && !IsReArchiving
+            && SelectedGame?.IsUntrimmed == true
+            && _compressor.IsAvailable;
 
         [RelayCommand(CanExecute = nameof(CanTrimAll))]
         private async Task TrimAllAsync()

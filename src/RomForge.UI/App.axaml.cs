@@ -121,6 +121,10 @@ namespace RomForge.UI
             services.AddSingleton<ArchiveWorkspace>();
             services.AddSingleton<IRomReArchiveService, RomReArchiveService>();
             services.AddSingleton<IRomTrimService, RomTrimService>();
+            // Shared across every compress-based operation (batch/single re-archive, batch/single
+            // trim) so they admit against one real memory budget instead of each getting their own
+            // — see WorkingSetBudgetGate's remarks for why per-operation instances were the bug.
+            services.AddSingleton(_ => WorkingSetBudgetGate.CreateDefault());
             services.AddSingleton<IArchiveCompressor, SevenZipSharperCompressor>();
             services.AddSingleton<IArchiveExtractor>(sp => new SevenZipSharperExtractor(
                 sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<SevenZipExtractor>>(),

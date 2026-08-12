@@ -121,6 +121,49 @@ namespace RomForge.Core.UnitTests.Parsers
         }
 
         [Test]
+        public async Task ParseAsync_ExtensionAttributeWithLeadingDot_IsStripped()
+        {
+            // Real OfflineList DATs (e.g. ADVANsCEne_3DS.xml) store extension="." + value
+            // rather than the bare value the fixture above uses. ArchiveWorkspace.BuildEntryName
+            // also prepends a dot when writing the entry name, so a raw pass-through here produces
+            // a "Name..3ds" double-dot entry that never matches on rescan.
+            const string dat = """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <dat>
+                  <configuration>
+                    <datName>Nintendo 3DS</datName>
+                    <datVersion>1</datVersion>
+                    <system>3DS</system>
+                    <screenshotsWidth>0</screenshotsWidth>
+                    <screenshotsHeight>0</screenshotsHeight>
+                    <romTitle>%n</romTitle>
+                    <infos/>
+                    <canOpen><extension>3ds</extension></canOpen>
+                    <search/>
+                    <newDat>
+                      <datVersionURL>http://example.com/version</datVersionURL>
+                      <datURL fileName="3ds.zip">http://example.com/3ds.zip</datURL>
+                      <imURL>http://example.com/images.zip</imURL>
+                    </newDat>
+                  </configuration>
+                  <games>
+                    <game>
+                      <imageNumber>1</imageNumber>
+                      <title>Some 3DS Game</title>
+                      <files>
+                        <romCRC extension=".3ds">ABCDEF01</romCRC>
+                      </files>
+                    </game>
+                  </games>
+                </dat>
+                """;
+
+            DatFile result = await DatParser.ParseAsync(ToStream(dat));
+
+            result.Games[0].Files.RomExtension.Should().Be("3ds");
+        }
+
+        [Test]
         public async Task ParseAsync_ParsesImageCrcs()
         {
             DatFile result = await DatParser.ParseAsync(ToStream(MinimalDat));
