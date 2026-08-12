@@ -4,6 +4,16 @@ All notable changes to RomForge are documented here. This project follows [Seman
 
 ## [Unreleased]
 
+## [1.5.4] — 2026-08-12
+
+### Fixed
+
+- Re-archiving large ROMs no longer exhausts system memory and stalls the machine. 7-Zip was splitting large inputs into multiple blocks and encoding them in parallel, each encoder holding its own dictionary-sized allocation, so peak memory tracked the size of the ROM rather than the dictionary — a 4 GB 3DS cart could reach roughly 42 GB in a single job. Compression now uses a single encoder with a capped dictionary, holding memory flat at about 2.6 GB per job at any ROM size, with no measurable increase in archive size.
+- "Re-Archive All" no longer re-packs the entire library on every run. DATs that store the ROM extension with a leading dot produced archive entries with a doubled dot ("Name..3ds"), which never matched on re-scan, so those ROMs stayed re-archive targets forever. Archives written by earlier versions are genuinely misnamed and will each be re-archived once, after which they settle as "Good".
+- Memory throttling now applies to every compression path. Previously only bulk re-archive was throttled, so a single re-archive, a single trim and a bulk trim each ran unthrottled and could claim a full memory budget at the same time.
+- Dictionary size and concurrency now adapt to the amount of memory available, so a single job can no longer exceed the entire memory budget on machines with less RAM.
+- "Trim" is now correctly disabled while a bulk re-archive is running, matching the other operations.
+
 ## [1.5.3] — 2026-08-08
 
 ### Fixed

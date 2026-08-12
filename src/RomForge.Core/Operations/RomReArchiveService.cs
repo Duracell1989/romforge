@@ -23,6 +23,7 @@ namespace RomForge.Core.Operations
         private readonly ArchiveWorkspace _workspace;
         private readonly ReArchiveStore _reArchiveStore;
         private readonly ScanResultStore _scanResultStore;
+        private readonly WorkingSetBudgetGate _memoryGate;
 
         public RomReArchiveService(
             IArchiveExtractor extractor,
@@ -30,7 +31,8 @@ namespace RomForge.Core.Operations
             IRomFileOperations fileOperations,
             ArchiveWorkspace workspace,
             ReArchiveStore reArchiveStore,
-            ScanResultStore scanResultStore
+            ScanResultStore scanResultStore,
+            WorkingSetBudgetGate memoryGate
         )
         {
             ArgumentNullException.ThrowIfNull(extractor);
@@ -39,12 +41,14 @@ namespace RomForge.Core.Operations
             ArgumentNullException.ThrowIfNull(workspace);
             ArgumentNullException.ThrowIfNull(reArchiveStore);
             ArgumentNullException.ThrowIfNull(scanResultStore);
+            ArgumentNullException.ThrowIfNull(memoryGate);
             _extractor = extractor;
             _compressor = compressor;
             _fileOperations = fileOperations;
             _workspace = workspace;
             _reArchiveStore = reArchiveStore;
             _scanResultStore = scanResultStore;
+            _memoryGate = memoryGate;
         }
 
         public async Task<Result<MatchResult>> ReArchiveAsync(
@@ -83,15 +87,30 @@ namespace RomForge.Core.Operations
                     target.To,
                     match.Game.Files.RomExtension
                 );
-                Result compressResult = await _compressor.CompressAsync(
-                    tempFile,
-                    compressTarget,
-                    entryName,
-                    match.Game.RomSize,
-                    compressionProgress,
-                    archiveFormat,
-                    cancellationToken
-                );
+
+                // Reserve this job's estimated working set before compressing so concurrent
+                // re-archive/trim operations never together exceed physical memory — the gate is a
+                // single DI instance shared across every compress-based call site (see App.axaml.cs).
+                // The lease is scoped to the compress call alone: the encoder's memory is gone once
+                // it returns, so holding the reservation across the archive move and the store
+                // writes below would block other jobs on I/O that costs no encoder memory at all.
+                long cost = _compressor.EstimateWorkingSetBytes(match.Game.RomSize, archiveFormat);
+                Result compressResult;
+                using (
+                    await _memoryGate.AcquireAsync(cost, cancellationToken).ConfigureAwait(false)
+                )
+                {
+                    compressResult = await _compressor.CompressAsync(
+                        tempFile,
+                        compressTarget,
+                        entryName,
+                        match.Game.RomSize,
+                        compressionProgress,
+                        archiveFormat,
+                        cancellationToken
+                    );
+                }
+
                 if (compressResult.IsFailed)
                     return Result.Fail(
                         $"{Path.GetFileName(target.From)}: {compressResult.Errors[0].Message}"

@@ -20,22 +20,26 @@ namespace RomForge.Core.Operations
         private readonly IArchiveCompressor _compressor;
         private readonly IRomFileOperations _fileOperations;
         private readonly ArchiveWorkspace _workspace;
+        private readonly WorkingSetBudgetGate _memoryGate;
 
         public RomTrimService(
             IArchiveExtractor extractor,
             IArchiveCompressor compressor,
             IRomFileOperations fileOperations,
-            ArchiveWorkspace workspace
+            ArchiveWorkspace workspace,
+            WorkingSetBudgetGate memoryGate
         )
         {
             ArgumentNullException.ThrowIfNull(extractor);
             ArgumentNullException.ThrowIfNull(compressor);
             ArgumentNullException.ThrowIfNull(fileOperations);
             ArgumentNullException.ThrowIfNull(workspace);
+            ArgumentNullException.ThrowIfNull(memoryGate);
             _extractor = extractor;
             _compressor = compressor;
             _fileOperations = fileOperations;
             _workspace = workspace;
+            _memoryGate = memoryGate;
         }
 
         public async Task<Result<MatchResult>> TrimAsync(
@@ -79,15 +83,30 @@ namespace RomForge.Core.Operations
                     target.To,
                     match.Game.Files.RomExtension
                 );
-                Result compressResult = await _compressor.CompressAsync(
-                    tempRom,
-                    archiveDest,
-                    entryName,
-                    match.Game.RomSize,
-                    compressionProgress,
-                    archiveFormat,
-                    cancellationToken
-                );
+
+                // Reserve this job's estimated working set before compressing so concurrent
+                // re-archive/trim operations never together exceed physical memory — the gate is a
+                // single DI instance shared across every compress-based call site (see App.axaml.cs).
+                // The lease is scoped to the compress call alone: the encoder's memory is gone once
+                // it returns, so holding the reservation across the archive move below would block
+                // other jobs on I/O that costs no encoder memory at all.
+                long cost = _compressor.EstimateWorkingSetBytes(match.Game.RomSize, archiveFormat);
+                Result compressResult;
+                using (
+                    await _memoryGate.AcquireAsync(cost, cancellationToken).ConfigureAwait(false)
+                )
+                {
+                    compressResult = await _compressor.CompressAsync(
+                        tempRom,
+                        archiveDest,
+                        entryName,
+                        match.Game.RomSize,
+                        compressionProgress,
+                        archiveFormat,
+                        cancellationToken
+                    );
+                }
+
                 if (compressResult.IsFailed)
                     return Result.Fail(
                         $"{Path.GetFileName(target.From)}: {compressResult.Errors[0].Message}"

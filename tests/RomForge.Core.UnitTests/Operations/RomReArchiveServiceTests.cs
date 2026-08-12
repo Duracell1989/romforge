@@ -52,7 +52,8 @@ namespace RomForge.Core.UnitTests.Operations
                 _fileOps.Object,
                 workspace,
                 _reArchiveStore,
-                _scanStore
+                _scanStore,
+                new WorkingSetBudgetGate(1_000_000_000_000L)
             );
         }
 

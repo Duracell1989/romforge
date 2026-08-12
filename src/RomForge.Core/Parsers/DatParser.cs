@@ -76,7 +76,13 @@ namespace RomForge.Core.Parsers
                 Files = new GameFiles
                 {
                     RomCrc = ParseHexUInt32(romCrc),
-                    RomExtension = (string?)romCrc?.Attribute(Xml.Extension) ?? string.Empty,
+                    // Some OfflineList DATs store the value with a leading dot (".3ds"), others
+                    // bare ("gba"). Normalise here to bare, matching FileSystemRomSource's own
+                    // extensions, so ArchiveWorkspace.BuildEntryName's "stem + '.' + extension"
+                    // never produces a double dot.
+                    RomExtension = (
+                        (string?)romCrc?.Attribute(Xml.Extension) ?? string.Empty
+                    ).TrimStart('.'),
                 },
                 Im1Crc = ParseHexUInt32Nullable(game.ElementCI(nameof(Game.Im1Crc))),
                 Im2Crc = ParseHexUInt32Nullable(game.ElementCI(nameof(Game.Im2Crc))),

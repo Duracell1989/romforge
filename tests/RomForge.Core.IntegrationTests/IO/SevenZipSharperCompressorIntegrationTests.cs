@@ -27,7 +27,12 @@ namespace RomForge.Core.IntegrationTests.IO
         {
             _tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_tempDir);
-            _sut = new SevenZipSharperCompressor(NullLogger<SevenZipCompressor>.Instance);
+            // A generous budget so AffordableDictionaryCeiling never binds here — these tests
+            // exercise the size-only MaxDictionarySize cap, not machine-adaptive sizing.
+            _sut = new SevenZipSharperCompressor(
+                NullLogger<SevenZipCompressor>.Instance,
+                new WorkingSetBudgetGate(1_000_000_000_000L)
+            );
         }
 
         [TearDown]
@@ -204,18 +209,23 @@ namespace RomForge.Core.IntegrationTests.IO
             await act.Should().ThrowAsync<OperationCanceledException>();
         }
 
-        [Test]
-        [Explicit(
-            "Heavy/slow: allocates a large LZMA2 encoder and samples process memory. Run on demand."
-        )]
-        public async Task CompressAsync_SevenZip_PeakWorkingSetIsAboutElevenTimesTheDictionary()
+        // Empirical check of the Lzma2EncoderMemoryMultiplier constant (11) that the re-archive
+        // memory gate sizes concurrency from. Writes an incompressible payload of exactly
+        // dictionaryBytes so DictionarySizeFor returns that size without touching internals, then
+        // samples process working set across the compress call to measure the encoder's real
+        // memory overhead.
+        //
+        // Run each [Explicit] test below individually, not batched in the same `dotnet test`
+        // invocation: back-to-back heavy native LZMA2 allocations in one process can leave the
+        // next test's GC.Collect()-sampled baseline already elevated from the previous encoder's
+        // allocator pool, which understates the delta (observed: a correct standalone 10.6x read
+        // on the ratio-4 test collapsed to ~0x when run immediately after the other two). This is
+        // measurement noise from process-level memory carryover, not a defect in the fix.
+        private async Task<double> MeasureLzma2EncoderMemoryMultiplierAsync(
+            int dictionaryBytes,
+            TimeSpan maxSampleDuration
+        )
         {
-            Assume.That(_sut.IsAvailable, Is.True, "7-Zip native library not available; skipping.");
-
-            // Empirical check of the Lzma2EncoderMemoryMultiplier constant (11) that the re-archive
-            // memory gate sizes concurrency from. A power-of-two payload makes DictionarySizeFor
-            // return exactly the payload size, so the dictionary is known without touching internals.
-            const int dictionaryBytes = 64 * 1024 * 1024; // 2^26 -> 64 MB dictionary.
             string source = Path.Combine(_tempDir, "big.bin");
             await WriteIncompressibleFileAsync(source, dictionaryBytes);
             string dest = Path.Combine(_tempDir, "out.7z");
@@ -247,7 +257,7 @@ namespace RomForge.Core.IntegrationTests.IO
             long peak = baseline;
             Stopwatch sw = Stopwatch.StartNew();
             long lastGrowthMs = 0;
-            while (!compressTask.IsCompleted && sw.Elapsed < TimeSpan.FromSeconds(30))
+            while (!compressTask.IsCompleted && sw.Elapsed < maxSampleDuration)
             {
                 process.Refresh();
                 long current = process.WorkingSet64;
@@ -280,10 +290,147 @@ namespace RomForge.Core.IntegrationTests.IO
                     + $"{dictionaryBytes / (1024 * 1024)} MB dictionary -> multiplier "
                     + $"{measuredMultiplier:F1} (constant is 11)."
             );
+            return measuredMultiplier;
+        }
+
+        [Test]
+        [Explicit(
+            "Heavy/slow: allocates a large LZMA2 encoder and samples process memory. Run on demand."
+        )]
+        public async Task CompressAsync_SevenZip_PeakWorkingSetIsAboutElevenTimesTheDictionary()
+        {
+            Assume.That(_sut.IsAvailable, Is.True, "7-Zip native library not available; skipping.");
+
+            // A power-of-two payload makes DictionarySizeFor return exactly the payload size.
+            const int dictionaryBytes = 64 * 1024 * 1024; // 2^26 -> 64 MB dictionary.
+            double measuredMultiplier = await MeasureLzma2EncoderMemoryMultiplierAsync(
+                dictionaryBytes,
+                TimeSpan.FromSeconds(30)
+            );
 
             // Process-RSS sampling is noisy (file cache, runtime, GC), so this proves the multiplier
             // is of the right order (~11), ruling out both "no multiplier" (~1x) and a wild
             // over-estimate. Tighten the band if it proves stable on the target hardware.
+            measuredMultiplier.Should().BeGreaterThan(4.0).And.BeLessThan(20.0);
+        }
+
+        [Test]
+        [Explicit(
+            "Very heavy/slow: writes a 256 MB payload and allocates the max-size LZMA2 encoder. Run on demand."
+        )]
+        public async Task CompressAsync_SevenZipAtMaxDictionarySize_PeakWorkingSetIsAboutElevenTimesTheDictionary()
+        {
+            Assume.That(_sut.IsAvailable, Is.True, "7-Zip native library not available; skipping.");
+
+            // Matches SevenZipSharperCompressor.MaxDictionarySize, the ceiling DictionarySizeFor
+            // clamps to for large ROMs (e.g. 3DS). The 64 MB test above only proves the multiplier
+            // holds at a small dictionary; this proves it doesn't drift at the size the re-archive
+            // memory gate actually budgets concurrency from.
+            const int dictionaryBytes = 268_435_456; // 256 MB.
+            double measuredMultiplier = await MeasureLzma2EncoderMemoryMultiplierAsync(
+                dictionaryBytes,
+                TimeSpan.FromSeconds(60)
+            );
+
+            measuredMultiplier.Should().BeGreaterThan(4.0).And.BeLessThan(20.0);
+        }
+
+        // Every test above writes a payload exactly the size of the dictionary it requests
+        // (ratio 1) — the one case where native 7-Zip's block-splitting cannot occur, since there
+        // is only one block to split. That blind spot is exactly why three releases shipped the
+        // panic undetected: DictionarySizeFor clamps at MaxDictionarySize regardless of ROM size,
+        // so a real 3DS cart above the clamp compresses at ratio ROM/dictionary > 1. This measures
+        // peak working set for a ROM 4x the dictionary clamp — with ThreadCount pinned, memory
+        // must track the dictionary (not the ROM), so this must land in the same 4-20x-of-dictionary
+        // band as the ratio-1 tests above. Before the ThreadCount pin, this would have measured
+        // ~ROM x 10.5 (~42x the dictionary at this ratio) and failed the upper bound.
+        private async Task<long> MeasureLzma2EncoderPeakWorkingSetAsync(
+            long romSizeBytes,
+            TimeSpan maxSampleDuration
+        )
+        {
+            string source = Path.Combine(_tempDir, "big.bin");
+            await WriteIncompressibleFileAsync(source, checked((int)romSizeBytes));
+            string dest = Path.Combine(_tempDir, "out.7z");
+
+#pragma warning disable S1215 // Deliberate: stabilise the baseline before sampling process RSS.
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+#pragma warning restore S1215
+
+            using Process process = Process.GetCurrentProcess();
+            process.Refresh();
+            long baseline = process.WorkingSet64;
+
+            using CancellationTokenSource cts = new CancellationTokenSource();
+            Task<Result> compressTask = _sut.CompressAsync(
+                source,
+                dest,
+                "big.bin",
+                romSizeBytes,
+                cancellationToken: cts.Token
+            );
+
+            long peak = baseline;
+            Stopwatch sw = Stopwatch.StartNew();
+            long lastGrowthMs = 0;
+            while (!compressTask.IsCompleted && sw.Elapsed < maxSampleDuration)
+            {
+                process.Refresh();
+                long current = process.WorkingSet64;
+                if (current > peak)
+                {
+                    peak = current;
+                    lastGrowthMs = sw.ElapsedMilliseconds;
+                }
+
+                if (peak > baseline && sw.ElapsedMilliseconds - lastGrowthMs > 2000)
+                    break;
+
+                await Task.Delay(50);
+            }
+
+            await cts.CancelAsync();
+            try
+            {
+                await compressTask;
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected once we cancel after capturing the peak.
+            }
+
+            return peak - baseline;
+        }
+
+        [Test]
+        [Explicit(
+            "Very heavy/slow: writes a 1 GB payload to exercise a 4x dictionary-clamp ratio. Run on demand."
+        )]
+        public async Task CompressAsync_SevenZipRomFourTimesTheDictionaryClamp_PeakWorkingSetTracksDictionaryNotRom()
+        {
+            Assume.That(_sut.IsAvailable, Is.True, "7-Zip native library not available; skipping.");
+
+            const long romSizeBytes = 1_073_741_824; // 1 GB -> clamps to the 256 MB dictionary (ratio 4).
+            uint dictionaryBytes = SevenZipSharperCompressor.DictionarySizeFor(romSizeBytes);
+            dictionaryBytes
+                .Should()
+                .Be(268_435_456u, "the test only proves what it claims at ratio 4");
+
+            long encoderWorkingSet = await MeasureLzma2EncoderPeakWorkingSetAsync(
+                romSizeBytes,
+                TimeSpan.FromSeconds(90)
+            );
+            double measuredMultiplier = (double)encoderWorkingSet / dictionaryBytes;
+            TestContext.WriteLine(
+                $"Measured encoder working set: {encoderWorkingSet / (1024 * 1024)} MB over a "
+                    + $"{dictionaryBytes / (1024 * 1024)} MB dictionary ({romSizeBytes / dictionaryBytes}x "
+                    + $"ratio) -> multiplier {measuredMultiplier:F1} (constant is 11)."
+            );
+
+            // Same band as the ratio-1 tests: proves memory tracks the dictionary, not the ROM.
+            // Unpinned ThreadCount would measure ~42x here (ROM x 10.5 / 256 MB dictionary).
             measuredMultiplier.Should().BeGreaterThan(4.0).And.BeLessThan(20.0);
         }
 
