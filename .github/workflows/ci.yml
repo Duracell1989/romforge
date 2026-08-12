@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          fetch-depth: 0
+          fetch-depth: 0 # Sonar needs full history for blame and new-code detection
 
       - name: Set up .NET
         uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
@@ -23,20 +23,56 @@ jobs:
       - name: Install 7-Zip
         run: sudo apt-get install -y p7zip-full
 
+      - name: Install dotnet-sonarscanner
+        run: dotnet tool install --global dotnet-sonarscanner
+
       - name: Restore
         run: dotnet restore RomForge.slnx
 
-      - name: Build
+      # Enforcement build, deliberately outside the Sonar wrap. `begin` injects
+      # targets that force TreatWarningsAsErrors=false so Sonar findings reach
+      # the quality gate instead of breaking the build — which would also
+      # silently disable our own analyzer enforcement for the whole CI run.
+      # This build keeps -warnaserror meaningful; the wrapped one below does the
+      # analysis.
+      - name: Build (warnings-as-errors)
         run: dotnet build RomForge.slnx --no-restore --configuration Release -warnaserror
+
+      # C# is analysed by SonarScanner for .NET, which hooks the MSBuild
+      # compilation — the generic CLI scanner cannot see it. Everything below
+      # therefore has to happen between `begin` and `end`. All settings live
+      # here as /d: flags; a sonar-project.properties file is not read by this
+      # scanner and makes `end` fail outright.
+      - name: Sonar begin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_PERSONAL }}
+        run: >
+          dotnet sonarscanner begin
+          /k:"Duracell1989_RomForge"
+          /o:"duracell1989"
+          /d:sonar.token="$SONAR_TOKEN"
+          /d:sonar.host.url="https://sonarcloud.io"
+          /d:sonar.sourceEncoding="UTF-8"
+          /d:sonar.exclusions="**/*.ico,**/*.icns,**/*.png,**/*.svg,**/*.old"
+          /d:sonar.test.exclusions="**/*.ico,**/*.icns,**/*.png,**/*.svg,**/*.old"
+          /d:sonar.coverage.exclusions="**/App.axaml.cs,**/Program.cs,**/ViewLocator.cs,**/AvaloniaUserNotifier.cs,**/AvaloniaFileDialogService.cs,**/AvaloniaUiDispatcher.cs,**/AvaloniaAppLifetime.cs,**/Views/*.axaml.cs"
+          /d:sonar.cs.cobertura.reportsPaths="artifacts/coverage/**/coverage.cobertura.xml"
+
+      # --no-incremental: the scanner only sees code the compiler actually
+      # recompiles, and the build above already made every project up to date,
+      # so without this the whole solution would drop out of analysis.
+      - name: Build (analysis)
+        run: dotnet build RomForge.slnx --no-restore --no-incremental --configuration Release
 
       - name: Test with coverage
         run: dotnet test RomForge.slnx --no-build --configuration Release --collect:"XPlat Code Coverage" --settings coverage.runsettings --results-directory artifacts/coverage
 
-      - name: SonarCloud analysis
-        uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
+      - name: Sonar end
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_PERSONAL }}
+        run: dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
 
       - name: Check coverage threshold
         run: |
