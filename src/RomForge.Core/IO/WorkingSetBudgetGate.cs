@@ -27,8 +27,6 @@ namespace RomForge.Core.IO
         // swap hard enough to trip the kernel watchdog and hang the machine.
         private const double DefaultBudgetFraction = 0.6;
 
-        private readonly long _budgetBytes;
-
         // System.Threading.Lock (.NET 9+) rather than a plain object: the lock statement binds to
         // Lock.EnterScope, which is cheaper under contention than Monitor on an object and makes it
         // a compile error to lock on something that was never meant to be a lock. Nothing here needs
@@ -51,7 +49,7 @@ namespace RomForge.Core.IO
                     budgetBytes,
                     "Budget must be positive."
                 );
-            _budgetBytes = budgetBytes;
+            BudgetBytes = budgetBytes;
         }
 
         /// <summary>
@@ -59,7 +57,7 @@ namespace RomForge.Core.IO
         /// so a single job's estimated working set never exceeds it — the reason the "runs alone
         /// when nothing else fits" fallback in <see cref="AcquireAsync"/> should not normally trigger.
         /// </summary>
-        public long BudgetBytes => _budgetBytes;
+        public long BudgetBytes { get; }
 
         /// <summary>
         /// Creates a gate budgeted as a fixed fraction of this machine's total physical memory.
@@ -124,7 +122,9 @@ namespace RomForge.Core.IO
                         node.Value.Admitted.TrySetCanceled(cancellationToken)
                     )
                 )
+                {
                     await node.Value.Admitted.Task.ConfigureAwait(false);
+                }
             }
             catch (OperationCanceledException)
             {
@@ -150,7 +150,7 @@ namespace RomForge.Core.IO
         // Admit when the job fits the remaining budget, or when nothing else is in flight — the
         // latter lets a job larger than the whole budget make progress alone instead of deadlocking.
         private bool FitsLocked(long cost) =>
-            _inFlightBytes == 0 || _inFlightBytes + cost <= _budgetBytes;
+            _inFlightBytes == 0 || _inFlightBytes + cost <= BudgetBytes;
 
         // Selects, strictly from the front, the queued jobs that now fit, and charges their cost
         // here on the releasing thread rather than letting each waiter re-check after it wakes.
@@ -160,7 +160,7 @@ namespace RomForge.Core.IO
         // CompleteAll's refund path re-enter the lock while it is still held.
         private List<Waiter> DrainLocked()
         {
-            List<Waiter> admitted = new List<Waiter>();
+            List<Waiter> admitted = [];
             while (_waiters.First is not null)
             {
                 Waiter head = _waiters.First.Value;

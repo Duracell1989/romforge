@@ -378,7 +378,7 @@ namespace RomForge.Core.UnitTests.Matching
                 Files = parsed.Games[0].Files with { RomCrc = 0x12345678 },
             };
 
-            string archivePath = "/roms/0001 - Test Game.7z";
+            const string archivePath = "/roms/0001 - Test Game.7z";
             string entryOnDisk = ArchiveWorkspace.BuildEntryName(
                 archivePath,
                 game.Files.RomExtension

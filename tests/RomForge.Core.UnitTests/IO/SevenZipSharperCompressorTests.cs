@@ -189,7 +189,7 @@ namespace RomForge.Core.UnitTests.IO
 
             // A 3DS-sized ROM clamps to the 256 MB dictionary; the LZMA2 encoder needs ~11x the
             // dictionary as working memory, plus a fixed ~64 MB overhead the pure multiplier omits.
-            estimate.Should().Be(268_435_456L * 11 + 64 * 1024 * 1024);
+            estimate.Should().Be((268_435_456L * 11) + (64 * 1024 * 1024));
         }
 
         [Test]
@@ -204,7 +204,7 @@ namespace RomForge.Core.UnitTests.IO
             long estimate = sut.EstimateWorkingSetBytes(3 * 1024 * 1024L, "7z");
 
             // 3 MB rounds up to a 4 MB dictionary, then x11 plus the fixed encoder overhead.
-            estimate.Should().Be(4 * 1024 * 1024L * 11 + 64 * 1024 * 1024);
+            estimate.Should().Be((4 * 1024 * 1024L * 11) + (64 * 1024 * 1024));
         }
 
         [TestCase(3 * 1024 * 1024L)]
@@ -228,7 +228,7 @@ namespace RomForge.Core.UnitTests.IO
             // Measured 2026-08-09: the pure dict x 11 multiplier under-predicts by up to 30% below
             // a 32 MB dictionary, so a fixed ~64 MB term covers the shortfall at every size. Pinning
             // the exact formula guards the value the concurrency budget depends on.
-            estimate.Should().Be((long)dictionary * 11 + 64 * 1024 * 1024);
+            estimate.Should().Be(((long)dictionary * 11) + (64 * 1024 * 1024));
         }
 
         [Test]
