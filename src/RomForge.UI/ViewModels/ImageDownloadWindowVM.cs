@@ -84,9 +84,7 @@ namespace RomForge.UI.ViewModels
             }
             else
             {
-                AppendLine(
-                    $"Done. Downloaded {summary.Downloaded} of {summary.Total}, {summary.Failed} failed."
-                );
+                AppendLine($"Done. Downloaded {summary.Downloaded} of {summary.Total}, {summary.Failed} failed.");
             }
 
             IsComplete = true;

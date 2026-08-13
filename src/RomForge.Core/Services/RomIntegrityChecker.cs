@@ -18,9 +18,7 @@ namespace RomForge.Core.Services
         /// <c>MainWindowVM.ValidateIntegrityAsync</c> — otherwise every ROM on an offline volume would
         /// be reported here and overwrite good scan results with "Missing".
         /// </summary>
-        public static IReadOnlyList<MatchResult> FindStaleResults(
-            IReadOnlyList<MatchResult> results
-        )
+        public static IReadOnlyList<MatchResult> FindStaleResults(IReadOnlyList<MatchResult> results)
         {
             ArgumentNullException.ThrowIfNull(results);
 

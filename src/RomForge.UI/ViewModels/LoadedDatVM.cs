@@ -101,8 +101,7 @@ namespace RomForge.UI.ViewModels
         public ObservableCollection<GameRowVM> FilteredGames => _filteredGames;
         public int FilteredCount => _filteredGames.Count;
 
-        public string DisplaySubtitle =>
-            $"{GameCount} games  •  {(RomFolder is null ? "No folder" : Path.GetFileName(RomFolder))}";
+        public string DisplaySubtitle => $"{GameCount} games  •  {(RomFolder is null ? "No folder" : Path.GetFileName(RomFolder))}";
 
         public string StatusSummary
         {
@@ -115,9 +114,7 @@ namespace RomForge.UI.ViewModels
                 var verified = Games.Count(g => g.DisplayStatus == RomStatus.Verified);
                 var untrimmed = Games.Count(g => g.DisplayStatus == RomStatus.Untrimmed);
                 var wrongArchiveType = Games.Count(g => g.DisplayStatus == RomStatus.WrongArchive);
-                var incorrectlyNamed = Games.Count(g =>
-                    g.DisplayStatus == RomStatus.IncorrectlyNamed
-                );
+                var incorrectlyNamed = Games.Count(g => g.DisplayStatus == RomStatus.IncorrectlyNamed);
                 var missing = Games.Count(g => g.DisplayStatus == RomStatus.Missing);
 
                 var segments = new List<string> { $"{Games.Count} games" };
@@ -136,9 +133,7 @@ namespace RomForge.UI.ViewModels
 
                 string summary = string.Join("  •  ", segments);
 
-                return IsFilterActive
-                    ? $"Showing {FilteredCount} of {Games.Count}  •  {summary}"
-                    : summary;
+                return IsFilterActive ? $"Showing {FilteredCount} of {Games.Count}  •  {summary}" : summary;
             }
         }
 
@@ -212,44 +207,25 @@ namespace RomForge.UI.ViewModels
         private IEnumerable<GameRowVM> ApplySort(IEnumerable<GameRowVM> items) =>
             _sortColumn switch
             {
-                SortColumn.ReleaseNumber => _sortDescending
-                    ? items.OrderByDescending(g => g.ReleaseNumber)
-                    : items.OrderBy(g => g.ReleaseNumber),
+                SortColumn.ReleaseNumber => _sortDescending ? items.OrderByDescending(g => g.ReleaseNumber) : items.OrderBy(g => g.ReleaseNumber),
                 SortColumn.Title => _sortDescending
                     ? items.OrderByDescending(g => g.Title, StringComparer.CurrentCultureIgnoreCase)
                     : items.OrderBy(g => g.Title, StringComparer.CurrentCultureIgnoreCase),
                 SortColumn.Publisher => _sortDescending
-                    ? items.OrderByDescending(
-                        g => g.Publisher ?? string.Empty,
-                        StringComparer.CurrentCultureIgnoreCase
-                    )
-                    : items.OrderBy(
-                        g => g.Publisher ?? string.Empty,
-                        StringComparer.CurrentCultureIgnoreCase
-                    ),
+                    ? items.OrderByDescending(g => g.Publisher ?? string.Empty, StringComparer.CurrentCultureIgnoreCase)
+                    : items.OrderBy(g => g.Publisher ?? string.Empty, StringComparer.CurrentCultureIgnoreCase),
                 SortColumn.Location => _sortDescending
-                    ? items.OrderByDescending(
-                        g => g.Location,
-                        StringComparer.CurrentCultureIgnoreCase
-                    )
+                    ? items.OrderByDescending(g => g.Location, StringComparer.CurrentCultureIgnoreCase)
                     : items.OrderBy(g => g.Location, StringComparer.CurrentCultureIgnoreCase),
                 SortColumn.Language => _sortDescending
-                    ? items.OrderByDescending(
-                        g => g.Language,
-                        StringComparer.CurrentCultureIgnoreCase
-                    )
+                    ? items.OrderByDescending(g => g.Language, StringComparer.CurrentCultureIgnoreCase)
                     : items.OrderBy(g => g.Language, StringComparer.CurrentCultureIgnoreCase),
-                SortColumn.ReArchived => _sortDescending
-                    ? items.OrderByDescending(g => g.IsReArchived)
-                    : items.OrderBy(g => g.IsReArchived),
-                SortColumn.Status => _sortDescending
-                    ? items.OrderByDescending(g => g.StatusSortKey)
-                    : items.OrderBy(g => g.StatusSortKey),
+                SortColumn.ReArchived => _sortDescending ? items.OrderByDescending(g => g.IsReArchived) : items.OrderBy(g => g.IsReArchived),
+                SortColumn.Status => _sortDescending ? items.OrderByDescending(g => g.StatusSortKey) : items.OrderBy(g => g.StatusSortKey),
                 _ => items,
             };
 
-        internal GameRowVM BuildGameRow(MatchResult result) =>
-            new GameRowVM(result, _imgsBasePath, _datFile.Header, _config?.LanguageBits ?? []);
+        internal GameRowVM BuildGameRow(MatchResult result) => new GameRowVM(result, _imgsBasePath, _datFile.Header, _config?.LanguageBits ?? []);
 
         protected override void OnPropertyChanged(PropertyChangedEventArgs e)
         {
@@ -282,10 +258,7 @@ namespace RomForge.UI.ViewModels
 
         private bool MatchesFilter(GameRowVM vm)
         {
-            if (
-                !string.IsNullOrEmpty(TitleFilter)
-                && !vm.Title.Contains(TitleFilter, StringComparison.OrdinalIgnoreCase)
-            )
+            if (!string.IsNullOrEmpty(TitleFilter) && !vm.Title.Contains(TitleFilter, StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }
@@ -302,10 +275,7 @@ namespace RomForge.UI.ViewModels
             };
         }
 
-        partial void OnGamesChanged(
-            ObservableCollection<GameRowVM> oldValue,
-            ObservableCollection<GameRowVM> newValue
-        )
+        partial void OnGamesChanged(ObservableCollection<GameRowVM> oldValue, ObservableCollection<GameRowVM> newValue)
         {
 #pragma warning disable CS8625 // generator declares oldValue non-nullable but backing field starts null
             if (oldValue is not null)

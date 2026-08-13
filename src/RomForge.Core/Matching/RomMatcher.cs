@@ -9,11 +9,7 @@ namespace RomForge.Core.Matching
 {
     public static class RomMatcher
     {
-        public static MatchSummary Match(
-            DatFile datFile,
-            IReadOnlyList<ScannedRom> scannedRoms,
-            string expectedArchiveExtension = "7z"
-        )
+        public static MatchSummary Match(DatFile datFile, IReadOnlyList<ScannedRom> scannedRoms, string expectedArchiveExtension = "7z")
         {
             ArgumentNullException.ThrowIfNull(datFile);
             ArgumentNullException.ThrowIfNull(scannedRoms);
@@ -22,26 +18,17 @@ namespace RomForge.Core.Matching
             Dictionary<uint, ScannedRom> byTrimmedCrc = BuildTrimmedCrcIndex(scannedRoms);
             const string namingMask = NamingMask.DefaultMask;
 
-            List<MatchResult> results = datFile
-                .Games.Select(game =>
-                    Classify(game, byCrc, byTrimmedCrc, namingMask, expectedArchiveExtension)
-                )
-                .ToList();
+            List<MatchResult> results = datFile.Games.Select(game => Classify(game, byCrc, byTrimmedCrc, namingMask, expectedArchiveExtension)).ToList();
 
             HashSet<uint> datCrcs = datFile.Games.Select(g => g.Files.RomCrc).ToHashSet();
             List<ScannedRom> unmatched = scannedRoms
-                .Where(r =>
-                    !datCrcs.Contains(r.Crc)
-                    && (r.TrimmedCrc is null || !datCrcs.Contains(r.TrimmedCrc.Value))
-                )
+                .Where(r => !datCrcs.Contains(r.Crc) && (r.TrimmedCrc is null || !datCrcs.Contains(r.TrimmedCrc.Value)))
                 .ToList();
 
             return new MatchSummary(results, unmatched);
         }
 
-        private static Dictionary<uint, ScannedRom> BuildCrcIndex(
-            IReadOnlyList<ScannedRom> scannedRoms
-        )
+        private static Dictionary<uint, ScannedRom> BuildCrcIndex(IReadOnlyList<ScannedRom> scannedRoms)
         {
             Dictionary<uint, ScannedRom> index = new(scannedRoms.Count);
             foreach (ScannedRom rom in scannedRoms)
@@ -49,9 +36,7 @@ namespace RomForge.Core.Matching
             return index;
         }
 
-        private static Dictionary<uint, ScannedRom> BuildTrimmedCrcIndex(
-            IReadOnlyList<ScannedRom> scannedRoms
-        )
+        private static Dictionary<uint, ScannedRom> BuildTrimmedCrcIndex(IReadOnlyList<ScannedRom> scannedRoms)
         {
             Dictionary<uint, ScannedRom> index = [];
             foreach (ScannedRom rom in scannedRoms)
@@ -74,11 +59,7 @@ namespace RomForge.Core.Matching
             // Full CRC match — ROM is correctly sized; evaluate archive type and name independently.
             if (byCrc.TryGetValue(game.Files.RomCrc, out ScannedRom? rom))
             {
-                bool isWrongArchiveType = !string.Equals(
-                    rom.FileExtension,
-                    expectedArchiveExtension,
-                    StringComparison.OrdinalIgnoreCase
-                );
+                bool isWrongArchiveType = !string.Equals(rom.FileExtension, expectedArchiveExtension, StringComparison.OrdinalIgnoreCase);
 
                 // The outer archive file name and the entry name inside the archive are two distinct
                 // problems with two distinct fixes: a wrong outer name is fixed by a rename (File.Move),
@@ -90,16 +71,8 @@ namespace RomForge.Core.Matching
                 {
                     string expectedName = NamingMask.Expand(namingMask, game);
                     string actualName = Path.GetFileNameWithoutExtension(rom.FilePath);
-                    isIncorrectlyNamed = !string.Equals(
-                        actualName,
-                        expectedName,
-                        StringComparison.OrdinalIgnoreCase
-                    );
-                    isEntryMisnamed = !string.Equals(
-                        rom.EntryName,
-                        expectedName,
-                        StringComparison.OrdinalIgnoreCase
-                    );
+                    isIncorrectlyNamed = !string.Equals(actualName, expectedName, StringComparison.OrdinalIgnoreCase);
+                    isEntryMisnamed = !string.Equals(rom.EntryName, expectedName, StringComparison.OrdinalIgnoreCase);
                 }
 
                 return new MatchResult

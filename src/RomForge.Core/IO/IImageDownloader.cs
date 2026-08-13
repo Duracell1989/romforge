@@ -14,10 +14,6 @@ namespace RomForge.Core.IO
         /// creating the destination directory if needed. A non-success HTTP status (e.g. a
         /// missing image) is returned as a failed <see cref="Result"/>, not thrown.
         /// </summary>
-        Task<Result> DownloadImageAsync(
-            string imageUrl,
-            string destPath,
-            CancellationToken ct = default
-        );
+        Task<Result> DownloadImageAsync(string imageUrl, string destPath, CancellationToken ct = default);
     }
 }

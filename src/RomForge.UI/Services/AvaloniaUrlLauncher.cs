@@ -29,7 +29,6 @@ namespace RomForge.UI.Services
         }
 
         internal static bool IsLaunchableHttpUrl(string url) =>
-            Uri.TryCreate(url, UriKind.Absolute, out Uri? uri)
-            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+            Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
     }
 }

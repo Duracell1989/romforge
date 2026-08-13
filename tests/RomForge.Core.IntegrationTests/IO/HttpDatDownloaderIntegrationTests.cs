@@ -38,20 +38,13 @@ namespace RomForge.Core.IntegrationTests.IO
         {
             FakeHttpMessageHandler handler = new FakeHttpMessageHandler(statusCode, content);
             HttpClient client = new HttpClient(handler);
-            return new HttpDatDownloader(
-                client,
-                _appData,
-                new LoggerConfiguration().CreateLogger()
-            );
+            return new HttpDatDownloader(client, _appData, new LoggerConfiguration().CreateLogger());
         }
 
         [Test]
         public async Task DownloadDatAsync_Success_MovesFileToDestDir()
         {
-            HttpDatDownloader downloader = MakeDownloader(
-                HttpStatusCode.OK,
-                "fake dat"u8.ToArray()
-            );
+            HttpDatDownloader downloader = MakeDownloader(HttpStatusCode.OK, "fake dat"u8.ToArray());
 
             FluentResults.Result<string> result = await downloader.DownloadDatAsync(
                 "http://fake/file.zip",
@@ -70,18 +63,9 @@ namespace RomForge.Core.IntegrationTests.IO
         [Test]
         public async Task DownloadDatAsync_NoFileNameHint_ExtractsNameFromUrl()
         {
-            HttpDatDownloader downloader = MakeDownloader(
-                HttpStatusCode.OK,
-                "fake dat"u8.ToArray()
-            );
+            HttpDatDownloader downloader = MakeDownloader(HttpStatusCode.OK, "fake dat"u8.ToArray());
 
-            FluentResults.Result<string> result = await downloader.DownloadDatAsync(
-                "http://fake/gba.zip",
-                _destDir,
-                null,
-                null,
-                CancellationToken.None
-            );
+            FluentResults.Result<string> result = await downloader.DownloadDatAsync("http://fake/gba.zip", _destDir, null, null, CancellationToken.None);
 
             result.IsSuccess.Should().BeTrue();
             result.Value.Should().Be(Path.Combine(_destDir, "gba.zip"));
@@ -111,13 +95,7 @@ namespace RomForge.Core.IntegrationTests.IO
         {
             HttpDatDownloader downloader = MakeDownloader(HttpStatusCode.NotFound, []);
 
-            FluentResults.Result<string> result = await downloader.DownloadDatAsync(
-                "http://fake/gba.zip",
-                _destDir,
-                null,
-                null,
-                CancellationToken.None
-            );
+            FluentResults.Result<string> result = await downloader.DownloadDatAsync("http://fake/gba.zip", _destDir, null, null, CancellationToken.None);
 
             result.IsFailed.Should().BeTrue();
             Directory.GetFiles(_appData.TempPath).Should().BeEmpty();
@@ -130,8 +108,7 @@ namespace RomForge.Core.IntegrationTests.IO
             await cts.CancelAsync();
             HttpDatDownloader downloader = MakeDownloader(HttpStatusCode.OK, []);
 
-            Func<Task> act = () =>
-                downloader.DownloadDatAsync("http://fake/gba.zip", _destDir, null, null, cts.Token);
+            Func<Task> act = () => downloader.DownloadDatAsync("http://fake/gba.zip", _destDir, null, null, cts.Token);
 
             await act.Should().ThrowAsync<OperationCanceledException>();
             Directory.GetFiles(_appData.TempPath).Should().BeEmpty();

@@ -51,10 +51,7 @@ namespace RomForge.Core.Operations
             _logger = logger.ForContext<DatLibraryService>();
         }
 
-        public Task<Result<DatFile>> ReadAsync(
-            string path,
-            CancellationToken cancellationToken = default
-        )
+        public Task<Result<DatFile>> ReadAsync(string path, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(path);
             return _datReaderFactory(path).ReadAsync(cancellationToken);
@@ -69,12 +66,7 @@ namespace RomForge.Core.Operations
         {
             ArgumentNullException.ThrowIfNull(header);
 
-            Result<string> importResult = await _datImporter.ImportAsync(
-                sourceDatPath,
-                header,
-                progress,
-                cancellationToken
-            );
+            Result<string> importResult = await _datImporter.ImportAsync(sourceDatPath, header, progress, cancellationToken);
             if (importResult.IsFailed)
                 return importResult;
 
@@ -82,27 +74,16 @@ namespace RomForge.Core.Operations
             return importResult;
         }
 
-        public async Task<(IReadOnlyList<MatchResult> Results, bool FromCache)> LoadResultsAsync(
-            DatFile datFile
-        )
+        public async Task<(IReadOnlyList<MatchResult> Results, bool FromCache)> LoadResultsAsync(DatFile datFile)
         {
             ArgumentNullException.ThrowIfNull(datFile);
 
-            IReadOnlyList<MatchResult> persisted = await _scanResultStore.LoadResultsAsync(
-                datFile.Header.DatName,
-                datFile
-            );
+            IReadOnlyList<MatchResult> persisted = await _scanResultStore.LoadResultsAsync(datFile.Header.DatName, datFile);
 
-            return persisted.Count > 0
-                ? (persisted, true)
-                : (RomMatcher.Match(datFile, []).Results, false);
+            return persisted.Count > 0 ? (persisted, true) : (RomMatcher.Match(datFile, []).Results, false);
         }
 
-        public async Task<IReadOnlyList<MatchResult>> FindAndClearStaleAsync(
-            string datName,
-            string? romFolder,
-            IReadOnlyList<MatchResult> results
-        )
+        public async Task<IReadOnlyList<MatchResult>> FindAndClearStaleAsync(string datName, string? romFolder, IReadOnlyList<MatchResult> results)
         {
             ArgumentNullException.ThrowIfNull(results);
 
@@ -112,17 +93,11 @@ namespace RomForge.Core.Operations
             // forcing a full re-scan on reconnect.
             if (romFolder is not null && !_fileOperations.DirectoryExists(romFolder))
             {
-                _logger.Information(
-                    "Skipping integrity check for {DatName}: ROM folder {Folder} is not available",
-                    datName,
-                    romFolder
-                );
+                _logger.Information("Skipping integrity check for {DatName}: ROM folder {Folder} is not available", datName, romFolder);
                 return [];
             }
 
-            IReadOnlyList<MatchResult> stale = await Task.Run(() =>
-                RomIntegrityChecker.FindStaleResults(results)
-            );
+            IReadOnlyList<MatchResult> stale = await Task.Run(() => RomIntegrityChecker.FindStaleResults(results));
 
             if (stale.Count == 0)
                 return [];
@@ -130,20 +105,12 @@ namespace RomForge.Core.Operations
             List<MatchResult> cleared = new List<MatchResult>(stale.Count);
             foreach (MatchResult staleResult in stale)
             {
-                MatchResult missing = new MatchResult
-                {
-                    Game = staleResult.Game,
-                    Status = MatchStatus.Missing,
-                };
+                MatchResult missing = new MatchResult { Game = staleResult.Game, Status = MatchStatus.Missing };
                 await _scanResultStore.UpdateResultAsync(datName, missing);
                 cleared.Add(missing);
             }
 
-            _logger.Information(
-                "Integrity check for {DatName}: {Count} missing file(s) cleared",
-                datName,
-                cleared.Count
-            );
+            _logger.Information("Integrity check for {DatName}: {Count} missing file(s) cleared", datName, cleared.Count);
             return cleared;
         }
 

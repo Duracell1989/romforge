@@ -112,7 +112,6 @@ namespace RomForge.Core.UnitTests.IO
 
         private string CachePath() => Path.Combine(_tempDir, "cache.json");
 
-        private static DateTime Utc(int year, int month, int day) =>
-            new DateTime(year, month, day, 0, 0, 0, DateTimeKind.Utc);
+        private static DateTime Utc(int year, int month, int day) => new DateTime(year, month, day, 0, 0, 0, DateTimeKind.Utc);
     }
 }

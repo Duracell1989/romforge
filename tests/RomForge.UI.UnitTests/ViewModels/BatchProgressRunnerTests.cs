@@ -22,13 +22,7 @@ namespace RomForge.UI.UnitTests.ViewModels
             _notifier = new Mock<IUserNotifier>();
             // Run the operation task the runner hands to the progress window, as the real notifier does.
             _notifier
-                .Setup(n =>
-                    n.ShowProgressAsync(
-                        It.IsAny<string>(),
-                        It.IsAny<ProgressWindowVM>(),
-                        It.IsAny<Task>()
-                    )
-                )
+                .Setup(n => n.ShowProgressAsync(It.IsAny<string>(), It.IsAny<ProgressWindowVM>(), It.IsAny<Task>()))
                 .Returns<string, ProgressWindowVM, Task>((_, _, task) => task);
 
             ILogger logger = new LoggerConfiguration().CreateLogger();
@@ -59,20 +53,10 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public async Task RunAsync_NoTargets_IsNoOpAndReturnsZero()
         {
-            int succeeded = await _runner.RunAsync(
-                Operation([], (_, _) => Task.FromResult<string?>(null))
-            );
+            int succeeded = await _runner.RunAsync(Operation([], (_, _) => Task.FromResult<string?>(null)));
 
             succeeded.Should().Be(0);
-            _notifier.Verify(
-                n =>
-                    n.ShowProgressAsync(
-                        It.IsAny<string>(),
-                        It.IsAny<ProgressWindowVM>(),
-                        It.IsAny<Task>()
-                    ),
-                Times.Never
-            );
+            _notifier.Verify(n => n.ShowProgressAsync(It.IsAny<string>(), It.IsAny<ProgressWindowVM>(), It.IsAny<Task>()), Times.Never);
             _notifier.Verify(n => n.NotifyErrorAsync(It.IsAny<string>()), Times.Never);
         }
 
@@ -100,21 +84,10 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public async Task RunAsync_SomeFail_AggregatesErrorsAndReturnsSucceededCount()
         {
-            int succeeded = await _runner.RunAsync(
-                Operation(
-                    ["ok", "bad", "ok2"],
-                    (t, _) => Task.FromResult<string?>(t == "bad" ? "boom" : null)
-                )
-            );
+            int succeeded = await _runner.RunAsync(Operation(["ok", "bad", "ok2"], (t, _) => Task.FromResult<string?>(t == "bad" ? "boom" : null)));
 
             succeeded.Should().Be(2);
-            _notifier.Verify(
-                n =>
-                    n.NotifyErrorAsync(
-                        It.Is<string>(m => m.Contains("1 file(s)") && m.Contains("boom"))
-                    ),
-                Times.Once
-            );
+            _notifier.Verify(n => n.NotifyErrorAsync(It.Is<string>(m => m.Contains("1 file(s)") && m.Contains("boom"))), Times.Once);
         }
 
         [Test]
@@ -202,9 +175,7 @@ namespace RomForge.UI.UnitTests.ViewModels
             );
 
             processed.Should().Equal("a");
-            succeeded
-                .Should()
-                .Be(3, "cancellation is not a failure — only processed items count against errors");
+            succeeded.Should().Be(3, "cancellation is not a failure — only processed items count against errors");
         }
 
         [Test]
@@ -217,13 +188,7 @@ namespace RomForge.UI.UnitTests.ViewModels
             int processed = 0;
             int processedWhenShown = -1;
             _notifier
-                .Setup(n =>
-                    n.ShowProgressAsync(
-                        It.IsAny<string>(),
-                        It.IsAny<ProgressWindowVM>(),
-                        It.IsAny<Task>()
-                    )
-                )
+                .Setup(n => n.ShowProgressAsync(It.IsAny<string>(), It.IsAny<ProgressWindowVM>(), It.IsAny<Task>()))
                 .Returns<string, ProgressWindowVM, Task>(
                     (_, _, task) =>
                     {
@@ -243,9 +208,7 @@ namespace RomForge.UI.UnitTests.ViewModels
                 )
             );
 
-            processedWhenShown
-                .Should()
-                .Be(0, "the progress window must be shown before any item is processed");
+            processedWhenShown.Should().Be(0, "the progress window must be shown before any item is processed");
             processed.Should().Be(3);
         }
 
@@ -254,14 +217,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         {
             List<bool> transitions = [];
 
-            await _runner.RunAsync(
-                Operation(
-                    ["a", "b"],
-                    (_, _) => throw new OperationCanceledException(),
-                    cancellable: true,
-                    busyFlag: transitions.Add
-                )
-            );
+            await _runner.RunAsync(Operation(["a", "b"], (_, _) => throw new OperationCanceledException(), cancellable: true, busyFlag: transitions.Add));
 
             transitions.Should().Equal(true, false);
         }

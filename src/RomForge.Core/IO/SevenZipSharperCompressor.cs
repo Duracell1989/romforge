@@ -21,10 +21,7 @@ namespace RomForge.Core.IO
         private readonly ILogger<SevenZipCompressor> _logger;
         private readonly WorkingSetBudgetGate _memoryGate;
 
-        public SevenZipSharperCompressor(
-            ILogger<SevenZipCompressor> logger,
-            WorkingSetBudgetGate memoryGate
-        )
+        public SevenZipSharperCompressor(ILogger<SevenZipCompressor> logger, WorkingSetBudgetGate memoryGate)
         {
             ArgumentNullException.ThrowIfNull(logger);
             ArgumentNullException.ThrowIfNull(memoryGate);
@@ -34,11 +31,7 @@ namespace RomForge.Core.IO
         }
 
         // For unit testing — bypasses the native library probe.
-        internal SevenZipSharperCompressor(
-            ILogger<SevenZipCompressor> logger,
-            WorkingSetBudgetGate memoryGate,
-            bool isAvailable
-        )
+        internal SevenZipSharperCompressor(ILogger<SevenZipCompressor> logger, WorkingSetBudgetGate memoryGate, bool isAvailable)
         {
             ArgumentNullException.ThrowIfNull(memoryGate);
             _logger = logger;
@@ -72,36 +65,23 @@ namespace RomForge.Core.IO
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
                     ExistingArchiveDeleteFailed(_logger, destArchive, ex);
-                    return Result.Fail(
-                        $"Could not replace existing archive {Path.GetFileName(destArchive)}: {ex.Message}"
-                    );
+                    return Result.Fail($"Could not replace existing archive {Path.GetFileName(destArchive)}: {ex.Message}");
                 }
             }
 
-            ArchiveFormat archiveFormat =
-                format == ZipFormatName ? ArchiveFormat.Zip : ArchiveFormat.SevenZip;
-            CompressionParameters parameters = BuildParameters(
-                format,
-                romSize,
-                _memoryGate.BudgetBytes
-            );
+            ArchiveFormat archiveFormat = format == ZipFormatName ? ArchiveFormat.Zip : ArchiveFormat.SevenZip;
+            CompressionParameters parameters = BuildParameters(format, romSize, _memoryGate.BudgetBytes);
 
             try
             {
-                using SevenZipCompressor compressor = new SevenZipCompressor(
-                    archiveFormat,
-                    parameters,
-                    _logger
-                );
+                using SevenZipCompressor compressor = new SevenZipCompressor(archiveFormat, parameters, _logger);
                 await using FileStream source = File.OpenRead(sourceFile);
                 await using FileStream dest = File.Create(destArchive);
 
                 var entries = new (string EntryPath, Stream Data)[] { (entryName, source) };
                 Progress<CompressionProgress>? mapped = MapProgress(progress);
 
-                return await compressor
-                    .CompressAsync(entries, dest, mapped, cancellationToken)
-                    .ConfigureAwait(false);
+                return await compressor.CompressAsync(entries, dest, mapped, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -169,11 +149,7 @@ namespace RomForge.Core.IO
         // is what makes a single compress job's estimated working set never exceed the budget it
         // was admitted under — the WorkingSetBudgetGate.AcquireAsync "runs alone" fallback for an
         // over-budget job exists only as a safety net for a near-zero budget, not normal operation.
-        internal static CompressionParameters BuildParameters(
-            string format,
-            long romSize,
-            long memoryBudgetBytes
-        ) =>
+        internal static CompressionParameters BuildParameters(string format, long romSize, long memoryBudgetBytes) =>
             format == ZipFormatName
                 ? BuildParameters(format, romSize)
                 : CompressionParameters.Default with
@@ -200,12 +176,9 @@ namespace RomForge.Core.IO
         private const long ZipEncoderWorkingSetBytes = 64L * 1024 * 1024;
 
         public long EstimateWorkingSetBytes(long romSize, string format) =>
-            format == ZipFormatName
-                ? ZipEncoderWorkingSetBytes
-                : CostFor(DictionarySizeFor(romSize, _memoryGate.BudgetBytes));
+            format == ZipFormatName ? ZipEncoderWorkingSetBytes : CostFor(DictionarySizeFor(romSize, _memoryGate.BudgetBytes));
 
-        private static long CostFor(uint dictionaryBytes) =>
-            ((long)dictionaryBytes * Lzma2EncoderMemoryMultiplier) + Lzma2EncoderFixedOverheadBytes;
+        private static long CostFor(uint dictionaryBytes) => ((long)dictionaryBytes * Lzma2EncoderMemoryMultiplier) + Lzma2EncoderFixedOverheadBytes;
 
         // A dictionary larger than the data being compressed can't improve the ratio for this
         // single-entry archive — it only costs memory — so use the smallest power-of-2 that still
@@ -237,8 +210,7 @@ namespace RomForge.Core.IO
         // available memory, far below what .NET's GC.GetGCMemoryInfo() reports even under pressure.
         internal static uint AffordableDictionaryCeiling(long memoryBudgetBytes)
         {
-            long affordable =
-                (memoryBudgetBytes - Lzma2EncoderFixedOverheadBytes) / Lzma2EncoderMemoryMultiplier;
+            long affordable = (memoryBudgetBytes - Lzma2EncoderFixedOverheadBytes) / Lzma2EncoderMemoryMultiplier;
 
             if (affordable <= MinDictionarySize)
                 return MinDictionarySize;
@@ -253,11 +225,7 @@ namespace RomForge.Core.IO
 
         private static bool ProbeNativeLibrary(ILogger<SevenZipCompressor> logger)
         {
-            Result<SevenZipCompressor> probe = SevenZipCompressor.Create(
-                ArchiveFormat.SevenZip,
-                CompressionParameters.Default,
-                logger
-            );
+            Result<SevenZipCompressor> probe = SevenZipCompressor.Create(ArchiveFormat.SevenZip, CompressionParameters.Default, logger);
             if (probe.IsFailed)
             {
                 NativeLibraryUnavailable(logger, probe.Errors[0].Message);

@@ -7,10 +7,7 @@ namespace RomForge.UI.Services
     {
         public void Shutdown()
         {
-            if (
-                Application.Current?.ApplicationLifetime
-                is IClassicDesktopStyleApplicationLifetime lifetime
-            )
+            if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime lifetime)
             {
                 lifetime.Shutdown();
             }

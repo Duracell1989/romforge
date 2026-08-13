@@ -17,11 +17,7 @@ namespace RomForge.Core.Services
         private readonly IReleaseChecker _releaseChecker;
         private readonly ILogger _logger;
 
-        public UpdateCheckService(
-            IReleaseChecker releaseChecker,
-            ILogger logger,
-            string currentVersion
-        )
+        public UpdateCheckService(IReleaseChecker releaseChecker, ILogger logger, string currentVersion)
         {
             ArgumentNullException.ThrowIfNull(logger);
             _releaseChecker = releaseChecker;
@@ -39,13 +35,7 @@ namespace RomForge.Core.Services
             Result<ReleaseInfo> result = await _releaseChecker.FetchLatestReleaseAsync(ct);
             if (result.IsFailed)
             {
-                return new UpdateCheckOutcome(
-                    UpdateCheckStatus.CheckFailed,
-                    CurrentVersion,
-                    null,
-                    null,
-                    result.Errors[0].Message
-                );
+                return new UpdateCheckOutcome(UpdateCheckStatus.CheckFailed, CurrentVersion, null, null, result.Errors[0].Message);
             }
 
             ReleaseInfo latest = result.Value;

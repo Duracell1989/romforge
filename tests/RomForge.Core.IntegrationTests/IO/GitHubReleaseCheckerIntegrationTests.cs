@@ -16,10 +16,7 @@ namespace RomForge.Core.IntegrationTests.IO
     {
         private static GitHubReleaseChecker MakeChecker(HttpStatusCode statusCode, string body)
         {
-            FakeHttpMessageHandler handler = new FakeHttpMessageHandler(
-                statusCode,
-                Encoding.UTF8.GetBytes(body)
-            );
+            FakeHttpMessageHandler handler = new FakeHttpMessageHandler(statusCode, Encoding.UTF8.GetBytes(body));
             HttpClient client = new HttpClient(handler);
             return new GitHubReleaseChecker(client, new LoggerConfiguration().CreateLogger());
         }
@@ -27,32 +24,22 @@ namespace RomForge.Core.IntegrationTests.IO
         [Test]
         public async Task FetchLatestReleaseAsync_WhenApiReturnsRelease_ParsesTagAndUrl()
         {
-            const string body =
-                """{"tag_name":"v1.2.0","html_url":"https://github.com/Duracell1989/RomForge/releases/tag/v1.2.0"}""";
+            const string body = """{"tag_name":"v1.2.0","html_url":"https://github.com/Duracell1989/RomForge/releases/tag/v1.2.0"}""";
             GitHubReleaseChecker checker = MakeChecker(HttpStatusCode.OK, body);
 
-            FluentResults.Result<ReleaseInfo> result = await checker.FetchLatestReleaseAsync(
-                CancellationToken.None
-            );
+            FluentResults.Result<ReleaseInfo> result = await checker.FetchLatestReleaseAsync(CancellationToken.None);
 
             result.IsSuccess.Should().BeTrue();
             result.Value.TagName.Should().Be("v1.2.0");
-            result
-                .Value.HtmlUrl.Should()
-                .Be("https://github.com/Duracell1989/RomForge/releases/tag/v1.2.0");
+            result.Value.HtmlUrl.Should().Be("https://github.com/Duracell1989/RomForge/releases/tag/v1.2.0");
         }
 
         [Test]
         public async Task FetchLatestReleaseAsync_WhenFieldsMissing_ReturnsFailed()
         {
-            GitHubReleaseChecker checker = MakeChecker(
-                HttpStatusCode.OK,
-                """{"name":"no tag here"}"""
-            );
+            GitHubReleaseChecker checker = MakeChecker(HttpStatusCode.OK, """{"name":"no tag here"}""");
 
-            FluentResults.Result<ReleaseInfo> result = await checker.FetchLatestReleaseAsync(
-                CancellationToken.None
-            );
+            FluentResults.Result<ReleaseInfo> result = await checker.FetchLatestReleaseAsync(CancellationToken.None);
 
             result.IsFailed.Should().BeTrue();
         }
@@ -60,14 +47,9 @@ namespace RomForge.Core.IntegrationTests.IO
         [Test]
         public async Task FetchLatestReleaseAsync_WhenServerErrors_ReturnsFailed()
         {
-            GitHubReleaseChecker checker = MakeChecker(
-                HttpStatusCode.ServiceUnavailable,
-                string.Empty
-            );
+            GitHubReleaseChecker checker = MakeChecker(HttpStatusCode.ServiceUnavailable, string.Empty);
 
-            FluentResults.Result<ReleaseInfo> result = await checker.FetchLatestReleaseAsync(
-                CancellationToken.None
-            );
+            FluentResults.Result<ReleaseInfo> result = await checker.FetchLatestReleaseAsync(CancellationToken.None);
 
             result.IsFailed.Should().BeTrue();
         }

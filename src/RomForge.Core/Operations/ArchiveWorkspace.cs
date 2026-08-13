@@ -24,11 +24,7 @@ namespace RomForge.Core.Operations
         private readonly IRomFileOperations _fileOperations;
         private readonly ILogger _logger;
 
-        public ArchiveWorkspace(
-            AppDataService appData,
-            IRomFileOperations fileOperations,
-            ILogger logger
-        )
+        public ArchiveWorkspace(AppDataService appData, IRomFileOperations fileOperations, ILogger logger)
         {
             ArgumentNullException.ThrowIfNull(appData);
             ArgumentNullException.ThrowIfNull(fileOperations);
@@ -43,11 +39,7 @@ namespace RomForge.Core.Operations
         /// here rather than into a ROM folder, so a failed or cancelled operation never leaves a
         /// partial file next to the user's ROMs. The temp directory is swept on the next launch.
         /// </summary>
-        public string NewWorkingArchivePath(string format) =>
-            Path.Combine(
-                _appData.TempPath,
-                "rearchive-" + Guid.NewGuid().ToString("N") + "." + format
-            );
+        public string NewWorkingArchivePath(string format) => Path.Combine(_appData.TempPath, "rearchive-" + Guid.NewGuid().ToString("N") + "." + format);
 
         /// <summary>
         /// The name to give the ROM entry inside a freshly-compressed archive: the expected file
@@ -82,11 +74,7 @@ namespace RomForge.Core.Operations
         /// the final move would otherwise destroy the ROM outright — the aside copy is only deleted
         /// once the working archive has been placed successfully.
         /// </remarks>
-        public async Task<(string? Error, bool Consumed)> PlaceWorkingArchiveAsync(
-            string workingArchive,
-            string fromPath,
-            string toPath
-        )
+        public async Task<(string? Error, bool Consumed)> PlaceWorkingArchiveAsync(string workingArchive, string fromPath, string toPath)
         {
             ArgumentNullException.ThrowIfNull(workingArchive);
             ArgumentNullException.ThrowIfNull(fromPath);
@@ -101,23 +89,14 @@ namespace RomForge.Core.Operations
                 Result renameAside = await _fileOperations.RenameAsync(fromPath, asidePath);
                 if (renameAside.IsFailed)
                 {
-                    return (
-                        $"Could not replace original: {Path.GetFileName(fromPath)}: {renameAside.Errors[0].Message}",
-                        false
-                    );
+                    return ($"Could not replace original: {Path.GetFileName(fromPath)}: {renameAside.Errors[0].Message}", false);
                 }
             }
 
             Result move = await _fileOperations.RenameAsync(workingArchive, toPath);
             if (move.IsFailed)
             {
-                return await RecoverFromFailedMoveAsync(
-                    workingArchive,
-                    fromPath,
-                    toPath,
-                    asidePath,
-                    move.Errors[0].Message
-                );
+                return await RecoverFromFailedMoveAsync(workingArchive, fromPath, toPath, asidePath, move.Errors[0].Message);
             }
 
             if (!sameFile)
@@ -125,10 +104,7 @@ namespace RomForge.Core.Operations
                 Result deleteOriginal = await _fileOperations.DeleteAsync(fromPath);
                 if (deleteOriginal.IsFailed)
                 {
-                    return (
-                        $"Archived but could not delete original: {Path.GetFileName(fromPath)}: {deleteOriginal.Errors[0].Message}",
-                        true
-                    );
+                    return ($"Archived but could not delete original: {Path.GetFileName(fromPath)}: {deleteOriginal.Errors[0].Message}", true);
                 }
             }
             else
@@ -136,11 +112,7 @@ namespace RomForge.Core.Operations
                 Result deleteAside = await _fileOperations.DeleteAsync(asidePath!);
                 if (deleteAside.IsFailed)
                 {
-                    _logger.Warning(
-                        "Could not delete original backup at {Aside}: {Error}",
-                        asidePath,
-                        deleteAside.Errors[0].Message
-                    );
+                    _logger.Warning("Could not delete original backup at {Aside}: {Error}", asidePath, deleteAside.Errors[0].Message);
                 }
             }
 
@@ -172,21 +144,11 @@ namespace RomForge.Core.Operations
             // in that same directory would fail for the same reason, so recover into the app's
             // own recovered/ folder instead — a location whose availability doesn't depend on
             // the destination that just failed.
-            string recovery = Path.Combine(
-                _appData.RecoveredPath,
-                Path.GetFileName(workingArchive)
-            );
+            string recovery = Path.Combine(_appData.RecoveredPath, Path.GetFileName(workingArchive));
             Result fallback = await _fileOperations.RenameAsync(workingArchive, recovery);
             string kept = fallback.IsFailed ? workingArchive : recovery;
-            _logger.Error(
-                "Could not place archive at {To}; kept the compressed copy at {Kept}",
-                toPath,
-                kept
-            );
-            return (
-                $"Archived but could not place it at {Path.GetFileName(toPath)} ({moveError}). A copy was kept at:\n{kept}{restoreNote}",
-                true
-            );
+            _logger.Error("Could not place archive at {To}; kept the compressed copy at {Kept}", toPath, kept);
+            return ($"Archived but could not place it at {Path.GetFileName(toPath)} ({moveError}). A copy was kept at:\n{kept}{restoreNote}", true);
         }
     }
 }

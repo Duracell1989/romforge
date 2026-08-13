@@ -14,12 +14,6 @@ namespace RomForge.Core.IO
         /// Downloads a DAT file to <paramref name="destDir"/>.
         /// </summary>
         /// <returns>The full path of the downloaded file on success.</returns>
-        Task<Result<string>> DownloadDatAsync(
-            string url,
-            string destDir,
-            string? fileName,
-            IProgress<int>? progress,
-            CancellationToken ct = default
-        );
+        Task<Result<string>> DownloadDatAsync(string url, string destDir, string? fileName, IProgress<int>? progress, CancellationToken ct = default);
     }
 }

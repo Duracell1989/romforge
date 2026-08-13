@@ -41,11 +41,7 @@ namespace RomForge.Core.IntegrationTests.IO
             HttpImageDownloader downloader = MakeDownloader(HttpStatusCode.OK, png);
             string dest = Path.Combine(_tempDir, "TestDat", "1-500", "1a.png");
 
-            FluentResults.Result result = await downloader.DownloadImageAsync(
-                "http://host/imgs/1-500/1a.png",
-                dest,
-                CancellationToken.None
-            );
+            FluentResults.Result result = await downloader.DownloadImageAsync("http://host/imgs/1-500/1a.png", dest, CancellationToken.None);
 
             result.IsSuccess.Should().BeTrue();
             File.Exists(dest).Should().BeTrue();
@@ -58,11 +54,7 @@ namespace RomForge.Core.IntegrationTests.IO
             HttpImageDownloader downloader = MakeDownloader(HttpStatusCode.NotFound, []);
             string dest = Path.Combine(_tempDir, "TestDat", "1-500", "1b.png");
 
-            FluentResults.Result result = await downloader.DownloadImageAsync(
-                "http://host/imgs/1-500/1b.png",
-                dest,
-                CancellationToken.None
-            );
+            FluentResults.Result result = await downloader.DownloadImageAsync("http://host/imgs/1-500/1b.png", dest, CancellationToken.None);
 
             result.IsFailed.Should().BeTrue();
             File.Exists(dest).Should().BeFalse();
@@ -76,8 +68,7 @@ namespace RomForge.Core.IntegrationTests.IO
             HttpImageDownloader downloader = MakeDownloader(HttpStatusCode.OK, [0x00]);
             string dest = Path.Combine(_tempDir, "TestDat", "1-500", "1a.png");
 
-            Func<Task> act = () =>
-                downloader.DownloadImageAsync("http://host/img.png", dest, cts.Token);
+            Func<Task> act = () => downloader.DownloadImageAsync("http://host/img.png", dest, cts.Token);
 
             await act.Should().ThrowAsync<OperationCanceledException>();
             File.Exists(dest).Should().BeFalse();

@@ -11,18 +11,11 @@ namespace RomForge.Core.Operations
         /// Returns the source and destination paths for renaming a ROM archive to match the naming
         /// mask, or <see langword="null"/> if the result is not incorrectly named.
         /// </summary>
-        public static (string From, string To)? GetRenameTarget(
-            MatchResult result,
-            string namingMask
-        )
+        public static (string From, string To)? GetRenameTarget(MatchResult result, string namingMask)
         {
             ArgumentNullException.ThrowIfNull(result);
 
-            if (
-                !result.IsIncorrectlyNamed
-                || result.ScannedRom is null
-                || string.IsNullOrEmpty(namingMask)
-            )
+            if (!result.IsIncorrectlyNamed || result.ScannedRom is null || string.IsNullOrEmpty(namingMask))
             {
                 return null;
             }
@@ -32,9 +25,7 @@ namespace RomForge.Core.Operations
             string dir = Path.GetDirectoryName(result.ScannedRom.FilePath) ?? string.Empty;
             string newPath = Path.Combine(dir, expectedStem + ext);
 
-            return result.ScannedRom.FilePath.Equals(newPath, StringComparison.OrdinalIgnoreCase)
-                ? null
-                : (result.ScannedRom.FilePath, newPath);
+            return result.ScannedRom.FilePath.Equals(newPath, StringComparison.OrdinalIgnoreCase) ? null : (result.ScannedRom.FilePath, newPath);
         }
     }
 }

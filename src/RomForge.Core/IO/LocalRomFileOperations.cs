@@ -37,12 +37,7 @@ namespace RomForge.Core.IO
         {
             try
             {
-                await using var fs = new FileStream(
-                    path,
-                    FileMode.Open,
-                    FileAccess.Write,
-                    FileShare.None
-                );
+                await using var fs = new FileStream(path, FileMode.Open, FileAccess.Write, FileShare.None);
                 fs.SetLength(length);
                 return Result.Ok();
             }

@@ -376,11 +376,7 @@ namespace RomForge.Core.UnitTests.Services
             {
                 ReleaseNumber = releaseNumber,
                 Title = $"Game {releaseNumber}",
-                Files = new GameFiles
-                {
-                    RomCrc = (uint)(0x1000 + releaseNumber),
-                    RomExtension = "gba",
-                },
+                Files = new GameFiles { RomCrc = (uint)(0x1000 + releaseNumber), RomExtension = "gba" },
             };
 
         private static DatFile MakeDat(string datName, IReadOnlyList<Game> games) =>

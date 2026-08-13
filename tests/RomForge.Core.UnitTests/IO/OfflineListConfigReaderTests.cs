@@ -131,8 +131,7 @@ namespace RomForge.Core.UnitTests.IO
             result.Value.LanguageBits[0].BitIndex.Should().Be(2);
         }
 
-        private static void WriteIni(string path, string content) =>
-            File.WriteAllText(path, content);
+        private static void WriteIni(string path, string content) => File.WriteAllText(path, content);
 
         private void WriteIni(string content) => WriteIni(IniPath(), content);
 
