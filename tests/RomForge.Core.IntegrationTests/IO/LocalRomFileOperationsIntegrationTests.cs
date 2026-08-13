@@ -100,7 +100,7 @@ namespace RomForge.Core.IntegrationTests.IO
         public async Task TruncateAsync_ExistingFile_TruncatesToSpecifiedLength()
         {
             string path = CreateFile("game.rom", "Hello World!!");
-            long newLength = 5;
+            const long newLength = 5;
 
             Result result = await _sut.TruncateAsync(path, newLength);
 

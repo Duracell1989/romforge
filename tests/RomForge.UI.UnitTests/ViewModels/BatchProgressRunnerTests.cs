@@ -79,7 +79,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public async Task RunAsync_AllSucceed_ProcessesEveryItemAndReturnsCount()
         {
-            List<string> processed = new List<string>();
+            List<string> processed = [];
 
             int succeeded = await _runner.RunAsync(
                 Operation(
@@ -161,7 +161,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public async Task RunAsync_BusyFlag_SetTrueDuringRunAndResetAfter()
         {
-            List<bool> transitions = new List<bool>();
+            List<bool> transitions = [];
             bool duringRun = false;
 
             await _runner.RunAsync(
@@ -184,7 +184,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         public async Task RunAsync_Cancelled_StopsProcessingRemainingItems()
         {
             ProgressWindowVM? captured = null;
-            List<string> processed = new List<string>();
+            List<string> processed = [];
 
             int succeeded = await _runner.RunAsync(
                 Operation(
@@ -252,7 +252,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public async Task RunAsync_BusyFlag_ResetEvenWhenWorkerThrowsOperationCanceled()
         {
-            List<bool> transitions = new List<bool>();
+            List<bool> transitions = [];
 
             await _runner.RunAsync(
                 Operation(

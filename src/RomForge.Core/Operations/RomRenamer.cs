@@ -23,7 +23,9 @@ namespace RomForge.Core.Operations
                 || result.ScannedRom is null
                 || string.IsNullOrEmpty(namingMask)
             )
+            {
                 return null;
+            }
 
             string expectedStem = NamingMask.Expand(namingMask, result.Game);
             string ext = Path.GetExtension(result.ScannedRom.FilePath);

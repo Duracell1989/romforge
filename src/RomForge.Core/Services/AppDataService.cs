@@ -72,7 +72,7 @@ namespace RomForge.Core.Services
             Directory
                 .GetFiles(DatsPath, "*.zip")
                 .Concat(Directory.GetFiles(DatsPath, "*.xml"))
-                .OrderBy(p => p)
+                .Order()
                 .ToList<string>();
 
         private void CleanTemp()

@@ -16,7 +16,6 @@ namespace RomForge.Core.Services
     {
         private readonly IReleaseChecker _releaseChecker;
         private readonly ILogger _logger;
-        private readonly string _currentVersion;
 
         public UpdateCheckService(
             IReleaseChecker releaseChecker,
@@ -27,33 +26,35 @@ namespace RomForge.Core.Services
             ArgumentNullException.ThrowIfNull(logger);
             _releaseChecker = releaseChecker;
             _logger = logger.ForContext<UpdateCheckService>();
-            _currentVersion = currentVersion;
+            CurrentVersion = currentVersion;
         }
 
         /// <summary>
         /// The running application's version (e.g. "1.2.0"), as reported to the update check.
         /// </summary>
-        public string CurrentVersion => _currentVersion;
+        public string CurrentVersion { get; }
 
         public async Task<UpdateCheckOutcome> CheckAsync(CancellationToken ct = default)
         {
             Result<ReleaseInfo> result = await _releaseChecker.FetchLatestReleaseAsync(ct);
             if (result.IsFailed)
+            {
                 return new UpdateCheckOutcome(
                     UpdateCheckStatus.CheckFailed,
-                    _currentVersion,
+                    CurrentVersion,
                     null,
                     null,
                     result.Errors[0].Message
                 );
+            }
 
             ReleaseInfo latest = result.Value;
             string latestVersion = NormalizeVersion(latest.TagName);
-            bool isNewer = IsNewer(latestVersion, _currentVersion);
+            bool isNewer = IsNewer(latestVersion, CurrentVersion);
 
             return new UpdateCheckOutcome(
                 isNewer ? UpdateCheckStatus.UpdateAvailable : UpdateCheckStatus.UpToDate,
-                _currentVersion,
+                CurrentVersion,
                 latestVersion,
                 latest.HtmlUrl,
                 null

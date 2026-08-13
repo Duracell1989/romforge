@@ -54,11 +54,11 @@ namespace RomForge.Core.UnitTests.Services
         {
             DatConfig config = new DatConfig
             {
-                LanguageBits = new List<LanguageBit>
-                {
+                LanguageBits =
+                [
                     new LanguageBit(BitIndex: 1, Label: "En"),
                     new LanguageBit(BitIndex: 8, Label: "JP"),
-                },
+                ],
             };
 
             await _svc.SaveAsync("TestDat", config);
@@ -83,10 +83,7 @@ namespace RomForge.Core.UnitTests.Services
         [Test]
         public async Task UpdateRomFolderAsync_ExistingConfig_UpdatesOnlyRomFolder()
         {
-            DatConfig initial = new DatConfig
-            {
-                LanguageBits = new List<LanguageBit> { new LanguageBit(1, "En") },
-            };
+            DatConfig initial = new DatConfig { LanguageBits = [new LanguageBit(1, "En")] };
             await _svc.SaveAsync("TestDat", initial);
 
             await _svc.UpdateRomFolderAsync("TestDat", "/roms/GBA");
@@ -100,7 +97,7 @@ namespace RomForge.Core.UnitTests.Services
         public async Task ImportFromOfflineListAsync_ValidIni_PersistsLanguageBits()
         {
             // Set up OfflineList directory layout: {root}/dats/{datName}.zip + {root}/config/{datName}.ini
-            string datName = "GBA";
+            const string datName = "GBA";
             string sourceDatDir = Path.Combine(_tempDir, "source", "dats");
             string configDir = Path.Combine(_tempDir, "source", "config");
             Directory.CreateDirectory(sourceDatDir);
@@ -109,7 +106,7 @@ namespace RomForge.Core.UnitTests.Services
             string sourceDatPath = Path.Combine(sourceDatDir, $"{datName}.zip");
             await File.WriteAllTextAsync(sourceDatPath, string.Empty);
 
-            string iniContent = "[Option]\nl1=\"En\"\nl8=\"JP\"\n";
+            const string iniContent = "[Option]\nl1=\"En\"\nl8=\"JP\"\n";
             await File.WriteAllTextAsync(Path.Combine(configDir, $"{datName}.ini"), iniContent);
 
             DatHeader header = new DatHeader { DatName = datName };

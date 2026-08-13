@@ -32,6 +32,33 @@ dotnet_diagnostic.CA1716.severity = none
 # InternalsVisibleTo), and Avalonia binds public VMs/Views — so the rule does not apply.
 dotnet_diagnostic.CA1515.severity = none
 
+# Roslynator and IDE style rules ship at Info severity, which csc never prints — so a
+# 0-warning build said nothing about them and 88 findings accumulated silently, visible only
+# in SonarCloud (which imports the Roslyn output regardless of severity). Raised to warning so
+# TreatWarningsAsErrors enforces them at build time instead.
+#
+# Enumerated rather than blanket-enabling the Roslynator category: several of its analyzers
+# contradict decisions already made here (RCS1090 would re-add the ConfigureAwait calls CA2007
+# is suppressed for above). This list is every rule the codebase actually violated as of
+# 2026-08-13; add to it when a new one is deliberately adopted.
+dotnet_diagnostic.IDE0028.severity = warning
+dotnet_diagnostic.RCS1001.severity = warning
+dotnet_diagnostic.RCS1003.severity = warning
+dotnet_diagnostic.RCS1021.severity = warning
+dotnet_diagnostic.RCS1077.severity = warning
+dotnet_diagnostic.RCS1085.severity = warning
+dotnet_diagnostic.RCS1118.severity = warning
+dotnet_diagnostic.RCS1123.severity = warning
+dotnet_diagnostic.RCS1146.severity = warning
+dotnet_diagnostic.RCS1163.severity = warning
+dotnet_diagnostic.RCS1199.severity = warning
+dotnet_diagnostic.RCS1205.severity = warning
+dotnet_diagnostic.RCS1261.severity = warning
+
+# S3776 (cognitive complexity) is in SonarCloud's quality profile but not enabled by the
+# SonarAnalyzer.CSharp package, so CI reported it while local builds stayed green.
+dotnet_diagnostic.S3776.severity = warning
+
 [*.{csproj,slnx,axaml,xml}]
 indent_style = space
 indent_size = 2

@@ -34,8 +34,7 @@ namespace RomForge.UI.ViewModels
         private readonly DatFile _datFile;
         private readonly string _imgsBasePath;
         private readonly DatConfig? _config;
-        private readonly ObservableCollection<GameRowVM> _filteredGames =
-            new ObservableCollection<GameRowVM>();
+        private readonly ObservableCollection<GameRowVM> _filteredGames = [];
         private SortColumn _sortColumn = SortColumn.None;
         private bool _sortDescending;
 
@@ -81,7 +80,7 @@ namespace RomForge.UI.ViewModels
             DatFilePath = datFilePath;
             _config = config;
             _imgsBasePath = ResolveImgsBasePath(datFilePath);
-            Games = new ObservableCollection<GameRowVM>();
+            Games = [];
             UnmatchedRoms = [];
             ShowVerified = true;
             ShowMissing = true;

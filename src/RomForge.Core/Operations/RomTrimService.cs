@@ -61,9 +61,11 @@ namespace RomForge.Core.Operations
                     cancellationToken
                 );
                 if (extractResult.IsFailed)
+                {
                     return Result.Fail(
                         $"{Path.GetFileName(target.From)}: {extractResult.Errors[0].Message}"
                     );
+                }
 
                 tempRom = extractResult.Value;
 
@@ -72,9 +74,11 @@ namespace RomForge.Core.Operations
                     match.Game.RomSize
                 );
                 if (truncateResult.IsFailed)
+                {
                     return Result.Fail(
                         $"{Path.GetFileName(target.From)}: {truncateResult.Errors[0].Message}"
                     );
+                }
 
                 string archiveDest = _workspace.NewWorkingArchivePath(archiveFormat);
                 tempArchive = archiveDest;
@@ -108,9 +112,11 @@ namespace RomForge.Core.Operations
                 }
 
                 if (compressResult.IsFailed)
+                {
                     return Result.Fail(
                         $"{Path.GetFileName(target.From)}: {compressResult.Errors[0].Message}"
                     );
+                }
 
                 (string? placeError, bool consumed) = await _workspace.PlaceWorkingArchiveAsync(
                     archiveDest,

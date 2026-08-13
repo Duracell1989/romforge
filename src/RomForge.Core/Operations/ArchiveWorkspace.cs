@@ -100,42 +100,23 @@ namespace RomForge.Core.Operations
                 asidePath = fromPath + OriginalAsideSuffix;
                 Result renameAside = await _fileOperations.RenameAsync(fromPath, asidePath);
                 if (renameAside.IsFailed)
+                {
                     return (
                         $"Could not replace original: {Path.GetFileName(fromPath)}: {renameAside.Errors[0].Message}",
                         false
                     );
+                }
             }
 
             Result move = await _fileOperations.RenameAsync(workingArchive, toPath);
             if (move.IsFailed)
             {
-                var restoreNote = string.Empty;
-                if (asidePath is not null)
-                {
-                    Result restoreOriginal = await _fileOperations.RenameAsync(asidePath, fromPath);
-                    if (restoreOriginal.IsFailed)
-                        restoreNote = $" The original is still safe at:\n{asidePath}";
-                }
-
-                // The primary move failed, so the destination directory itself is the likely
-                // problem (offline volume, permissions, full disk). Recovering to a sibling path
-                // in that same directory would fail for the same reason, so recover into the app's
-                // own recovered/ folder instead — a location whose availability doesn't depend on
-                // the destination that just failed.
-                string recovery = Path.Combine(
-                    _appData.RecoveredPath,
-                    Path.GetFileName(workingArchive)
-                );
-                Result fallback = await _fileOperations.RenameAsync(workingArchive, recovery);
-                string kept = fallback.IsFailed ? workingArchive : recovery;
-                _logger.Error(
-                    "Could not place archive at {To}; kept the compressed copy at {Kept}",
+                return await RecoverFromFailedMoveAsync(
+                    workingArchive,
+                    fromPath,
                     toPath,
-                    kept
-                );
-                return (
-                    $"Archived but could not place it at {Path.GetFileName(toPath)} ({move.Errors[0].Message}). A copy was kept at:\n{kept}{restoreNote}",
-                    true
+                    asidePath,
+                    move.Errors[0].Message
                 );
             }
 
@@ -143,23 +124,69 @@ namespace RomForge.Core.Operations
             {
                 Result deleteOriginal = await _fileOperations.DeleteAsync(fromPath);
                 if (deleteOriginal.IsFailed)
+                {
                     return (
                         $"Archived but could not delete original: {Path.GetFileName(fromPath)}: {deleteOriginal.Errors[0].Message}",
                         true
                     );
+                }
             }
             else
             {
                 Result deleteAside = await _fileOperations.DeleteAsync(asidePath!);
                 if (deleteAside.IsFailed)
+                {
                     _logger.Warning(
                         "Could not delete original backup at {Aside}: {Error}",
                         asidePath,
                         deleteAside.Errors[0].Message
                     );
+                }
             }
 
             return (null, true);
+        }
+
+        // Extracted from PlaceWorkingArchiveAsync only to keep that method's cognitive complexity
+        // under the limit — the recovery sequence itself is unchanged: put the aside copy back
+        // first, then move the compressed archive somewhere that does not depend on the
+        // destination which just failed.
+        private async Task<(string? Error, bool Consumed)> RecoverFromFailedMoveAsync(
+            string workingArchive,
+            string fromPath,
+            string toPath,
+            string? asidePath,
+            string moveError
+        )
+        {
+            var restoreNote = string.Empty;
+            if (asidePath is not null)
+            {
+                Result restoreOriginal = await _fileOperations.RenameAsync(asidePath, fromPath);
+                if (restoreOriginal.IsFailed)
+                    restoreNote = $" The original is still safe at:\n{asidePath}";
+            }
+
+            // The primary move failed, so the destination directory itself is the likely
+            // problem (offline volume, permissions, full disk). Recovering to a sibling path
+            // in that same directory would fail for the same reason, so recover into the app's
+            // own recovered/ folder instead — a location whose availability doesn't depend on
+            // the destination that just failed.
+            string recovery = Path.Combine(
+                _appData.RecoveredPath,
+                Path.GetFileName(workingArchive)
+            );
+            Result fallback = await _fileOperations.RenameAsync(workingArchive, recovery);
+            string kept = fallback.IsFailed ? workingArchive : recovery;
+            _logger.Error(
+                "Could not place archive at {To}; kept the compressed copy at {Kept}",
+                toPath,
+                kept
+            );
+            return (
+                $"Archived but could not place it at {Path.GetFileName(toPath)} ({moveError}). A copy was kept at:\n{kept}{restoreNote}",
+                true
+            );
         }
     }
 }

@@ -447,7 +447,7 @@ namespace RomForge.UI.UnitTests.ViewModels
             _vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
 
             // Mutating Games triggers StatusSummary recalculation on LoadedDatVM
-            dat.Games = new ObservableCollection<GameRowVM> { MakeGameRow() };
+            dat.Games = [MakeGameRow()];
 
             raised.Should().Contain(nameof(MainWindowVM.StatusSummary));
         }
@@ -702,7 +702,7 @@ namespace RomForge.UI.UnitTests.ViewModels
                 []
             );
             LoadedDatVM dat = MakeDatVM();
-            dat.Games = new ObservableCollection<GameRowVM> { game };
+            dat.Games = [game];
             _vm.ActiveDat = dat;
             _compressor.Setup(c => c.IsAvailable).Returns(true);
             _extractor
@@ -2403,9 +2403,12 @@ namespace RomForge.UI.UnitTests.ViewModels
             // More targets than concurrency slots (capped at 4) guarantees a waiting file
             // reuses a drained slot — the exact condition that triggered the crash.
             for (int i = 0; i < 8; i++)
+            {
                 datVm.Games.Add(
                     MakeGameRowWithScannedRom($"/roms/Test{i}.zip", wrongArchiveType: true)
                 );
+            }
+
             vm.ActiveDat = datVm;
 
             Func<Task> act = async () => await vm.ReArchiveAllCommand.ExecuteAsync(null);
@@ -2821,7 +2824,7 @@ namespace RomForge.UI.UnitTests.ViewModels
             ScanResultStore store = new ScanResultStore(appData, logger);
             await store.InitializeAsync();
 
-            string datName = "Stale DAT";
+            const string datName = "Stale DAT";
             // The ROM folder exists but the file inside it is gone: a genuine deletion, not an
             // offline volume, so it must be cleared to Missing.
             string romFolder = Path.Combine(_tempDir, "roms");
@@ -2867,7 +2870,7 @@ namespace RomForge.UI.UnitTests.ViewModels
             ScanResultStore store = new ScanResultStore(appData, logger);
             await store.InitializeAsync();
 
-            string datName = "Offline DAT";
+            const string datName = "Offline DAT";
             string offlineRoot = Path.Combine(
                 _tempDir,
                 "offline_volume_" + Path.GetRandomFileName()

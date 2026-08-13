@@ -132,7 +132,7 @@ namespace RomForge.UI.ViewModels
             _trimService = trimService;
             _memoryGate = memoryGate;
             _batchRunner = new BatchProgressRunner(_notifier, _logger);
-            LoadedDats = new ObservableCollection<LoadedDatVM>();
+            LoadedDats = [];
             ArchiveFormat = "7z";
         }
 #pragma warning restore S107
@@ -335,7 +335,9 @@ namespace RomForge.UI.ViewModels
                 _unverifiedFolder is not null
                 && !_fileOperations.DirectoryExists(_unverifiedFolder)
             )
+            {
                 _unverifiedFolder = null;
+            }
         }
 
         private async Task LoadDatFromManagedPathAsync(string managedPath)
@@ -732,9 +734,11 @@ namespace RomForge.UI.ViewModels
             );
 
             if (errors.Count > 0)
+            {
                 await _notifier.NotifyErrorAsync(
                     $"Re-archive failed for {errors.Count} file(s):\n{string.Join("\n", errors)}"
                 );
+            }
         }
 
         // Plan step 4 ("Machine-adaptive sizing"): concurrency must derive from the RAM budget
@@ -842,10 +846,7 @@ namespace RomForge.UI.ViewModels
                         }
                     }
 
-                    await _uiDispatcher.InvokeAsync(() =>
-                    {
-                        progress.Completed = done;
-                    });
+                    await _uiDispatcher.InvokeAsync(() => progress.Completed = done);
                 }
                 catch (OperationCanceledException)
                 {
@@ -902,10 +903,9 @@ namespace RomForge.UI.ViewModels
             !IsReArchiving
             && !IsTrimming
             && _compressor.IsAvailable
-            && ActiveDat is not null
-            && ActiveDat.Games.Any(g =>
+            && ActiveDat?.Games.Any(g =>
                 g.Status == MatchStatus.Verified && !g.IsUntrimmed && !g.IsGood
-            );
+            ) == true;
 
         [RelayCommand(CanExecute = nameof(CanTrim))]
         private async Task TrimSelectedAsync()
@@ -1028,7 +1028,7 @@ namespace RomForge.UI.ViewModels
             int fileBase = (progress.Current - 1) * 100 / progress.Total;
             int fileRange = 100 / progress.Total;
             IProgress<int> compressionProgress = new Progress<int>(pct =>
-                progress.Progress = fileBase + pct * fileRange / 100
+                progress.Progress = fileBase + (pct * fileRange / 100)
             );
 
             Result<MatchResult> result = await _trimService.TrimAsync(
@@ -1050,8 +1050,7 @@ namespace RomForge.UI.ViewModels
             !IsTrimming
             && !IsReArchiving
             && _compressor.IsAvailable
-            && ActiveDat is not null
-            && ActiveDat.Games.Any(g => g.IsUntrimmed);
+            && ActiveDat?.Games.Any(g => g.IsUntrimmed) == true;
 
         private async Task ReplaceGameAsync(GameRowVM original, MatchResult updatedMatch)
         {
@@ -1104,7 +1103,7 @@ namespace RomForge.UI.ViewModels
 
             LoadedDatVM activeDat = ActiveDat;
             List<ScannedRom> targets = activeDat.UnmatchedRoms.ToList();
-            List<ScannedRom> moved = new List<ScannedRom>();
+            List<ScannedRom> moved = [];
 
             await _batchRunner.RunAsync(
                 new BatchProgressOperation<ScannedRom>
@@ -1122,9 +1121,11 @@ namespace RomForge.UI.ViewModels
             );
 
             if (moved.Count > 0)
+            {
                 activeDat.UnmatchedRoms = activeDat
                     .UnmatchedRoms.Where(r => !moved.Contains(r))
                     .ToList();
+            }
         }
 
         private async Task<string?> MoveOneAsync(
@@ -1212,8 +1213,7 @@ namespace RomForge.UI.ViewModels
                 await RunImageDownloadUiAsync(ActiveDat.DisplayTitle, ActiveDat.DatFile);
         }
 
-        private bool CanCheckDatUpdate() =>
-            ActiveDat is not null && ActiveDat.DatFile.Header.NewDatVersionUrl is not null;
+        private bool CanCheckDatUpdate() => ActiveDat?.DatFile.Header.NewDatVersionUrl is not null;
 
         [RelayCommand(CanExecute = nameof(CanDownloadImages))]
         private async Task DownloadImagesAsync()
@@ -1224,8 +1224,7 @@ namespace RomForge.UI.ViewModels
             await RunImageDownloadUiAsync(ActiveDat.DisplayTitle, ActiveDat.DatFile);
         }
 
-        private bool CanDownloadImages() =>
-            ActiveDat is not null && ActiveDat.DatFile.Header.NewImUrl is not null;
+        private bool CanDownloadImages() => ActiveDat?.DatFile.Header.NewImUrl is not null;
 
         /// <summary>
         /// Opens the image-download window and runs a missing-image sync for the given DAT. Only images

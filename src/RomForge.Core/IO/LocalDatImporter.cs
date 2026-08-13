@@ -72,10 +72,10 @@ namespace RomForge.Core.IO
         )
         {
             var sourceImgsBase = FindSourceImgsBase(sourceDatPath);
-            if (
-                sourceImgsBase is null
-                || sourceImgsBase.StartsWith(_appData.ImgsPath, StringComparison.OrdinalIgnoreCase)
-            )
+            if (sourceImgsBase is null)
+                return;
+
+            if (sourceImgsBase.StartsWith(_appData.ImgsPath, StringComparison.OrdinalIgnoreCase))
                 return;
 
             var folderName = string.IsNullOrEmpty(header.ImFolder)

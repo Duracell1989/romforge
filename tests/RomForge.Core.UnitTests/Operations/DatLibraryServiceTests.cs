@@ -150,10 +150,7 @@ namespace RomForge.Core.UnitTests.Operations
             DatFile datFile = MakeDatFile(MakeGame(1));
             await _scanResultStore.SaveResultsAsync(
                 DatName,
-                new List<MatchResult>
-                {
-                    new MatchResult { Game = MakeGame(1), Status = MatchStatus.Verified },
-                }
+                [new MatchResult { Game = MakeGame(1), Status = MatchStatus.Verified }]
             );
 
             (IReadOnlyList<MatchResult> results, bool fromCache) = await _service.LoadResultsAsync(
@@ -168,15 +165,15 @@ namespace RomForge.Core.UnitTests.Operations
         public async Task FindAndClearStaleAsync_FolderUnavailable_ReturnsEmpty()
         {
             _fileOps.Setup(f => f.DirectoryExists("/roms")).Returns(false);
-            List<MatchResult> results = new List<MatchResult>
-            {
+            List<MatchResult> results =
+            [
                 new MatchResult
                 {
                     Game = MakeGame(1),
                     Status = MatchStatus.Verified,
                     ScannedRom = new ScannedRom { FilePath = "/roms/gone.7z" },
                 },
-            };
+            ];
 
             IReadOnlyList<MatchResult> cleared = await _service.FindAndClearStaleAsync(
                 DatName,
@@ -190,10 +187,10 @@ namespace RomForge.Core.UnitTests.Operations
         [Test]
         public async Task FindAndClearStaleAsync_NoStale_ReturnsEmpty()
         {
-            List<MatchResult> results = new List<MatchResult>
-            {
+            List<MatchResult> results =
+            [
                 new MatchResult { Game = MakeGame(1), Status = MatchStatus.Missing },
-            };
+            ];
 
             IReadOnlyList<MatchResult> cleared = await _service.FindAndClearStaleAsync(
                 DatName,
@@ -212,15 +209,15 @@ namespace RomForge.Core.UnitTests.Operations
                 Guid.NewGuid().ToString("N"),
                 "gone.7z"
             );
-            List<MatchResult> results = new List<MatchResult>
-            {
+            List<MatchResult> results =
+            [
                 new MatchResult
                 {
                     Game = MakeGame(1),
                     Status = MatchStatus.Verified,
                     ScannedRom = new ScannedRom { FilePath = missingPath },
                 },
-            };
+            ];
 
             IReadOnlyList<MatchResult> cleared = await _service.FindAndClearStaleAsync(
                 DatName,

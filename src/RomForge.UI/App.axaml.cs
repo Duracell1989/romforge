@@ -93,9 +93,9 @@ namespace RomForge.UI
                 )
                 .WriteTo.File(
                     Path.Combine(logDir, "romforge-.log"),
-                    rollingInterval: RollingInterval.Day,
                     outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}",
-                    formatProvider: CultureInfo.InvariantCulture
+                    formatProvider: CultureInfo.InvariantCulture,
+                    rollingInterval: RollingInterval.Day
                 )
                 .CreateLogger();
 

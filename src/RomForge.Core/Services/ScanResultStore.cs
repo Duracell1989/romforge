@@ -244,12 +244,14 @@ namespace RomForge.Core.Services
         private static MatchResult BuildMatchResult(Game game, Dictionary<int, PersistedRow> rows)
         {
             if (!rows.TryGetValue(game.ReleaseNumber, out PersistedRow? row) || row is null)
+            {
                 return new MatchResult
                 {
                     Game = game,
                     Status = MatchStatus.Missing,
                     ScannedRom = null,
                 };
+            }
 
             ScannedRom? scannedRom = row.FilePath is not null
                 ? new ScannedRom

@@ -44,11 +44,14 @@ namespace RomForge.Core.IO
         public WorkingSetBudgetGate(long budgetBytes)
         {
             if (budgetBytes <= 0)
+            {
                 throw new ArgumentOutOfRangeException(
                     nameof(budgetBytes),
                     budgetBytes,
                     "Budget must be positive."
                 );
+            }
+
             BudgetBytes = budgetBytes;
         }
 

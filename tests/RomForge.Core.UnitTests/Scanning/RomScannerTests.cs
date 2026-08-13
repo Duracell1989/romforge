@@ -127,9 +127,9 @@ namespace RomForge.Core.UnitTests.Scanning
         public async Task ScanAsync_CacheHit_SkipsStreamOpen()
         {
             bool streamOpened = false;
-            long size = 4L;
+            const long size = 4L;
             DateTime lastModified = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-            uint expectedCrc = 0xDEADBEEF;
+            const uint expectedCrc = 0xDEADBEEF;
 
             IRomSource source = StubSource([
                 new RomContent
@@ -181,7 +181,7 @@ namespace RomForge.Core.UnitTests.Scanning
         public async Task ScanAsync_CacheMiss_ComputesCrcAndPopulatesCache()
         {
             byte[] content = [0xAA, 0xBB, 0xCC, 0xDD];
-            long size = 4L;
+            const long size = 4L;
             DateTime lastModified = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
             IRomSource source = StubSource([
@@ -262,7 +262,7 @@ namespace RomForge.Core.UnitTests.Scanning
         public async Task ScanAsync_LargeFile_TrimmedCrcIsNull()
         {
             byte[] content = [0x01, 0x02, 0xFF, 0xFF];
-            long largeSize = 256L * 1024 * 1024 + 1;
+            const long largeSize = (256L * 1024 * 1024) + 1;
             IRomSource source = StubSource([
                 new RomContent
                 {
@@ -282,10 +282,10 @@ namespace RomForge.Core.UnitTests.Scanning
         [Test]
         public async Task ScanAsync_CacheHit_RestoresTrimmedCrcFromCache()
         {
-            long size = 8L;
+            const long size = 8L;
             DateTime lastModified = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc);
-            uint cachedCrc = 0x11111111;
-            uint cachedTrimmedCrc = 0x22222222;
+            const uint cachedCrc = 0x11111111;
+            const uint cachedTrimmedCrc = 0x22222222;
 
             IRomSource source = StubSource([
                 new RomContent
@@ -469,7 +469,7 @@ namespace RomForge.Core.UnitTests.Scanning
             byte[] content = [0x01, 0x02];
             long size = content.Length;
             DateTime lastModified = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-            uint cachedCrc = 0xDEADBEEF;
+            const uint cachedCrc = 0xDEADBEEF;
 
             IRomSource source = StubSource([
                 new RomContent
