@@ -28,19 +28,12 @@ namespace RomForge.Core.IO
             _logger = logger;
         }
 
-        public Task<int> CountAsync(
-            string folderPath,
-            CancellationToken cancellationToken = default
-        )
+        public Task<int> CountAsync(string folderPath, CancellationToken cancellationToken = default)
         {
             return Task.Run(
                 () =>
                 {
-                    EnumerationOptions enumOptions = new EnumerationOptions
-                    {
-                        RecurseSubdirectories = true,
-                        IgnoreInaccessible = true,
-                    };
+                    EnumerationOptions enumOptions = new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true };
                     int count = 0;
                     foreach (string f in Directory.EnumerateFiles(folderPath, "*", enumOptions))
                     {
@@ -56,15 +49,10 @@ namespace RomForge.Core.IO
 
         public async IAsyncEnumerable<RomContent> EnumerateAsync(
             string folderPath,
-            [System.Runtime.CompilerServices.EnumeratorCancellation]
-                CancellationToken cancellationToken = default
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default
         )
         {
-            EnumerationOptions enumOptions = new EnumerationOptions
-            {
-                RecurseSubdirectories = true,
-                IgnoreInaccessible = true,
-            };
+            EnumerationOptions enumOptions = new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true };
             foreach (var filePath in Directory.EnumerateFiles(folderPath, "*", enumOptions))
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -75,8 +63,7 @@ namespace RomForge.Core.IO
 
                 var fileInfo = new FileInfo(filePath);
                 var content = ArchiveExtensions.Contains(fileExt)
-                    ? await BuildArchiveContentAsync(filePath, fileExt, fileInfo, cancellationToken)
-                        .ConfigureAwait(false)
+                    ? await BuildArchiveContentAsync(filePath, fileExt, fileInfo, cancellationToken).ConfigureAwait(false)
                     : BuildRawContent(filePath, fileExt, fileInfo);
 
                 if (content is not null)
@@ -90,11 +77,7 @@ namespace RomForge.Core.IO
         private static string ToLowerExtension(string value) => value.ToLowerInvariant();
 #pragma warning restore CA1308
 
-        private static RomContent BuildRawContent(
-            string filePath,
-            string fileExt,
-            FileInfo fileInfo
-        )
+        private static RomContent BuildRawContent(string filePath, string fileExt, FileInfo fileInfo)
         {
             var ext = fileExt.TrimStart('.');
             return new RomContent
@@ -112,18 +95,9 @@ namespace RomForge.Core.IO
 
         // Opens the archive briefly to read the entry name, then closes it; the entry is
         // re-extracted lazily when the stream is actually requested (see OpenArchiveEntryStreamAsync).
-        private async Task<RomContent?> BuildArchiveContentAsync(
-            string filePath,
-            string fileExt,
-            FileInfo fileInfo,
-            CancellationToken cancellationToken
-        )
+        private async Task<RomContent?> BuildArchiveContentAsync(string filePath, string fileExt, FileInfo fileInfo, CancellationToken cancellationToken)
         {
-            (string RomExtension, string EntryName)? entryInfo = await PeekEntryAsync(
-                    filePath,
-                    cancellationToken
-                )
-                .ConfigureAwait(false);
+            (string RomExtension, string EntryName)? entryInfo = await PeekEntryAsync(filePath, cancellationToken).ConfigureAwait(false);
             if (entryInfo is null)
                 return null;
 
@@ -139,10 +113,7 @@ namespace RomForge.Core.IO
             };
         }
 
-        private async Task<(string RomExtension, string EntryName)?> PeekEntryAsync(
-            string filePath,
-            CancellationToken cancellationToken
-        )
+        private async Task<(string RomExtension, string EntryName)?> PeekEntryAsync(string filePath, CancellationToken cancellationToken)
         {
             ArchiveFormat? format = ArchiveFormatDetector.FromExtension(filePath);
             if (format is null)
@@ -151,15 +122,11 @@ namespace RomForge.Core.IO
             await using FileStream input = File.OpenRead(filePath);
             using SevenZipExtractor extractor = new SevenZipExtractor(input, format.Value, _logger);
 
-            Result<ArchiveInfo> openResult = await extractor
-                .OpenAsync(cancellationToken: cancellationToken)
-                .ConfigureAwait(false);
+            Result<ArchiveInfo> openResult = await extractor.OpenAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
             if (openResult.IsFailed)
                 return null;
 
-            Result<IReadOnlyList<ArchiveEntry>> entriesResult = await extractor
-                .ListEntriesAsync(cancellationToken)
-                .ConfigureAwait(false);
+            Result<IReadOnlyList<ArchiveEntry>> entriesResult = await extractor.ListEntriesAsync(cancellationToken).ConfigureAwait(false);
             if (entriesResult.IsFailed)
                 return null;
 
@@ -168,20 +135,12 @@ namespace RomForge.Core.IO
                 return null;
 
             string entryFileName = Path.GetFileName(entry.Path);
-            return (
-                ToLowerExtension(Path.GetExtension(entryFileName).TrimStart('.')),
-                Path.GetFileNameWithoutExtension(entryFileName)
-            );
+            return (ToLowerExtension(Path.GetExtension(entryFileName).TrimStart('.')), Path.GetFileNameWithoutExtension(entryFileName));
         }
 
-        private async ValueTask<Stream> OpenArchiveEntryStreamAsync(
-            string filePath,
-            CancellationToken ct
-        )
+        private async ValueTask<Stream> OpenArchiveEntryStreamAsync(string filePath, CancellationToken ct)
         {
-            Result<string> extractResult = await _extractor
-                .ExtractToTempFileAsync(filePath, ct)
-                .ConfigureAwait(false);
+            Result<string> extractResult = await _extractor.ExtractToTempFileAsync(filePath, ct).ConfigureAwait(false);
             if (extractResult.IsFailed)
             {
                 ExtractionFailed(_logger, filePath, extractResult.Errors[0].Message);

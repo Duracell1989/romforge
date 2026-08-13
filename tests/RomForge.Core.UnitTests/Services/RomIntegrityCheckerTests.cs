@@ -40,13 +40,7 @@ namespace RomForge.Core.UnitTests.Services
                 {
                     Game = new Game { ReleaseNumber = 1 },
                     Status = MatchStatus.Verified,
-                    ScannedRom = new ScannedRom
-                    {
-                        FilePath = Path.Combine(
-                            Path.GetTempPath(),
-                            "romforge_nonexistent_test.zip"
-                        ),
-                    },
+                    ScannedRom = new ScannedRom { FilePath = Path.Combine(Path.GetTempPath(), "romforge_nonexistent_test.zip") },
                 },
             ];
 
@@ -64,12 +58,7 @@ namespace RomForge.Core.UnitTests.Services
             // actual configured ROM root), so a missing file is always reported regardless of whether
             // its parent directory also happens to be gone — otherwise a genuinely deleted subfolder
             // of ROMs would be permanently invisible to this check.
-            string offlinePath = Path.Combine(
-                Path.GetTempPath(),
-                "romforge_offline_volume_" + System.Guid.NewGuid().ToString("N"),
-                "roms",
-                "game.7z"
-            );
+            string offlinePath = Path.Combine(Path.GetTempPath(), "romforge_offline_volume_" + System.Guid.NewGuid().ToString("N"), "roms", "game.7z");
 
             IReadOnlyList<MatchResult> results =
             [
@@ -126,10 +115,7 @@ namespace RomForge.Core.UnitTests.Services
         public void FindStaleResults_MixedResults_ReturnsOnlyStale()
         {
             string existingPath = typeof(RomIntegrityCheckerTests).Assembly.Location;
-            string missingPath = Path.Combine(
-                Path.GetTempPath(),
-                "romforge_nonexistent_test_2.zip"
-            );
+            string missingPath = Path.Combine(Path.GetTempPath(), "romforge_nonexistent_test_2.zip");
 
             IReadOnlyList<MatchResult> results =
             [

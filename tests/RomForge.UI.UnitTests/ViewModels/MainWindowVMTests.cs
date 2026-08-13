@@ -60,14 +60,10 @@ namespace RomForge.UI.UnitTests.ViewModels
             _imageDownloader = new Mock<IImageDownloader>();
             _appLifetime = new Mock<IAppLifetime>();
             _romSource = new Mock<IRomSource>();
-            _romSource
-                .Setup(s => s.EnumerateAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .Returns(EmptyRomSourceAsync());
+            _romSource.Setup(s => s.EnumerateAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).Returns(EmptyRomSourceAsync());
             _releaseChecker = new Mock<IReleaseChecker>();
             // Default: the startup update check silently fails (no network), so it never notifies.
-            _releaseChecker
-                .Setup(c => c.FetchLatestReleaseAsync(It.IsAny<CancellationToken>()))
-                .ReturnsAsync(Result.Fail<ReleaseInfo>("no network"));
+            _releaseChecker.Setup(c => c.FetchLatestReleaseAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Result.Fail<ReleaseInfo>("no network"));
             _urlLauncher = new Mock<IUrlLauncher>();
             _vm = MakeVM();
         }
@@ -99,10 +95,7 @@ namespace RomForge.UI.UnitTests.ViewModels
                 Directory.Delete(dir, recursive: true);
         }
 
-        private MainWindowVM MakeVM(
-            Mock<IArchiveCompressor>? compressorMock = null,
-            WorkingSetBudgetGate? memoryGate = null
-        )
+        private MainWindowVM MakeVM(Mock<IArchiveCompressor>? compressorMock = null, WorkingSetBudgetGate? memoryGate = null)
         {
             ILogger logger = new LoggerConfiguration().CreateLogger();
             AppDataService appData = new AppDataService(_tempDir);
@@ -110,8 +103,7 @@ namespace RomForge.UI.UnitTests.ViewModels
             // One gate shared by the VM and both services, matching App.axaml.cs's DI singleton —
             // separate instances here would each get their own full budget, which is precisely the
             // wiring the shared-gate change exists to eliminate.
-            WorkingSetBudgetGate sharedGate =
-                memoryGate ?? new WorkingSetBudgetGate(1_000_000_000_000L);
+            WorkingSetBudgetGate sharedGate = memoryGate ?? new WorkingSetBudgetGate(1_000_000_000_000L);
             ScanResultStore scanResultStore = new ScanResultStore(appData, logger);
             ReArchiveStore reArchiveStore = new ReArchiveStore(appData, logger);
             ArchiveWorkspace workspace = new ArchiveWorkspace(appData, _fileOps.Object, logger);
@@ -146,22 +138,8 @@ namespace RomForge.UI.UnitTests.ViewModels
                 MakeInlineDispatcher(),
                 _appLifetime.Object,
                 new RomRenameService(_fileOps.Object),
-                new RomReArchiveService(
-                    _extractor.Object,
-                    compressor,
-                    _fileOps.Object,
-                    workspace,
-                    reArchiveStore,
-                    scanResultStore,
-                    sharedGate
-                ),
-                new RomTrimService(
-                    _extractor.Object,
-                    compressor,
-                    _fileOps.Object,
-                    workspace,
-                    sharedGate
-                ),
+                new RomReArchiveService(_extractor.Object, compressor, _fileOps.Object, workspace, reArchiveStore, scanResultStore, sharedGate),
+                new RomTrimService(_extractor.Object, compressor, _fileOps.Object, workspace, sharedGate),
                 sharedGate
             );
         }
@@ -218,21 +196,13 @@ namespace RomForge.UI.UnitTests.ViewModels
             new LoadedDatVM(
                 new DatFile
                 {
-                    Header = new DatHeader
-                    {
-                        DatName = "Test DAT",
-                        NewImUrl = "https://example.com/imgs/",
-                    },
+                    Header = new DatHeader { DatName = "Test DAT", NewImUrl = "https://example.com/imgs/" },
                     Games = [],
                 },
                 "/test/dat.xml"
             );
 
-        private static GameRowVM MakeGameRow(
-            bool incorrectlyNamed = false,
-            bool wrongArchiveType = false,
-            bool untrimmed = false
-        ) =>
+        private static GameRowVM MakeGameRow(bool incorrectlyNamed = false, bool wrongArchiveType = false, bool untrimmed = false) =>
             new GameRowVM(
                 new MatchResult
                 {
@@ -259,32 +229,25 @@ namespace RomForge.UI.UnitTests.ViewModels
         public void IsDatLoaded_OnConstruction_IsFalse() => _vm.IsDatLoaded.Should().BeFalse();
 
         [Test]
-        public void StatusSummary_OnConstruction_IsNoDatLoaded() =>
-            _vm.StatusSummary.Should().Be("No DAT loaded");
+        public void StatusSummary_OnConstruction_IsNoDatLoaded() => _vm.StatusSummary.Should().Be("No DAT loaded");
 
         [Test]
-        public void MoveUnverifiedLabel_OnConstruction_ShowsZeroCount() =>
-            _vm.MoveUnverifiedLabel.Should().Be("Move Unverified (0)");
+        public void MoveUnverifiedLabel_OnConstruction_ShowsZeroCount() => _vm.MoveUnverifiedLabel.Should().Be("Move Unverified (0)");
 
         // --- Version / About ---
 
         [Test]
-        public void AppVersion_ReflectsUpdateCheckServiceVersion() =>
-            _vm.AppVersion.Should().Be("1.0.0");
+        public void AppVersion_ReflectsUpdateCheckServiceVersion() => _vm.AppVersion.Should().Be("1.0.0");
 
         [Test]
-        public void AppVersionDisplay_ShowsPrefixedVersion() =>
-            _vm.AppVersionDisplay.Should().Be("RomForge v1.0.0");
+        public void AppVersionDisplay_ShowsPrefixedVersion() => _vm.AppVersionDisplay.Should().Be("RomForge v1.0.0");
 
         [Test]
         public async Task OpenReleasesPageCommand_OpensReleasesUrl()
         {
             await _vm.OpenReleasesPageCommand.ExecuteAsync(null);
 
-            _urlLauncher.Verify(
-                u => u.OpenUrlAsync(GitHubReleaseChecker.ReleasesPageUrl),
-                Times.Once
-            );
+            _urlLauncher.Verify(u => u.OpenUrlAsync(GitHubReleaseChecker.ReleasesPageUrl), Times.Once);
         }
 
         [Test]
@@ -294,10 +257,7 @@ namespace RomForge.UI.UnitTests.ViewModels
 
             await _vm.ShowAboutCommand.ExecuteAsync(null);
 
-            _urlLauncher.Verify(
-                u => u.OpenUrlAsync(GitHubReleaseChecker.ReleasesPageUrl),
-                Times.Once
-            );
+            _urlLauncher.Verify(u => u.OpenUrlAsync(GitHubReleaseChecker.ReleasesPageUrl), Times.Once);
         }
 
         [Test]
@@ -313,12 +273,10 @@ namespace RomForge.UI.UnitTests.ViewModels
         // --- Computed label properties ---
 
         [Test]
-        public void ReArchiveButtonLabel_DefaultsTo7z() =>
-            _vm.ReArchiveButtonLabel.Should().Be("Re-Archive to 7z");
+        public void ReArchiveButtonLabel_DefaultsTo7z() => _vm.ReArchiveButtonLabel.Should().Be("Re-Archive to 7z");
 
         [Test]
-        public void ReArchiveAllButtonLabel_DefaultsTo7z() =>
-            _vm.ReArchiveAllButtonLabel.Should().Be("Re-Archive All to 7z");
+        public void ReArchiveAllButtonLabel_DefaultsTo7z() => _vm.ReArchiveAllButtonLabel.Should().Be("Re-Archive All to 7z");
 
         [Test]
         public void ReArchiveButtonLabel_ReflectsFormatChange()
@@ -546,13 +504,8 @@ namespace RomForge.UI.UnitTests.ViewModels
             availableCompressor.Setup(c => c.IsAvailable).Returns(true);
             MainWindowVM vm = MakeVM(compressorMock: availableCompressor);
 
-            TaskCompletionSource<Result<string>> extractGate =
-                new TaskCompletionSource<Result<string>>();
-            _extractor
-                .Setup(e =>
-                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
-                .Returns(extractGate.Task);
+            TaskCompletionSource<Result<string>> extractGate = new TaskCompletionSource<Result<string>>();
+            _extractor.Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).Returns(extractGate.Task);
 
             LoadedDatVM datVm = MakeDatVM();
             datVm.Games.Add(MakeGameRowWithScannedRom("/roms/Test.zip", wrongArchiveType: true));
@@ -582,13 +535,8 @@ namespace RomForge.UI.UnitTests.ViewModels
             availableCompressor.Setup(c => c.IsAvailable).Returns(true);
             MainWindowVM vm = MakeVM(compressorMock: availableCompressor);
 
-            TaskCompletionSource<Result<string>> extractGate =
-                new TaskCompletionSource<Result<string>>();
-            _extractor
-                .Setup(e =>
-                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
-                .Returns(extractGate.Task);
+            TaskCompletionSource<Result<string>> extractGate = new TaskCompletionSource<Result<string>>();
+            _extractor.Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).Returns(extractGate.Task);
 
             LoadedDatVM datVm = MakeDatVM();
             datVm.Games.Add(MakeGameRowWithScannedRom("/roms/Test.zip", wrongArchiveType: true));
@@ -706,9 +654,7 @@ namespace RomForge.UI.UnitTests.ViewModels
             _vm.ActiveDat = dat;
             _compressor.Setup(c => c.IsAvailable).Returns(true);
             _extractor
-                .Setup(e =>
-                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
+                .Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new InvalidOperationException("boom"));
 
             Func<Task> act = async () => await _vm.ReArchiveAllCommand.ExecuteAsync(null);
@@ -782,24 +728,13 @@ namespace RomForge.UI.UnitTests.ViewModels
         {
             _vm.ActiveDat = MakeDatVMWithImageUrl();
             _notifier
-                .Setup(n =>
-                    n.ShowImageDownloadAsync(
-                        It.IsAny<string>(),
-                        It.IsAny<ImageDownloadWindowVM>(),
-                        It.IsAny<Task>()
-                    )
-                )
+                .Setup(n => n.ShowImageDownloadAsync(It.IsAny<string>(), It.IsAny<ImageDownloadWindowVM>(), It.IsAny<Task>()))
                 .Returns<string, ImageDownloadWindowVM, Task>((_, _, task) => task);
 
             await _vm.DownloadImagesCommand.ExecuteAsync(null);
 
             _notifier.Verify(
-                n =>
-                    n.ShowImageDownloadAsync(
-                        It.Is<string>(title => title.Contains("Test DAT")),
-                        It.IsAny<ImageDownloadWindowVM>(),
-                        It.IsAny<Task>()
-                    ),
+                n => n.ShowImageDownloadAsync(It.Is<string>(title => title.Contains("Test DAT")), It.IsAny<ImageDownloadWindowVM>(), It.IsAny<Task>()),
                 Times.Once
             );
         }
@@ -811,15 +746,7 @@ namespace RomForge.UI.UnitTests.ViewModels
 
             await _vm.DownloadImagesCommand.ExecuteAsync(null);
 
-            _notifier.Verify(
-                n =>
-                    n.ShowImageDownloadAsync(
-                        It.IsAny<string>(),
-                        It.IsAny<ImageDownloadWindowVM>(),
-                        It.IsAny<Task>()
-                    ),
-                Times.Never
-            );
+            _notifier.Verify(n => n.ShowImageDownloadAsync(It.IsAny<string>(), It.IsAny<ImageDownloadWindowVM>(), It.IsAny<Task>()), Times.Never);
         }
 
         // --- RemoveDat ---
@@ -882,34 +809,25 @@ namespace RomForge.UI.UnitTests.ViewModels
         private void SetupLatestRelease(string tag) =>
             _releaseChecker
                 .Setup(c => c.FetchLatestReleaseAsync(It.IsAny<CancellationToken>()))
-                .ReturnsAsync(
-                    Result.Ok(new ReleaseInfo(tag, $"https://example.com/releases/tag/{tag}"))
-                );
+                .ReturnsAsync(Result.Ok(new ReleaseInfo(tag, $"https://example.com/releases/tag/{tag}")));
 
         [Test]
         public async Task CheckForUpdates_WhenNewerReleaseAndConfirmed_OpensReleasePage()
         {
             // Current version is "1.0.0" (see MakeVM)
             SetupLatestRelease("v2.0.0");
-            _notifier
-                .Setup(n => n.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(true);
+            _notifier.Setup(n => n.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(true);
 
             await _vm.CheckForUpdatesCommand.ExecuteAsync(null);
 
-            _urlLauncher.Verify(
-                l => l.OpenUrlAsync("https://example.com/releases/tag/v2.0.0"),
-                Times.Once
-            );
+            _urlLauncher.Verify(l => l.OpenUrlAsync("https://example.com/releases/tag/v2.0.0"), Times.Once);
         }
 
         [Test]
         public async Task CheckForUpdates_WhenNewerReleaseButDeclined_DoesNotOpenPage()
         {
             SetupLatestRelease("v2.0.0");
-            _notifier
-                .Setup(n => n.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(false);
+            _notifier.Setup(n => n.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(false);
 
             await _vm.CheckForUpdatesCommand.ExecuteAsync(null);
 
@@ -942,12 +860,8 @@ namespace RomForge.UI.UnitTests.ViewModels
             // Opening the release page must never crash the app: an uncaught throw in a
             // RelayCommand aborts the process (see the RelayCommand-crash guard rule).
             SetupLatestRelease("v2.0.0");
-            _notifier
-                .Setup(n => n.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(true);
-            _urlLauncher
-                .Setup(l => l.OpenUrlAsync(It.IsAny<string>()))
-                .ThrowsAsync(new InvalidOperationException("launch failed"));
+            _notifier.Setup(n => n.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(true);
+            _urlLauncher.Setup(l => l.OpenUrlAsync(It.IsAny<string>())).ThrowsAsync(new InvalidOperationException("launch failed"));
 
             Func<Task> act = async () => await _vm.CheckForUpdatesCommand.ExecuteAsync(null);
 
@@ -975,10 +889,7 @@ namespace RomForge.UI.UnitTests.ViewModels
 
             await _vm.ImportDatCommand.ExecuteAsync(null);
 
-            _notifier.Verify(
-                n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("read error"))),
-                Times.Once
-            );
+            _notifier.Verify(n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("read error"))), Times.Once);
         }
 
         [Test]
@@ -997,22 +908,12 @@ namespace RomForge.UI.UnitTests.ViewModels
                     )
                 );
             _datImporter
-                .Setup(i =>
-                    i.ImportAsync(
-                        It.IsAny<string>(),
-                        It.IsAny<DatHeader>(),
-                        It.IsAny<IProgress<ImportProgress>?>(),
-                        It.IsAny<CancellationToken>()
-                    )
-                )
+                .Setup(i => i.ImportAsync(It.IsAny<string>(), It.IsAny<DatHeader>(), It.IsAny<IProgress<ImportProgress>?>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Result.Fail<string>("import error"));
 
             await _vm.ImportDatCommand.ExecuteAsync(null);
 
-            _notifier.Verify(
-                n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("import error"))),
-                Times.Once
-            );
+            _notifier.Verify(n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("import error"))), Times.Once);
         }
 
         // --- ScanFolderAsync ---
@@ -1040,10 +941,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         }
 
         private async Task PersistUnverifiedFolderAsync(string? folder) =>
-            await new AppPreferencesService(
-                new AppDataService(_tempDir),
-                new LoggerConfiguration().CreateLogger()
-            ).UpdateSettingsAsync("7z", folder);
+            await new AppPreferencesService(new AppDataService(_tempDir), new LoggerConfiguration().CreateLogger()).UpdateSettingsAsync("7z", folder);
 
         [Test]
         public async Task LoadManagedDatsAsync_WhenSavedUnverifiedFolderMissing_NotifiesAndOpensSettings()
@@ -1106,10 +1004,7 @@ namespace RomForge.UI.UnitTests.ViewModels
 
             await _vm.MoveUnverifiedCommand.ExecuteAsync(null);
 
-            _fileOps.Verify(
-                f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()),
-                Times.Never
-            );
+            _fileOps.Verify(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
         }
 
         [Test]
@@ -1119,9 +1014,7 @@ namespace RomForge.UI.UnitTests.ViewModels
             dat.UnmatchedRoms = [new ScannedRom { FilePath = "/roms/unknown.zip" }];
             _vm.ActiveDat = dat;
             _fileDialogs.Setup(d => d.PickUnverifiedDestinationAsync()).ReturnsAsync("/dest");
-            _fileOps
-                .Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(Result.Ok());
+            _fileOps.Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(Result.Ok());
 
             await _vm.MoveUnverifiedCommand.ExecuteAsync(null);
 
@@ -1135,9 +1028,7 @@ namespace RomForge.UI.UnitTests.ViewModels
             dat.UnmatchedRoms = [new ScannedRom { FilePath = "/roms/unknown.zip" }];
             _vm.ActiveDat = dat;
             _fileDialogs.Setup(d => d.PickUnverifiedDestinationAsync()).ReturnsAsync("/dest");
-            _fileOps
-                .Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(Result.Fail("permission denied"));
+            _fileOps.Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(Result.Fail("permission denied"));
 
             await _vm.MoveUnverifiedCommand.ExecuteAsync(null);
 
@@ -1151,9 +1042,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         {
             _vm.ActiveDat = MakeDatVMWithUpdateUrl();
             _updateChecker
-                .Setup(u =>
-                    u.FetchLatestVersionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
+                .Setup(u => u.FetchLatestVersionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Result.Fail<string>("network error"));
 
             await _vm.CheckDatUpdateCommand.ExecuteAsync(null);
@@ -1165,11 +1054,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         public async Task CheckDatUpdateAsync_WhenAlreadyUpToDate_NotifiesInfo()
         {
             _vm.ActiveDat = MakeDatVMWithUpdateUrl(); // DatVersion = 0
-            _updateChecker
-                .Setup(u =>
-                    u.FetchLatestVersionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
-                .ReturnsAsync(Result.Ok("0")); // same version → not newer
+            _updateChecker.Setup(u => u.FetchLatestVersionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(Result.Ok("0")); // same version → not newer
 
             await _vm.CheckDatUpdateCommand.ExecuteAsync(null);
 
@@ -1181,26 +1066,14 @@ namespace RomForge.UI.UnitTests.ViewModels
         public async Task CheckDatUpdateAsync_WhenUpdateAvailableAndDeclined_DoesNotDownload()
         {
             _vm.ActiveDat = MakeDatVMWithUpdateUrl(); // DatVersion = 0
-            _updateChecker
-                .Setup(u =>
-                    u.FetchLatestVersionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
-                .ReturnsAsync(Result.Ok("1")); // newer
-            _notifier
-                .Setup(n => n.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(false);
+            _updateChecker.Setup(u => u.FetchLatestVersionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(Result.Ok("1")); // newer
+            _notifier.Setup(n => n.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(false);
 
             await _vm.CheckDatUpdateCommand.ExecuteAsync(null);
 
             _downloader.Verify(
                 d =>
-                    d.DownloadDatAsync(
-                        It.IsAny<string>(),
-                        It.IsAny<string>(),
-                        It.IsAny<string?>(),
-                        It.IsAny<IProgress<int>?>(),
-                        It.IsAny<CancellationToken>()
-                    ),
+                    d.DownloadDatAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()),
                 Times.Never
             );
         }
@@ -1209,23 +1082,11 @@ namespace RomForge.UI.UnitTests.ViewModels
         public async Task CheckDatUpdateAsync_WhenDownloadFails_NotifiesError()
         {
             _vm.ActiveDat = MakeDatVMWithUpdateUrl(); // DatVersion = 0
-            _updateChecker
-                .Setup(u =>
-                    u.FetchLatestVersionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
-                .ReturnsAsync(Result.Ok("1")); // newer
-            _notifier
-                .Setup(n => n.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(true);
+            _updateChecker.Setup(u => u.FetchLatestVersionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(Result.Ok("1")); // newer
+            _notifier.Setup(n => n.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(true);
             _downloader
                 .Setup(d =>
-                    d.DownloadDatAsync(
-                        It.IsAny<string>(),
-                        It.IsAny<string>(),
-                        It.IsAny<string?>(),
-                        It.IsAny<IProgress<int>?>(),
-                        It.IsAny<CancellationToken>()
-                    )
+                    d.DownloadDatAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>())
                 )
                 .ReturnsAsync(Result.Fail<string>("network error"));
 
@@ -1233,12 +1094,7 @@ namespace RomForge.UI.UnitTests.ViewModels
 
             _notifier.Verify(n => n.NotifyErrorAsync(It.IsAny<string>()), Times.Once);
             _notifier.Verify(
-                n =>
-                    n.ShowProgressAsync(
-                        It.Is<string>(title => title.Contains("Test DAT")),
-                        It.IsAny<ProgressWindowVM>(),
-                        It.IsAny<Task>()
-                    ),
+                n => n.ShowProgressAsync(It.Is<string>(title => title.Contains("Test DAT")), It.IsAny<ProgressWindowVM>(), It.IsAny<Task>()),
                 Times.Once
             );
         }
@@ -1247,23 +1103,11 @@ namespace RomForge.UI.UnitTests.ViewModels
         public async Task CheckDatUpdateAsync_WhenUpdateSucceedsAndReloadedDatHasImageUrl_ShowsImageDownload()
         {
             _vm.ActiveDat = MakeDatVMWithUpdateUrl(); // DatVersion = 0
-            _updateChecker
-                .Setup(u =>
-                    u.FetchLatestVersionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
-                .ReturnsAsync(Result.Ok("1")); // newer
-            _notifier
-                .Setup(n => n.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(true);
+            _updateChecker.Setup(u => u.FetchLatestVersionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(Result.Ok("1")); // newer
+            _notifier.Setup(n => n.ConfirmAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(true);
             _downloader
                 .Setup(d =>
-                    d.DownloadDatAsync(
-                        It.IsAny<string>(),
-                        It.IsAny<string>(),
-                        It.IsAny<string?>(),
-                        It.IsAny<IProgress<int>?>(),
-                        It.IsAny<CancellationToken>()
-                    )
+                    d.DownloadDatAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>())
                 )
                 .ReturnsAsync(Result.Ok("/managed/updated.dat"));
             _datReader
@@ -1272,34 +1116,19 @@ namespace RomForge.UI.UnitTests.ViewModels
                     Result.Ok(
                         new DatFile
                         {
-                            Header = new DatHeader
-                            {
-                                DatName = "Test DAT",
-                                NewImUrl = "https://example.com/imgs/",
-                            },
+                            Header = new DatHeader { DatName = "Test DAT", NewImUrl = "https://example.com/imgs/" },
                             Games = [],
                         }
                     )
                 );
             _notifier
-                .Setup(n =>
-                    n.ShowImageDownloadAsync(
-                        It.IsAny<string>(),
-                        It.IsAny<ImageDownloadWindowVM>(),
-                        It.IsAny<Task>()
-                    )
-                )
+                .Setup(n => n.ShowImageDownloadAsync(It.IsAny<string>(), It.IsAny<ImageDownloadWindowVM>(), It.IsAny<Task>()))
                 .Returns<string, ImageDownloadWindowVM, Task>((_, _, task) => task);
 
             await _vm.CheckDatUpdateCommand.ExecuteAsync(null);
 
             _notifier.Verify(
-                n =>
-                    n.ShowImageDownloadAsync(
-                        It.Is<string>(title => title.Contains("Test DAT")),
-                        It.IsAny<ImageDownloadWindowVM>(),
-                        It.IsAny<Task>()
-                    ),
+                n => n.ShowImageDownloadAsync(It.Is<string>(title => title.Contains("Test DAT")), It.IsAny<ImageDownloadWindowVM>(), It.IsAny<Task>()),
                 Times.Once
             );
         }
@@ -1315,10 +1144,7 @@ namespace RomForge.UI.UnitTests.ViewModels
 
             await _vm.RenameAllCommand.ExecuteAsync(null);
 
-            _fileOps.Verify(
-                f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()),
-                Times.Never
-            );
+            _fileOps.Verify(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
         }
 
         // --- ImportDatAsync success path (covers LoadDatFromManagedPathAsync + BuildDatVmAsync) ---
@@ -1334,14 +1160,7 @@ namespace RomForge.UI.UnitTests.ViewModels
             _fileDialogs.Setup(d => d.PickDatFileAsync()).ReturnsAsync("/source/test.dat");
             _datReader.Setup(r => r.ReadAsync()).ReturnsAsync(Result.Ok(datFile));
             _datImporter
-                .Setup(i =>
-                    i.ImportAsync(
-                        It.IsAny<string>(),
-                        It.IsAny<DatHeader>(),
-                        It.IsAny<IProgress<ImportProgress>?>(),
-                        It.IsAny<CancellationToken>()
-                    )
-                )
+                .Setup(i => i.ImportAsync(It.IsAny<string>(), It.IsAny<DatHeader>(), It.IsAny<IProgress<ImportProgress>?>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Result.Ok("/managed/test.dat"));
 
             await _vm.ImportDatCommand.ExecuteAsync(null);
@@ -1386,13 +1205,7 @@ namespace RomForge.UI.UnitTests.ViewModels
 
             // ShowProgressAsync must await the scan task so the test doesn't exit early
             _notifier
-                .Setup(n =>
-                    n.ShowProgressAsync(
-                        It.IsAny<string>(),
-                        It.IsAny<ProgressWindowVM>(),
-                        It.IsAny<Task>()
-                    )
-                )
+                .Setup(n => n.ShowProgressAsync(It.IsAny<string>(), It.IsAny<ProgressWindowVM>(), It.IsAny<Task>()))
                 .Returns<string, ProgressWindowVM, Task>((_, _, task) => task);
 
             await _vm.ScanFolderCommand.ExecuteAsync(null);
@@ -1416,25 +1229,12 @@ namespace RomForge.UI.UnitTests.ViewModels
                 .ReturnsAsync(Result.Ok(datFile)) // ImportDatAsync source read
                 .ReturnsAsync(Result.Fail<DatFile>("managed read error")); // LoadDatFromManagedPath read
             _datImporter
-                .Setup(i =>
-                    i.ImportAsync(
-                        It.IsAny<string>(),
-                        It.IsAny<DatHeader>(),
-                        It.IsAny<IProgress<ImportProgress>?>(),
-                        It.IsAny<CancellationToken>()
-                    )
-                )
+                .Setup(i => i.ImportAsync(It.IsAny<string>(), It.IsAny<DatHeader>(), It.IsAny<IProgress<ImportProgress>?>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Result.Ok("/managed/test.dat"));
 
             await _vm.ImportDatCommand.ExecuteAsync(null);
 
-            _notifier.Verify(
-                n =>
-                    n.NotifyErrorAsync(
-                        It.Is<string>(s => s.Contains("Could not load imported DAT"))
-                    ),
-                Times.Once
-            );
+            _notifier.Verify(n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("Could not load imported DAT"))), Times.Once);
             _vm.LoadedDats.Should().BeEmpty();
         }
 
@@ -1454,11 +1254,7 @@ namespace RomForge.UI.UnitTests.ViewModels
                     IsIncorrectlyNamed = incorrectlyNamed,
                     IsWrongArchiveType = wrongArchiveType,
                     IsUntrimmed = untrimmed,
-                    ScannedRom = new ScannedRom
-                    {
-                        FilePath = filePath,
-                        FileExtension = Path.GetExtension(filePath).TrimStart('.'),
-                    },
+                    ScannedRom = new ScannedRom { FilePath = filePath, FileExtension = Path.GetExtension(filePath).TrimStart('.') },
                 },
                 string.Empty,
                 new DatHeader(),
@@ -1501,10 +1297,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public async Task OpenSettingsAsync_WhenDialogCancelled_DiscardsUnsavedEditsAndKeepsPersistedFormat()
         {
-            AppPreferencesService prefs = new AppPreferencesService(
-                new AppDataService(_tempDir),
-                new LoggerConfiguration().CreateLogger()
-            );
+            AppPreferencesService prefs = new AppPreferencesService(new AppDataService(_tempDir), new LoggerConfiguration().CreateLogger());
             await prefs.UpdateSettingsAsync("zip", null);
 
             // Cancel: the dialog closes without the VM's SaveCommand ever running.
@@ -1537,24 +1330,18 @@ namespace RomForge.UI.UnitTests.ViewModels
             LoadedDatVM dat = MakeDatVM();
             dat.UnmatchedRoms = [new ScannedRom { FilePath = "/roms/unknown.zip" }];
             _vm.ActiveDat = dat;
-            _fileOps
-                .Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(Result.Ok());
+            _fileOps.Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(Result.Ok());
 
             await _vm.MoveUnverifiedCommand.ExecuteAsync(null);
 
             _fileDialogs.Verify(d => d.PickUnverifiedDestinationAsync(), Times.Never);
-            _fileOps.Verify(
-                f => f.RenameAsync("/roms/unknown.zip", Path.Combine("/dest", "unknown.zip")),
-                Times.Once
-            );
+            _fileOps.Verify(f => f.RenameAsync("/roms/unknown.zip", Path.Combine("/dest", "unknown.zip")), Times.Once);
         }
 
         // --- TrimAll command CanExecute ---
 
         [Test]
-        public void TrimAllCommand_CannotExecute_WhenNoDatLoaded() =>
-            _vm.TrimAllCommand.CanExecute(null).Should().BeFalse();
+        public void TrimAllCommand_CannotExecute_WhenNoDatLoaded() => _vm.TrimAllCommand.CanExecute(null).Should().BeFalse();
 
         [Test]
         public void TrimAllCommand_CannotExecute_WhenNoUntrimmedGames()
@@ -1603,15 +1390,10 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public async Task RenameSelectedAsync_WhenRenameSucceeds_ReplacesGameRowInActiveDat()
         {
-            _fileOps
-                .Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(Result.Ok());
+            _fileOps.Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(Result.Ok());
 
             LoadedDatVM datVm = MakeDatVM();
-            GameRowVM gameRow = MakeGameRowWithScannedRom(
-                "/roms/Wrong Name.7z",
-                incorrectlyNamed: true
-            );
+            GameRowVM gameRow = MakeGameRowWithScannedRom("/roms/Wrong Name.7z", incorrectlyNamed: true);
             datVm.Games.Add(gameRow);
             _vm.ActiveDat = datVm;
             _vm.SelectedGame = gameRow;
@@ -1637,13 +1419,7 @@ namespace RomForge.UI.UnitTests.ViewModels
             _vm.ActiveDat = datVm;
             _fileDialogs.Setup(d => d.PickRomFolderAsync()).ReturnsAsync("/roms/gba");
             _notifier
-                .Setup(n =>
-                    n.ShowProgressAsync(
-                        It.IsAny<string>(),
-                        It.IsAny<ProgressWindowVM>(),
-                        It.IsAny<Task>()
-                    )
-                )
+                .Setup(n => n.ShowProgressAsync(It.IsAny<string>(), It.IsAny<ProgressWindowVM>(), It.IsAny<Task>()))
                 .Returns<string, ProgressWindowVM, Task>((_, _, task) => task);
 
             await _vm.ScanFolderCommand.ExecuteAsync(null);
@@ -1675,19 +1451,11 @@ namespace RomForge.UI.UnitTests.ViewModels
             MainWindowVM vm = MakeVM(compressorMock: availableCompressor);
 
             _extractor
-                .Setup(e =>
-                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
+                .Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Result.Ok("/tmp/no_such_extracted_file.rom"));
 
             _notifier
-                .Setup(n =>
-                    n.ShowProgressAsync(
-                        It.IsAny<string>(),
-                        It.IsAny<ProgressWindowVM>(),
-                        It.IsAny<Task>()
-                    )
-                )
+                .Setup(n => n.ShowProgressAsync(It.IsAny<string>(), It.IsAny<ProgressWindowVM>(), It.IsAny<Task>()))
                 .Returns<string, ProgressWindowVM, Task>((_, _, task) => task);
 
             LoadedDatVM datVm = MakeDatVM();
@@ -1698,10 +1466,7 @@ namespace RomForge.UI.UnitTests.ViewModels
 
             await vm.ReArchiveSelectedCommand.ExecuteAsync(null);
 
-            _notifier.Verify(
-                n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("compression failed"))),
-                Times.Once
-            );
+            _notifier.Verify(n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("compression failed"))), Times.Once);
         }
 
         [Test]
@@ -1728,20 +1493,12 @@ namespace RomForge.UI.UnitTests.ViewModels
             MainWindowVM vm = MakeVM(compressorMock: availableCompressor);
 
             _extractor
-                .Setup(e =>
-                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
+                .Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Result.Ok("/tmp/no_such_extracted_file.rom"));
             _fileOps.Setup(f => f.DeleteAsync(It.IsAny<string>())).ReturnsAsync(Result.Ok());
 
             _notifier
-                .Setup(n =>
-                    n.ShowProgressAsync(
-                        It.IsAny<string>(),
-                        It.IsAny<ProgressWindowVM>(),
-                        It.IsAny<Task>()
-                    )
-                )
+                .Setup(n => n.ShowProgressAsync(It.IsAny<string>(), It.IsAny<ProgressWindowVM>(), It.IsAny<Task>()))
                 .Returns<string, ProgressWindowVM, Task>((_, _, task) => task);
 
             LoadedDatVM datVm = MakeDatVM();
@@ -1755,10 +1512,7 @@ namespace RomForge.UI.UnitTests.ViewModels
             await vm.ReArchiveSelectedCommand.ExecuteAsync(null);
 
             _fileOps.Verify(f => f.DeleteAsync("/roms/Test.7z"), Times.Never);
-            _notifier.Verify(
-                n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("compression failed"))),
-                Times.Once
-            );
+            _notifier.Verify(n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("compression failed"))), Times.Once);
         }
 
         // --- TrimSelectedAsync ---
@@ -1767,11 +1521,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         public async Task TrimSelectedAsync_WhenExtractFails_NotifiesError()
         {
             _compressor.Setup(c => c.IsAvailable).Returns(true);
-            _extractor
-                .Setup(e =>
-                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
-                .ReturnsAsync(Result.Fail("extract failed"));
+            _extractor.Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(Result.Fail("extract failed"));
 
             LoadedDatVM datVm = MakeDatVM();
             GameRowVM gameRow = MakeGameRowWithScannedRom("/roms/Test.7z", untrimmed: true);
@@ -1781,10 +1531,7 @@ namespace RomForge.UI.UnitTests.ViewModels
 
             await _vm.TrimSelectedCommand.ExecuteAsync(null);
 
-            _notifier.Verify(
-                n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("extract failed"))),
-                Times.Once
-            );
+            _notifier.Verify(n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("extract failed"))), Times.Once);
         }
 
         // --- RenameAllAsync ---
@@ -1792,38 +1539,25 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public async Task RenameAllAsync_WhenRenameFails_NotifiesError()
         {
-            _fileOps
-                .Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(Result.Fail("rename failed"));
+            _fileOps.Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(Result.Fail("rename failed"));
 
             LoadedDatVM datVm = MakeDatVM();
-            GameRowVM gameRow = MakeGameRowWithScannedRom(
-                "/roms/Wrong Name.7z",
-                incorrectlyNamed: true
-            );
+            GameRowVM gameRow = MakeGameRowWithScannedRom("/roms/Wrong Name.7z", incorrectlyNamed: true);
             datVm.Games.Add(gameRow);
             _vm.ActiveDat = datVm;
 
             await _vm.RenameAllCommand.ExecuteAsync(null);
 
-            _notifier.Verify(
-                n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("rename failed"))),
-                Times.Once
-            );
+            _notifier.Verify(n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("rename failed"))), Times.Once);
         }
 
         [Test]
         public async Task RenameAllAsync_WhenRenameSucceeds_ReplacesGameRowInActiveDat()
         {
-            _fileOps
-                .Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(Result.Ok());
+            _fileOps.Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(Result.Ok());
 
             LoadedDatVM datVm = MakeDatVM();
-            GameRowVM gameRow = MakeGameRowWithScannedRom(
-                "/roms/Wrong Name.7z",
-                incorrectlyNamed: true
-            );
+            GameRowVM gameRow = MakeGameRowWithScannedRom("/roms/Wrong Name.7z", incorrectlyNamed: true);
             datVm.Games.Add(gameRow);
             _vm.ActiveDat = datVm;
 
@@ -1842,11 +1576,7 @@ namespace RomForge.UI.UnitTests.ViewModels
             availableCompressor.Setup(c => c.IsAvailable).Returns(true);
             MainWindowVM vm = MakeVM(compressorMock: availableCompressor);
 
-            _extractor
-                .Setup(e =>
-                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
-                .ReturnsAsync(Result.Fail("extract failed"));
+            _extractor.Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(Result.Fail("extract failed"));
 
             LoadedDatVM datVm = MakeDatVM();
             GameRowVM gameRow = MakeGameRowWithScannedRom("/roms/Test.zip", wrongArchiveType: true);
@@ -1856,10 +1586,7 @@ namespace RomForge.UI.UnitTests.ViewModels
 
             await vm.ReArchiveSelectedCommand.ExecuteAsync(null);
 
-            _notifier.Verify(
-                n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("extract failed"))),
-                Times.Once
-            );
+            _notifier.Verify(n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("extract failed"))), Times.Once);
         }
 
         // --- ReArchiveSelectedAsync sameFile rename-aside failure ---
@@ -1887,36 +1614,19 @@ namespace RomForge.UI.UnitTests.ViewModels
             MainWindowVM vm = MakeVM(compressorMock: availableCompressor);
 
             _extractor
-                .Setup(e =>
-                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
+                .Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Result.Ok("/tmp/no_such_extracted.rom"));
-            _fileOps
-                .Setup(f =>
-                    f.RenameAsync("/roms/0000 - Test Game.7z", "/roms/0000 - Test Game.7z.bak")
-                )
-                .ReturnsAsync(Result.Fail("rename failed"));
+            _fileOps.Setup(f => f.RenameAsync("/roms/0000 - Test Game.7z", "/roms/0000 - Test Game.7z.bak")).ReturnsAsync(Result.Fail("rename failed"));
 
             LoadedDatVM datVm = MakeDatVM();
-            GameRowVM gameRow = MakeGameRowWithScannedRom(
-                "/roms/0000 - Test Game.7z",
-                wrongArchiveType: true
-            );
+            GameRowVM gameRow = MakeGameRowWithScannedRom("/roms/0000 - Test Game.7z", wrongArchiveType: true);
             datVm.Games.Add(gameRow);
             vm.ActiveDat = datVm;
             vm.SelectedGame = gameRow;
 
             await vm.ReArchiveSelectedCommand.ExecuteAsync(null);
 
-            _notifier.Verify(
-                n =>
-                    n.NotifyErrorAsync(
-                        It.Is<string>(s =>
-                            s.Contains("Could not replace original") && s.Contains("rename failed")
-                        )
-                    ),
-                Times.Once
-            );
+            _notifier.Verify(n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("Could not replace original") && s.Contains("rename failed"))), Times.Once);
         }
 
         [Test]
@@ -1942,20 +1652,13 @@ namespace RomForge.UI.UnitTests.ViewModels
             MainWindowVM vm = MakeVM(compressorMock: availableCompressor);
 
             _extractor
-                .Setup(e =>
-                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
+                .Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Result.Ok("/tmp/no_such_extracted.rom"));
-            _fileOps
-                .Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(Result.Ok());
+            _fileOps.Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(Result.Ok());
             _fileOps.Setup(f => f.DeleteAsync(It.IsAny<string>())).ReturnsAsync(Result.Ok());
 
             LoadedDatVM datVm = MakeDatVM();
-            GameRowVM gameRow = MakeGameRowWithScannedRom(
-                "/roms/0000 - Test Game.7z",
-                wrongArchiveType: true
-            );
+            GameRowVM gameRow = MakeGameRowWithScannedRom("/roms/0000 - Test Game.7z", wrongArchiveType: true);
             datVm.Games.Add(gameRow);
             vm.ActiveDat = datVm;
             vm.SelectedGame = gameRow;
@@ -1990,53 +1693,23 @@ namespace RomForge.UI.UnitTests.ViewModels
             MainWindowVM vm = MakeVM(compressorMock: availableCompressor);
 
             _extractor
-                .Setup(e =>
-                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
+                .Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Result.Ok("/tmp/no_such_extracted.rom"));
-            _fileOps
-                .Setup(f =>
-                    f.RenameAsync("/roms/0000 - Test Game.7z", "/roms/0000 - Test Game.7z.bak")
-                )
-                .ReturnsAsync(Result.Ok());
-            _fileOps
-                .Setup(f => f.RenameAsync(It.IsAny<string>(), "/roms/0000 - Test Game.7z"))
-                .ReturnsAsync(Result.Fail("rename failed"));
-            _fileOps
-                .Setup(f =>
-                    f.RenameAsync("/roms/0000 - Test Game.7z.bak", "/roms/0000 - Test Game.7z")
-                )
-                .ReturnsAsync(Result.Ok());
-            _fileOps
-                .Setup(f =>
-                    f.RenameAsync(It.IsAny<string>(), It.Is<string>(p => p.Contains("recovered")))
-                )
-                .ReturnsAsync(Result.Ok());
+            _fileOps.Setup(f => f.RenameAsync("/roms/0000 - Test Game.7z", "/roms/0000 - Test Game.7z.bak")).ReturnsAsync(Result.Ok());
+            _fileOps.Setup(f => f.RenameAsync(It.IsAny<string>(), "/roms/0000 - Test Game.7z")).ReturnsAsync(Result.Fail("rename failed"));
+            _fileOps.Setup(f => f.RenameAsync("/roms/0000 - Test Game.7z.bak", "/roms/0000 - Test Game.7z")).ReturnsAsync(Result.Ok());
+            _fileOps.Setup(f => f.RenameAsync(It.IsAny<string>(), It.Is<string>(p => p.Contains("recovered")))).ReturnsAsync(Result.Ok());
 
             LoadedDatVM datVm = MakeDatVM();
-            GameRowVM gameRow = MakeGameRowWithScannedRom(
-                "/roms/0000 - Test Game.7z",
-                wrongArchiveType: true
-            );
+            GameRowVM gameRow = MakeGameRowWithScannedRom("/roms/0000 - Test Game.7z", wrongArchiveType: true);
             datVm.Games.Add(gameRow);
             vm.ActiveDat = datVm;
             vm.SelectedGame = gameRow;
 
             await vm.ReArchiveSelectedCommand.ExecuteAsync(null);
 
-            _fileOps.Verify(
-                f => f.RenameAsync("/roms/0000 - Test Game.7z.bak", "/roms/0000 - Test Game.7z"),
-                Times.Once
-            );
-            _notifier.Verify(
-                n =>
-                    n.NotifyErrorAsync(
-                        It.Is<string>(s =>
-                            s.Contains("could not place it") && s.Contains("rename failed")
-                        )
-                    ),
-                Times.Once
-            );
+            _fileOps.Verify(f => f.RenameAsync("/roms/0000 - Test Game.7z.bak", "/roms/0000 - Test Game.7z"), Times.Once);
+            _notifier.Verify(n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("could not place it") && s.Contains("rename failed"))), Times.Once);
         }
 
         [Test]
@@ -2059,27 +1732,18 @@ namespace RomForge.UI.UnitTests.ViewModels
                         It.IsAny<CancellationToken>()
                     )
                 )
-                .Callback<string, string, string, long, IProgress<int>?, string, CancellationToken>(
-                    (_, dest, _, _, _, _, _) => compressTarget = dest
-                )
+                .Callback<string, string, string, long, IProgress<int>?, string, CancellationToken>((_, dest, _, _, _, _, _) => compressTarget = dest)
                 .ReturnsAsync(Result.Ok());
             MainWindowVM vm = MakeVM(compressorMock: availableCompressor);
 
             _extractor
-                .Setup(e =>
-                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
+                .Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Result.Ok("/tmp/no_such_extracted.rom"));
             _fileOps.Setup(f => f.DeleteAsync(It.IsAny<string>())).ReturnsAsync(Result.Ok());
-            _fileOps
-                .Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(Result.Ok());
+            _fileOps.Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(Result.Ok());
 
             LoadedDatVM datVm = MakeDatVM();
-            GameRowVM gameRow = MakeGameRowWithScannedRom(
-                "/roms/0000 - Test Game.7z",
-                wrongArchiveType: true
-            );
+            GameRowVM gameRow = MakeGameRowWithScannedRom("/roms/0000 - Test Game.7z", wrongArchiveType: true);
             datVm.Games.Add(gameRow);
             vm.ActiveDat = datVm;
             vm.SelectedGame = gameRow;
@@ -2090,10 +1754,7 @@ namespace RomForge.UI.UnitTests.ViewModels
             compressTarget.Should().StartWith(Path.Combine(_tempDir, "temp"));
             compressTarget.Should().NotContain("/roms/");
             // The working archive is then moved onto the final path.
-            _fileOps.Verify(
-                f => f.RenameAsync(compressTarget, "/roms/0000 - Test Game.7z"),
-                Times.Once
-            );
+            _fileOps.Verify(f => f.RenameAsync(compressTarget, "/roms/0000 - Test Game.7z"), Times.Once);
             _notifier.Verify(n => n.NotifyErrorAsync(It.IsAny<string>()), Times.Never);
         }
 
@@ -2123,56 +1784,23 @@ namespace RomForge.UI.UnitTests.ViewModels
             MainWindowVM vm = MakeVM(compressorMock: availableCompressor);
 
             _extractor
-                .Setup(e =>
-                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
+                .Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Result.Ok("/tmp/no_such_extracted.rom"));
             _fileOps.Setup(f => f.DeleteAsync(It.IsAny<string>())).ReturnsAsync(Result.Ok());
-            _fileOps
-                .Setup(f =>
-                    f.RenameAsync("/roms/0000 - Test Game.7z", "/roms/0000 - Test Game.7z.bak")
-                )
-                .ReturnsAsync(Result.Ok());
-            _fileOps
-                .Setup(f => f.RenameAsync(It.IsAny<string>(), "/roms/0000 - Test Game.7z"))
-                .ReturnsAsync(Result.Fail("volume offline"));
-            _fileOps
-                .Setup(f =>
-                    f.RenameAsync(
-                        It.IsAny<string>(),
-                        It.Is<string>(p => p.StartsWith(recoveredDir))
-                    )
-                )
-                .ReturnsAsync(Result.Ok());
+            _fileOps.Setup(f => f.RenameAsync("/roms/0000 - Test Game.7z", "/roms/0000 - Test Game.7z.bak")).ReturnsAsync(Result.Ok());
+            _fileOps.Setup(f => f.RenameAsync(It.IsAny<string>(), "/roms/0000 - Test Game.7z")).ReturnsAsync(Result.Fail("volume offline"));
+            _fileOps.Setup(f => f.RenameAsync(It.IsAny<string>(), It.Is<string>(p => p.StartsWith(recoveredDir)))).ReturnsAsync(Result.Ok());
 
             LoadedDatVM datVm = MakeDatVM();
-            GameRowVM gameRow = MakeGameRowWithScannedRom(
-                "/roms/0000 - Test Game.7z",
-                wrongArchiveType: true
-            );
+            GameRowVM gameRow = MakeGameRowWithScannedRom("/roms/0000 - Test Game.7z", wrongArchiveType: true);
             datVm.Games.Add(gameRow);
             vm.ActiveDat = datVm;
             vm.SelectedGame = gameRow;
 
             await vm.ReArchiveSelectedCommand.ExecuteAsync(null);
 
-            _fileOps.Verify(
-                f =>
-                    f.RenameAsync(
-                        It.IsAny<string>(),
-                        It.Is<string>(p => p.StartsWith(recoveredDir))
-                    ),
-                Times.Once
-            );
-            _notifier.Verify(
-                n =>
-                    n.NotifyErrorAsync(
-                        It.Is<string>(s =>
-                            s.Contains("A copy was kept at") && s.Contains(recoveredDir)
-                        )
-                    ),
-                Times.Once
-            );
+            _fileOps.Verify(f => f.RenameAsync(It.IsAny<string>(), It.Is<string>(p => p.StartsWith(recoveredDir))), Times.Once);
+            _notifier.Verify(n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("A copy was kept at") && s.Contains(recoveredDir))), Times.Once);
         }
 
         [Test]
@@ -2208,13 +1836,9 @@ namespace RomForge.UI.UnitTests.ViewModels
             MainWindowVM vm = MakeVM(compressorMock: availableCompressor);
 
             _extractor
-                .Setup(e =>
-                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
+                .Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Result.Ok("/tmp/no_such_extracted.rom"));
-            _fileOps
-                .Setup(f => f.RenameAsync("/roms/Test.7z", "/roms/Test.7z.bak"))
-                .ReturnsAsync(Result.Fail("rename failed"));
+            _fileOps.Setup(f => f.RenameAsync("/roms/Test.7z", "/roms/Test.7z.bak")).ReturnsAsync(Result.Fail("rename failed"));
             _fileOps.Setup(f => f.DeleteAsync(It.IsAny<string>())).ReturnsAsync(Result.Ok());
 
             LoadedDatVM datVm = MakeDatVM();
@@ -2239,19 +1863,11 @@ namespace RomForge.UI.UnitTests.ViewModels
             MainWindowVM vm = MakeVM(compressorMock: availableCompressor);
 
             _extractor
-                .Setup(e =>
-                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
+                .Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new InvalidOperationException("boom"));
 
             _notifier
-                .Setup(n =>
-                    n.ShowProgressAsync(
-                        It.IsAny<string>(),
-                        It.IsAny<ProgressWindowVM>(),
-                        It.IsAny<Task>()
-                    )
-                )
+                .Setup(n => n.ShowProgressAsync(It.IsAny<string>(), It.IsAny<ProgressWindowVM>(), It.IsAny<Task>()))
                 .Returns<string, ProgressWindowVM, Task>((_, _, task) => task);
 
             LoadedDatVM datVm = MakeDatVM();
@@ -2263,13 +1879,7 @@ namespace RomForge.UI.UnitTests.ViewModels
             Func<Task> act = async () => await vm.ReArchiveSelectedCommand.ExecuteAsync(null);
 
             await act.Should().NotThrowAsync();
-            _notifier.Verify(
-                n =>
-                    n.NotifyErrorAsync(
-                        It.Is<string>(s => s.Contains("Re-archive failed unexpectedly"))
-                    ),
-                Times.Once
-            );
+            _notifier.Verify(n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("Re-archive failed unexpectedly"))), Times.Once);
         }
 
         [Test]
@@ -2300,15 +1910,7 @@ namespace RomForge.UI.UnitTests.ViewModels
                         )
                     )
                     // Simulate a partially-written working archive left behind by the failed compress.
-                    .Callback<
-                        string,
-                        string,
-                        string,
-                        long,
-                        IProgress<int>?,
-                        string,
-                        CancellationToken
-                    >(
+                    .Callback<string, string, string, long, IProgress<int>?, string, CancellationToken>(
                         (_, dest, _, _, _, _, _) =>
                         {
                             workingArchive = dest;
@@ -2319,20 +1921,12 @@ namespace RomForge.UI.UnitTests.ViewModels
                 MainWindowVM vm = MakeVM(compressorMock: availableCompressor);
 
                 _extractor
-                    .Setup(e =>
-                        e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                    )
+                    .Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                     .ReturnsAsync(Result.Ok("/tmp/no_such_extracted.rom"));
                 _fileOps.Setup(f => f.DeleteAsync(It.IsAny<string>())).ReturnsAsync(Result.Ok());
 
                 _notifier
-                    .Setup(n =>
-                        n.ShowProgressAsync(
-                            It.IsAny<string>(),
-                            It.IsAny<ProgressWindowVM>(),
-                            It.IsAny<Task>()
-                        )
-                    )
+                    .Setup(n => n.ShowProgressAsync(It.IsAny<string>(), It.IsAny<ProgressWindowVM>(), It.IsAny<Task>()))
                     .Returns<string, ProgressWindowVM, Task>((_, _, task) => task);
 
                 LoadedDatVM datVm = MakeDatVM();
@@ -2365,11 +1959,7 @@ namespace RomForge.UI.UnitTests.ViewModels
             availableCompressor.Setup(c => c.IsAvailable).Returns(true);
             MainWindowVM vm = MakeVM(compressorMock: availableCompressor);
 
-            _extractor
-                .Setup(e =>
-                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
-                .ThrowsAsync(new OperationCanceledException());
+            _extractor.Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ThrowsAsync(new OperationCanceledException());
 
             LoadedDatVM datVm = MakeDatVM();
             datVm.Games.Add(MakeGameRowWithScannedRom("/roms/Test.zip", wrongArchiveType: true));
@@ -2393,20 +1983,14 @@ namespace RomForge.UI.UnitTests.ViewModels
             availableCompressor.Setup(c => c.IsAvailable).Returns(true);
             MainWindowVM vm = MakeVM(compressorMock: availableCompressor);
 
-            _extractor
-                .Setup(e =>
-                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
-                .ThrowsAsync(new OperationCanceledException());
+            _extractor.Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ThrowsAsync(new OperationCanceledException());
 
             LoadedDatVM datVm = MakeDatVM();
             // More targets than concurrency slots (capped at 4) guarantees a waiting file
             // reuses a drained slot — the exact condition that triggered the crash.
             for (int i = 0; i < 8; i++)
             {
-                datVm.Games.Add(
-                    MakeGameRowWithScannedRom($"/roms/Test{i}.zip", wrongArchiveType: true)
-                );
+                datVm.Games.Add(MakeGameRowWithScannedRom($"/roms/Test{i}.zip", wrongArchiveType: true));
             }
 
             vm.ActiveDat = datVm;
@@ -2426,32 +2010,17 @@ namespace RomForge.UI.UnitTests.ViewModels
             // floor (Math.Clamp(cores/2, 2, 4)) is always at least 2.
             Mock<IArchiveCompressor> availableCompressor = new Mock<IArchiveCompressor>();
             availableCompressor.Setup(c => c.IsAvailable).Returns(true);
-            availableCompressor
-                .Setup(c => c.EstimateWorkingSetBytes(It.IsAny<long>(), It.IsAny<string>()))
-                .Returns(10_000_000_000L);
+            availableCompressor.Setup(c => c.EstimateWorkingSetBytes(It.IsAny<long>(), It.IsAny<string>())).Returns(10_000_000_000L);
             WorkingSetBudgetGate tightGate = new WorkingSetBudgetGate(12_000_000_000L);
             MainWindowVM vm = MakeVM(compressorMock: availableCompressor, memoryGate: tightGate);
 
-            TaskCompletionSource<Result<string>> extractGate =
-                new TaskCompletionSource<Result<string>>();
-            _extractor
-                .Setup(e =>
-                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
-                .Returns(extractGate.Task);
+            TaskCompletionSource<Result<string>> extractGate = new TaskCompletionSource<Result<string>>();
+            _extractor.Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).Returns(extractGate.Task);
 
             BatchProgressWindowVM? capturedProgress = null;
             _notifier
-                .Setup(n =>
-                    n.ShowBatchProgressAsync(
-                        It.IsAny<string>(),
-                        It.IsAny<BatchProgressWindowVM>(),
-                        It.IsAny<Task>()
-                    )
-                )
-                .Callback<string, BatchProgressWindowVM, Task>(
-                    (_, progressVm, _) => capturedProgress = progressVm
-                )
+                .Setup(n => n.ShowBatchProgressAsync(It.IsAny<string>(), It.IsAny<BatchProgressWindowVM>(), It.IsAny<Task>()))
+                .Callback<string, BatchProgressWindowVM, Task>((_, progressVm, _) => capturedProgress = progressVm)
                 .Returns(Task.CompletedTask);
 
             LoadedDatVM datVm = MakeDatVM();
@@ -2479,11 +2048,7 @@ namespace RomForge.UI.UnitTests.ViewModels
             availableCompressor.Setup(c => c.IsAvailable).Returns(true);
             MainWindowVM vm = MakeVM(compressorMock: availableCompressor);
 
-            _extractor
-                .Setup(e =>
-                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
-                .ReturnsAsync(Result.Fail("extract failed"));
+            _extractor.Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(Result.Fail("extract failed"));
 
             LoadedDatVM datVm = MakeDatVM();
             GameRowVM gameRow = MakeGameRowWithScannedRom("/roms/Test.zip", wrongArchiveType: true);
@@ -2492,10 +2057,7 @@ namespace RomForge.UI.UnitTests.ViewModels
 
             await vm.ReArchiveAllCommand.ExecuteAsync(null);
 
-            _notifier.Verify(
-                n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("extract failed"))),
-                Times.Once
-            );
+            _notifier.Verify(n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("extract failed"))), Times.Once);
         }
 
         // --- TrimSelectedAsync compress failure (covers mid-trim path) ---
@@ -2517,14 +2079,8 @@ namespace RomForge.UI.UnitTests.ViewModels
                     )
                 )
                 .ReturnsAsync(Result.Fail("compress failed"));
-            _extractor
-                .Setup(e =>
-                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
-                .ReturnsAsync(Result.Ok("/tmp/no_such_trim.rom"));
-            _fileOps
-                .Setup(f => f.TruncateAsync(It.IsAny<string>(), It.IsAny<long>()))
-                .ReturnsAsync(Result.Ok());
+            _extractor.Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(Result.Ok("/tmp/no_such_trim.rom"));
+            _fileOps.Setup(f => f.TruncateAsync(It.IsAny<string>(), It.IsAny<long>())).ReturnsAsync(Result.Ok());
 
             LoadedDatVM datVm = MakeDatVM();
             GameRowVM gameRow = MakeGameRowWithScannedRom("/roms/Test.7z", untrimmed: true);
@@ -2534,10 +2090,7 @@ namespace RomForge.UI.UnitTests.ViewModels
 
             await _vm.TrimSelectedCommand.ExecuteAsync(null);
 
-            _notifier.Verify(
-                n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("compress failed"))),
-                Times.Once
-            );
+            _notifier.Verify(n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("compress failed"))), Times.Once);
         }
 
         [Test]
@@ -2565,15 +2118,7 @@ namespace RomForge.UI.UnitTests.ViewModels
                             It.IsAny<CancellationToken>()
                         )
                     )
-                    .Callback<
-                        string,
-                        string,
-                        string,
-                        long,
-                        IProgress<int>?,
-                        string,
-                        CancellationToken
-                    >(
+                    .Callback<string, string, string, long, IProgress<int>?, string, CancellationToken>(
                         (_, dest, _, _, _, _, _) =>
                         {
                             workingArchive = dest;
@@ -2582,13 +2127,9 @@ namespace RomForge.UI.UnitTests.ViewModels
                     )
                     .ReturnsAsync(Result.Fail("compress failed"));
                 _extractor
-                    .Setup(e =>
-                        e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                    )
+                    .Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                     .ReturnsAsync(Result.Ok("/tmp/no_such_trim.rom"));
-                _fileOps
-                    .Setup(f => f.TruncateAsync(It.IsAny<string>(), It.IsAny<long>()))
-                    .ReturnsAsync(Result.Ok());
+                _fileOps.Setup(f => f.TruncateAsync(It.IsAny<string>(), It.IsAny<long>())).ReturnsAsync(Result.Ok());
 
                 LoadedDatVM datVm = MakeDatVM();
                 GameRowVM gameRow = MakeGameRowWithScannedRom(original, untrimmed: true);
@@ -2631,15 +2172,7 @@ namespace RomForge.UI.UnitTests.ViewModels
                             It.IsAny<CancellationToken>()
                         )
                     )
-                    .Callback<
-                        string,
-                        string,
-                        string,
-                        long,
-                        IProgress<int>?,
-                        string,
-                        CancellationToken
-                    >(
+                    .Callback<string, string, string, long, IProgress<int>?, string, CancellationToken>(
                         (_, dest, _, _, _, _, _) =>
                         {
                             workingArchive = dest;
@@ -2648,21 +2181,11 @@ namespace RomForge.UI.UnitTests.ViewModels
                     )
                     .ReturnsAsync(Result.Fail("compress failed"));
                 _extractor
-                    .Setup(e =>
-                        e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                    )
+                    .Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                     .ReturnsAsync(Result.Ok("/tmp/no_such_trim.rom"));
-                _fileOps
-                    .Setup(f => f.TruncateAsync(It.IsAny<string>(), It.IsAny<long>()))
-                    .ReturnsAsync(Result.Ok());
+                _fileOps.Setup(f => f.TruncateAsync(It.IsAny<string>(), It.IsAny<long>())).ReturnsAsync(Result.Ok());
                 _notifier
-                    .Setup(n =>
-                        n.ShowProgressAsync(
-                            It.IsAny<string>(),
-                            It.IsAny<ProgressWindowVM>(),
-                            It.IsAny<Task>()
-                        )
-                    )
+                    .Setup(n => n.ShowProgressAsync(It.IsAny<string>(), It.IsAny<ProgressWindowVM>(), It.IsAny<Task>()))
                     .Returns<string, ProgressWindowVM, Task>((_, _, task) => task);
 
                 LoadedDatVM datVm = MakeDatVM();
@@ -2704,16 +2227,10 @@ namespace RomForge.UI.UnitTests.ViewModels
             MainWindowVM vm = MakeVM(compressorMock: availableCompressor);
 
             _extractor
-                .Setup(e =>
-                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
+                .Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Result.Ok("/tmp/no_such_extracted.rom"));
-            _fileOps
-                .Setup(f => f.DeleteAsync(It.IsAny<string>()))
-                .ReturnsAsync(Result.Fail("delete failed"));
-            _fileOps
-                .Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(Result.Ok());
+            _fileOps.Setup(f => f.DeleteAsync(It.IsAny<string>())).ReturnsAsync(Result.Fail("delete failed"));
+            _fileOps.Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(Result.Ok());
 
             LoadedDatVM datVm = MakeDatVM();
             GameRowVM gameRow = MakeGameRowWithScannedRom("/roms/Test.zip", wrongArchiveType: true);
@@ -2723,10 +2240,7 @@ namespace RomForge.UI.UnitTests.ViewModels
 
             await vm.ReArchiveSelectedCommand.ExecuteAsync(null);
 
-            _notifier.Verify(
-                n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("delete failed"))),
-                Times.Once
-            );
+            _notifier.Verify(n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("delete failed"))), Times.Once);
         }
 
         // --- TrimAllAsync: compress failure mid-trim covers TrimOneAsync compress call ---
@@ -2748,14 +2262,8 @@ namespace RomForge.UI.UnitTests.ViewModels
                     )
                 )
                 .ReturnsAsync(Result.Fail("compress failed"));
-            _extractor
-                .Setup(e =>
-                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
-                .ReturnsAsync(Result.Ok("/tmp/no_such_trim.rom"));
-            _fileOps
-                .Setup(f => f.TruncateAsync(It.IsAny<string>(), It.IsAny<long>()))
-                .ReturnsAsync(Result.Ok());
+            _extractor.Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(Result.Ok("/tmp/no_such_trim.rom"));
+            _fileOps.Setup(f => f.TruncateAsync(It.IsAny<string>(), It.IsAny<long>())).ReturnsAsync(Result.Ok());
 
             LoadedDatVM datVm = MakeDatVM();
             GameRowVM gameRow = MakeGameRowWithScannedRom("/roms/Test.7z", untrimmed: true);
@@ -2764,10 +2272,7 @@ namespace RomForge.UI.UnitTests.ViewModels
 
             await _vm.TrimAllCommand.ExecuteAsync(null);
 
-            _notifier.Verify(
-                n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("compress failed"))),
-                Times.Once
-            );
+            _notifier.Verify(n => n.NotifyErrorAsync(It.Is<string>(s => s.Contains("compress failed"))), Times.Once);
         }
 
         // --- ReArchiveSelectedAsync success ---
@@ -2793,14 +2298,10 @@ namespace RomForge.UI.UnitTests.ViewModels
             MainWindowVM vm = MakeVM(compressorMock: availableCompressor);
 
             _extractor
-                .Setup(e =>
-                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
+                .Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Result.Ok("/tmp/no_such_extracted_file.rom"));
             _fileOps.Setup(f => f.DeleteAsync(It.IsAny<string>())).ReturnsAsync(Result.Ok());
-            _fileOps
-                .Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(Result.Ok());
+            _fileOps.Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(Result.Ok());
 
             LoadedDatVM datVm = MakeDatVM();
             GameRowVM gameRow = MakeGameRowWithScannedRom("/roms/Test.zip", wrongArchiveType: true);
@@ -2871,10 +2372,7 @@ namespace RomForge.UI.UnitTests.ViewModels
             await store.InitializeAsync();
 
             const string datName = "Offline DAT";
-            string offlineRoot = Path.Combine(
-                _tempDir,
-                "offline_volume_" + Path.GetRandomFileName()
-            );
+            string offlineRoot = Path.Combine(_tempDir, "offline_volume_" + Path.GetRandomFileName());
             string offlinePath = Path.Combine(offlineRoot, "mario.gba");
             Game game = new Game { ReleaseNumber = 1, Title = "Mario" };
             MatchResult verified = new MatchResult

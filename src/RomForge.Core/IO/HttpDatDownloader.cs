@@ -48,8 +48,7 @@ namespace RomForge.Core.IO
                 TryDelete(tempPath);
                 throw;
             }
-            catch (Exception ex)
-                when (ex is HttpRequestException or IOException or UnauthorizedAccessException)
+            catch (Exception ex) when (ex is HttpRequestException or IOException or UnauthorizedAccessException)
             {
                 TryDelete(tempPath);
                 _logger.Warning(ex, "Failed to download DAT from {Url}", url);
@@ -57,18 +56,9 @@ namespace RomForge.Core.IO
             }
         }
 
-        private async Task DownloadToFileAsync(
-            string url,
-            string destPath,
-            IProgress<int>? progress,
-            CancellationToken ct
-        )
+        private async Task DownloadToFileAsync(string url, string destPath, IProgress<int>? progress, CancellationToken ct)
         {
-            using HttpResponseMessage response = await _http.GetAsync(
-                new Uri(url),
-                HttpCompletionOption.ResponseHeadersRead,
-                ct
-            );
+            using HttpResponseMessage response = await _http.GetAsync(new Uri(url), HttpCompletionOption.ResponseHeadersRead, ct);
             response.EnsureSuccessStatusCode();
             var totalBytes = response.Content.Headers.ContentLength;
 

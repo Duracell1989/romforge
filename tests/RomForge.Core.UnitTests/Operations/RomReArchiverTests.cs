@@ -88,10 +88,7 @@ namespace RomForge.Core.UnitTests.Operations
         {
             MatchResult result = MakeVerifiedResult(filePath: "/roms/My Game.zip");
 
-            (string From, string To)? target = RomReArchiver.GetReArchiveTarget(
-                result,
-                string.Empty
-            );
+            (string From, string To)? target = RomReArchiver.GetReArchiveTarget(result, string.Empty);
 
             target.Should().NotBeNull();
             target.Value.To.Should().Be("/roms/My Game.7z");
@@ -112,11 +109,7 @@ namespace RomForge.Core.UnitTests.Operations
         {
             MatchResult result = MakeVerifiedResult(filePath: "/roms/game.7z");
 
-            (string From, string To)? target = RomReArchiver.GetReArchiveTarget(
-                result,
-                "%u - %n",
-                "zip"
-            );
+            (string From, string To)? target = RomReArchiver.GetReArchiveTarget(result, "%u - %n", "zip");
 
             target!.Value.To.Should().EndWith(".zip");
         }
@@ -128,11 +121,7 @@ namespace RomForge.Core.UnitTests.Operations
             // gives RomForge control over compression quality even when name/format are already right.
             MatchResult result = MakeVerifiedResult(filePath: "/roms/0001 - Correct Title.7z");
 
-            (string From, string To)? target = RomReArchiver.GetReArchiveTarget(
-                result,
-                "%u - %n",
-                "7z"
-            );
+            (string From, string To)? target = RomReArchiver.GetReArchiveTarget(result, "%u - %n", "7z");
 
             target.Should().NotBeNull();
             target.Value.From.Should().Be("/roms/0001 - Correct Title.7z");

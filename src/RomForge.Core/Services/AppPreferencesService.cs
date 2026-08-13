@@ -15,10 +15,7 @@ namespace RomForge.Core.Services
     /// </summary>
     public sealed class AppPreferencesService : IDisposable
     {
-        private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions
-        {
-            WriteIndented = true,
-        };
+        private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions { WriteIndented = true };
 
         private readonly AppDataService _appData;
         private readonly ILogger _logger;
@@ -57,14 +54,9 @@ namespace RomForge.Core.Services
             }
         }
 
-        public async Task UpdateLastActiveDatAsync(string? datName) =>
-            await ModifyAsync(existing => existing with { LastActiveDatName = datName });
+        public async Task UpdateLastActiveDatAsync(string? datName) => await ModifyAsync(existing => existing with { LastActiveDatName = datName });
 
-        public async Task UpdateSettingsAsync(
-            string defaultArchiveFormat,
-            string? unverifiedFolder,
-            bool checkForUpdatesOnStartup = true
-        ) =>
+        public async Task UpdateSettingsAsync(string defaultArchiveFormat, string? unverifiedFolder, bool checkForUpdatesOnStartup = true) =>
             await ModifyAsync(existing =>
                 existing with
                 {
@@ -87,9 +79,7 @@ namespace RomForge.Core.Services
                 AppPreferences? existing = await ReadUnlockedAsync();
                 if (existing is null)
                 {
-                    _logger.Warning(
-                        "Skipping preferences update; the existing file could not be read"
-                    );
+                    _logger.Warning("Skipping preferences update; the existing file could not be read");
                     return;
                 }
 
@@ -114,11 +104,9 @@ namespace RomForge.Core.Services
             try
             {
                 await using FileStream stream = File.OpenRead(path);
-                return await JsonSerializer.DeserializeAsync<AppPreferences>(stream, JsonOptions)
-                    ?? new AppPreferences();
+                return await JsonSerializer.DeserializeAsync<AppPreferences>(stream, JsonOptions) ?? new AppPreferences();
             }
-            catch (Exception ex)
-                when (ex is IOException or UnauthorizedAccessException or JsonException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
             {
                 _logger.Warning(ex, "Could not load app preferences");
                 return null;
@@ -135,17 +123,14 @@ namespace RomForge.Core.Services
             string tempPath = path + ".tmp";
             try
             {
-                await using (
-                    FileStream stream = File.Open(tempPath, FileMode.Create, FileAccess.Write)
-                )
+                await using (FileStream stream = File.Open(tempPath, FileMode.Create, FileAccess.Write))
                 {
                     await JsonSerializer.SerializeAsync(stream, preferences, JsonOptions);
                 }
 
                 File.Move(tempPath, path, overwrite: true);
             }
-            catch (Exception ex)
-                when (ex is IOException or UnauthorizedAccessException or JsonException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
             {
                 _logger.Warning(ex, "Could not save app preferences");
                 TryDeleteTemp(tempPath);

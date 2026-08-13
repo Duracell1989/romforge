@@ -148,33 +148,15 @@ namespace RomForge.Core.UnitTests.Scanning
             ]);
 
             Mock<IRomScanCache> cacheMock = new Mock<IRomScanCache>();
-            cacheMock
-                .Setup(c => c.GetCrc("/roms/game.gba", size, lastModified))
-                .Returns(expectedCrc);
-            cacheMock
-                .Setup(c => c.GetTrimmedCrc("/roms/game.gba", size, lastModified))
-                .Returns((uint?)null);
+            cacheMock.Setup(c => c.GetCrc("/roms/game.gba", size, lastModified)).Returns(expectedCrc);
+            cacheMock.Setup(c => c.GetTrimmedCrc("/roms/game.gba", size, lastModified)).Returns((uint?)null);
 
-            IReadOnlyList<ScannedRom> results = await RomScanner.ScanAsync(
-                source,
-                "/roms",
-                cacheMock.Object
-            );
+            IReadOnlyList<ScannedRom> results = await RomScanner.ScanAsync(source, "/roms", cacheMock.Object);
 
             streamOpened.Should().BeFalse();
             results.Should().HaveCount(1);
             results[0].Crc.Should().Be(expectedCrc);
-            cacheMock.Verify(
-                c =>
-                    c.Set(
-                        It.IsAny<string>(),
-                        It.IsAny<long>(),
-                        It.IsAny<DateTime>(),
-                        It.IsAny<uint>(),
-                        It.IsAny<uint?>()
-                    ),
-                Times.Never
-            );
+            cacheMock.Verify(c => c.Set(It.IsAny<string>(), It.IsAny<long>(), It.IsAny<DateTime>(), It.IsAny<uint>(), It.IsAny<uint?>()), Times.Never);
         }
 
         [Test]
@@ -197,22 +179,13 @@ namespace RomForge.Core.UnitTests.Scanning
             ]);
 
             Mock<IRomScanCache> cacheMock = new Mock<IRomScanCache>();
-            cacheMock
-                .Setup(c => c.GetCrc(It.IsAny<string>(), It.IsAny<long>(), It.IsAny<DateTime>()))
-                .Returns((uint?)null);
+            cacheMock.Setup(c => c.GetCrc(It.IsAny<string>(), It.IsAny<long>(), It.IsAny<DateTime>())).Returns((uint?)null);
 
-            IReadOnlyList<ScannedRom> results = await RomScanner.ScanAsync(
-                source,
-                "/roms",
-                cacheMock.Object
-            );
+            IReadOnlyList<ScannedRom> results = await RomScanner.ScanAsync(source, "/roms", cacheMock.Object);
 
             uint expectedCrc = Crc32Of(content);
             results[0].Crc.Should().Be(expectedCrc);
-            cacheMock.Verify(
-                c => c.Set("/roms/game.gba", size, lastModified, expectedCrc, null),
-                Times.Once
-            );
+            cacheMock.Verify(c => c.Set("/roms/game.gba", size, lastModified, expectedCrc, null), Times.Once);
         }
 
         [Test]
@@ -301,15 +274,9 @@ namespace RomForge.Core.UnitTests.Scanning
 
             Mock<IRomScanCache> cacheMock = new Mock<IRomScanCache>();
             cacheMock.Setup(c => c.GetCrc("/roms/game.gba", size, lastModified)).Returns(cachedCrc);
-            cacheMock
-                .Setup(c => c.GetTrimmedCrc("/roms/game.gba", size, lastModified))
-                .Returns(cachedTrimmedCrc);
+            cacheMock.Setup(c => c.GetTrimmedCrc("/roms/game.gba", size, lastModified)).Returns(cachedTrimmedCrc);
 
-            IReadOnlyList<ScannedRom> results = await RomScanner.ScanAsync(
-                source,
-                "/roms",
-                cacheMock.Object
-            );
+            IReadOnlyList<ScannedRom> results = await RomScanner.ScanAsync(source, "/roms", cacheMock.Object);
 
             results[0].Crc.Should().Be(cachedCrc);
             results[0].TrimmedCrc.Should().Be(cachedTrimmedCrc);
@@ -335,25 +302,13 @@ namespace RomForge.Core.UnitTests.Scanning
             ]);
 
             Mock<IRomScanCache> cacheMock = new Mock<IRomScanCache>();
-            cacheMock
-                .Setup(c => c.GetCrc(It.IsAny<string>(), It.IsAny<long>(), It.IsAny<DateTime>()))
-                .Returns((uint?)null);
+            cacheMock.Setup(c => c.GetCrc(It.IsAny<string>(), It.IsAny<long>(), It.IsAny<DateTime>())).Returns((uint?)null);
 
             await RomScanner.ScanAsync(source, "/roms", cacheMock.Object);
 
             uint expectedFullCrc = Crc32Of(data);
             uint expectedTrimmedCrc = Crc32Of([0x01, 0x02, 0x03]);
-            cacheMock.Verify(
-                c =>
-                    c.Set(
-                        "/roms/game.gba",
-                        size,
-                        lastModified,
-                        expectedFullCrc,
-                        expectedTrimmedCrc
-                    ),
-                Times.Once
-            );
+            cacheMock.Verify(c => c.Set("/roms/game.gba", size, lastModified, expectedFullCrc, expectedTrimmedCrc), Times.Once);
         }
 
         [Test]
@@ -405,20 +360,8 @@ namespace RomForge.Core.UnitTests.Scanning
 
             IReadOnlyList<ScannedRom> results = await RomScanner.ScanAsync(source, "/roms");
 
-            results
-                .Select(r => r.FilePath)
-                .Should()
-                .ContainInOrder(
-                    "/roms/a.7z",
-                    "/roms/b.7z",
-                    "/roms/c.7z",
-                    "/roms/d.7z",
-                    "/roms/e.7z"
-                );
-            results
-                .Select(r => r.Crc)
-                .Should()
-                .ContainInOrder(Crc32Of(a), Crc32Of(b), Crc32Of(c), Crc32Of(d), Crc32Of(e));
+            results.Select(r => r.FilePath).Should().ContainInOrder("/roms/a.7z", "/roms/b.7z", "/roms/c.7z", "/roms/d.7z", "/roms/e.7z");
+            results.Select(r => r.Crc).Should().ContainInOrder(Crc32Of(a), Crc32Of(b), Crc32Of(c), Crc32Of(d), Crc32Of(e));
         }
 
         [Test]
@@ -448,19 +391,9 @@ namespace RomForge.Core.UnitTests.Scanning
             await RomScanner.ScanAsync(source, "/roms", progress: progress);
 
             // Enumeration reports use the pre-counted total (2) from CountAsync, so Total > 0 from the first report
-            reports
-                .Should()
-                .Contain(
-                    p => p.Total == 2 && p.Completed == 1,
-                    "first enumeration report must show 1 of pre-counted 2"
-                );
+            reports.Should().Contain(p => p.Total == 2 && p.Completed == 1, "first enumeration report must show 1 of pre-counted 2");
             // Processing reports also have Total == 2
-            reports
-                .Should()
-                .Contain(
-                    p => p.Total == 2 && p.Completed == 2,
-                    "all files must be reported processed"
-                );
+            reports.Should().Contain(p => p.Total == 2 && p.Completed == 2, "all files must be reported processed");
         }
 
         [Test]
@@ -505,27 +438,17 @@ namespace RomForge.Core.UnitTests.Scanning
             cacheMock.Setup(c => c.GetCrc("/roms/a.gba", size, lastModified)).Returns(cachedCrc);
             cacheMock.Setup(c => c.GetCrc("/roms/b.gba", size, lastModified)).Returns(cachedCrc);
             cacheMock.Setup(c => c.GetCrc("/roms/c.gba", size, lastModified)).Returns((uint?)null);
-            cacheMock
-                .Setup(c =>
-                    c.GetTrimmedCrc(It.IsAny<string>(), It.IsAny<long>(), It.IsAny<DateTime>())
-                )
-                .Returns((uint?)null);
+            cacheMock.Setup(c => c.GetTrimmedCrc(It.IsAny<string>(), It.IsAny<long>(), It.IsAny<DateTime>())).Returns((uint?)null);
 
             List<ScanProgress> reports = [];
             IProgress<ScanProgress> progress = new SyncProgress<ScanProgress>(p => reports.Add(p));
 
             await RomScanner.ScanAsync(source, "/roms", cacheMock.Object, progress);
 
-            List<ScanProgress> crcReports = reports
-                .Where(p => p.Phase == "Computing CRCs...")
-                .ToList();
+            List<ScanProgress> crcReports = reports.Where(p => p.Phase == "Computing CRCs...").ToList();
             crcReports.Should().NotBeEmpty();
-            crcReports
-                .Should()
-                .AllSatisfy(p => p.Total.Should().Be(1), "only 1 of 3 files is a cache miss");
-            crcReports
-                .Should()
-                .Contain(p => p.Completed == 1, "the single miss must be reported as completed");
+            crcReports.Should().AllSatisfy(p => p.Total.Should().Be(1), "only 1 of 3 files is a cache miss");
+            crcReports.Should().Contain(p => p.Completed == 1, "the single miss must be reported as completed");
         }
 
         [Test]
@@ -561,8 +484,7 @@ namespace RomForge.Core.UnitTests.Scanning
             trimmedCrc.Should().BeNull();
         }
 
-        private static StubRomSource StubSource(IReadOnlyList<RomContent> items) =>
-            new StubRomSource(items);
+        private static StubRomSource StubSource(IReadOnlyList<RomContent> items) => new StubRomSource(items);
 
         private sealed class StubRomSource : IRomSource
         {
@@ -573,15 +495,9 @@ namespace RomForge.Core.UnitTests.Scanning
                 _items = items;
             }
 
-            public Task<int> CountAsync(
-                string folderPath,
-                CancellationToken cancellationToken = default
-            ) => Task.FromResult(_items.Count);
+            public Task<int> CountAsync(string folderPath, CancellationToken cancellationToken = default) => Task.FromResult(_items.Count);
 
-            public async IAsyncEnumerable<RomContent> EnumerateAsync(
-                string folderPath,
-                [EnumeratorCancellation] CancellationToken cancellationToken = default
-            )
+            public async IAsyncEnumerable<RomContent> EnumerateAsync(string folderPath, [EnumeratorCancellation] CancellationToken cancellationToken = default)
             {
                 foreach (RomContent item in _items)
                 {

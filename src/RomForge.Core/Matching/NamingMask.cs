@@ -18,11 +18,7 @@ namespace RomForge.Core.Matching
             ArgumentNullException.ThrowIfNull(mask);
             ArgumentNullException.ThrowIfNull(game);
 
-            return mask.Replace(
-                    "%u",
-                    game.ReleaseNumber.ToString("D4", CultureInfo.InvariantCulture),
-                    StringComparison.Ordinal
-                )
+            return mask.Replace("%u", game.ReleaseNumber.ToString("D4", CultureInfo.InvariantCulture), StringComparison.Ordinal)
                 .Replace("%n", game.Title, StringComparison.Ordinal)
                 .Replace("%s", game.SourceRom ?? string.Empty, StringComparison.Ordinal)
                 .Replace("%o", game.Comment ?? string.Empty, StringComparison.Ordinal)

@@ -27,12 +27,7 @@ namespace RomForge.UI.ViewModels
         [ObservableProperty]
         public partial Bitmap? Im2Bitmap { get; private set; }
 
-        public GameRowVM(
-            MatchResult result,
-            string imagesBasePath,
-            DatHeader header,
-            IReadOnlyList<LanguageBit> languageBits
-        )
+        public GameRowVM(MatchResult result, string imagesBasePath, DatHeader header, IReadOnlyList<LanguageBit> languageBits)
         {
             ArgumentNullException.ThrowIfNull(result);
             ArgumentNullException.ThrowIfNull(header);
@@ -118,10 +113,7 @@ namespace RomForge.UI.ViewModels
 
         public string ReArchivedText => Result.IsReArchived ? "✓" : "–";
 
-        public string? ExpectedFileName =>
-            Result.IsIncorrectlyNamed
-                ? NamingMask.Expand(NamingMask.DefaultMask, Result.Game)
-                : null;
+        public string? ExpectedFileName => Result.IsIncorrectlyNamed ? NamingMask.Expand(NamingMask.DefaultMask, Result.Game) : null;
 
         public void Dispose()
         {
@@ -162,12 +154,8 @@ namespace RomForge.UI.ViewModels
                 return string.Empty;
             if (bits.Count == 0)
                 return bitmask.ToString(CultureInfo.InvariantCulture);
-            var labels = bits.Where(b => (bitmask & (1 << b.BitIndex)) != 0)
-                .Select(b => b.Label)
-                .ToList();
-            return labels.Count > 0
-                ? string.Join(" ", labels)
-                : bitmask.ToString(CultureInfo.InvariantCulture);
+            var labels = bits.Where(b => (bitmask & (1 << b.BitIndex)) != 0).Select(b => b.Label).ToList();
+            return labels.Count > 0 ? string.Join(" ", labels) : bitmask.ToString(CultureInfo.InvariantCulture);
         }
 
         private static string DecodeLocation(int location) =>

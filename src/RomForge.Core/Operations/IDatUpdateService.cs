@@ -20,20 +20,13 @@ namespace RomForge.Core.Operations
         /// A success carrying the comparison outcome, or a failure if no version URL is configured or
         /// the fetch failed.
         /// </returns>
-        Task<Result<DatUpdateCheck>> CheckForUpdateAsync(
-            DatHeader header,
-            CancellationToken cancellationToken = default
-        );
+        Task<Result<DatUpdateCheck>> CheckForUpdateAsync(DatHeader header, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Downloads the updated DAT file described by <paramref name="header"/> into the managed DATs
         /// directory.
         /// </summary>
         /// <returns>A success, or a failure if no download URL is configured or the download failed.</returns>
-        Task<Result> DownloadUpdateAsync(
-            DatHeader header,
-            IProgress<int>? progress,
-            CancellationToken cancellationToken = default
-        );
+        Task<Result> DownloadUpdateAsync(DatHeader header, IProgress<int>? progress, CancellationToken cancellationToken = default);
     }
 }

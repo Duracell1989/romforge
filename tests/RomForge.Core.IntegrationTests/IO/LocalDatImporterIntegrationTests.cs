@@ -32,8 +32,7 @@ namespace RomForge.Core.IntegrationTests.IO
         [TearDown]
         public void TearDown() => Directory.Delete(_tempDir, recursive: true);
 
-        private static DatHeader MakeHeader(string datName, string? imFolder = null) =>
-            new DatHeader { DatName = datName, ImFolder = imFolder };
+        private static DatHeader MakeHeader(string datName, string? imFolder = null) => new DatHeader { DatName = datName, ImFolder = imFolder };
 
         [Test]
         public async Task ImportAsync_DatOutsideStore_CopiesDatToManagedStore()
@@ -43,12 +42,7 @@ namespace RomForge.Core.IntegrationTests.IO
             string sourceDat = Path.Combine(sourceDir, "test.dat");
             await File.WriteAllTextAsync(sourceDat, "<dat/>");
 
-            FluentResults.Result<string> result = await _importer.ImportAsync(
-                sourceDat,
-                MakeHeader("test"),
-                null,
-                CancellationToken.None
-            );
+            FluentResults.Result<string> result = await _importer.ImportAsync(sourceDat, MakeHeader("test"), null, CancellationToken.None);
 
             result.IsSuccess.Should().BeTrue();
             result.Value.Should().Be(Path.Combine(_appData.DatsPath, "test.dat"));
@@ -61,12 +55,7 @@ namespace RomForge.Core.IntegrationTests.IO
             string sourceDat = Path.Combine(_appData.DatsPath, "existing.dat");
             await File.WriteAllTextAsync(sourceDat, "<dat/>");
 
-            FluentResults.Result<string> result = await _importer.ImportAsync(
-                sourceDat,
-                MakeHeader("existing"),
-                null,
-                CancellationToken.None
-            );
+            FluentResults.Result<string> result = await _importer.ImportAsync(sourceDat, MakeHeader("existing"), null, CancellationToken.None);
 
             result.IsSuccess.Should().BeTrue();
             result.Value.Should().Be(sourceDat);
@@ -77,12 +66,7 @@ namespace RomForge.Core.IntegrationTests.IO
         {
             string missingDat = Path.Combine(_tempDir, "missing.dat");
 
-            FluentResults.Result<string> result = await _importer.ImportAsync(
-                missingDat,
-                MakeHeader("missing"),
-                null,
-                CancellationToken.None
-            );
+            FluentResults.Result<string> result = await _importer.ImportAsync(missingDat, MakeHeader("missing"), null, CancellationToken.None);
 
             result.IsFailed.Should().BeTrue();
         }
@@ -100,17 +84,10 @@ namespace RomForge.Core.IntegrationTests.IO
             await File.WriteAllTextAsync(sourceDat, "<dat/>");
             await File.WriteAllTextAsync(Path.Combine(imgSubDir, "0001a.png"), "fake");
 
-            FluentResults.Result<string> result = await _importer.ImportAsync(
-                sourceDat,
-                MakeHeader("MyDat"),
-                null,
-                CancellationToken.None
-            );
+            FluentResults.Result<string> result = await _importer.ImportAsync(sourceDat, MakeHeader("MyDat"), null, CancellationToken.None);
 
             result.IsSuccess.Should().BeTrue();
-            File.Exists(Path.Combine(_appData.ImgsPath, "MyDat", "0", "0001a.png"))
-                .Should()
-                .BeTrue();
+            File.Exists(Path.Combine(_appData.ImgsPath, "MyDat", "0", "0001a.png")).Should().BeTrue();
         }
 
         [Test]
@@ -123,12 +100,7 @@ namespace RomForge.Core.IntegrationTests.IO
             await File.WriteAllTextAsync(sourceDat, "<dat/>");
             await File.WriteAllTextAsync(Path.Combine(imgsDir, "0001a.png"), "fake");
 
-            FluentResults.Result<string> result = await _importer.ImportAsync(
-                sourceDat,
-                MakeHeader("MyDat"),
-                null,
-                CancellationToken.None
-            );
+            FluentResults.Result<string> result = await _importer.ImportAsync(sourceDat, MakeHeader("MyDat"), null, CancellationToken.None);
 
             result.IsSuccess.Should().BeTrue();
             File.Exists(Path.Combine(_appData.ImgsPath, "MyDat", "0001a.png")).Should().BeTrue();
@@ -142,18 +114,10 @@ namespace RomForge.Core.IntegrationTests.IO
             string sourceDat = Path.Combine(sourceDir, "mydat.dat");
             await File.WriteAllTextAsync(sourceDat, "<dat/>");
 
-            FluentResults.Result<string> result = await _importer.ImportAsync(
-                sourceDat,
-                MakeHeader("MyDat"),
-                null,
-                CancellationToken.None
-            );
+            FluentResults.Result<string> result = await _importer.ImportAsync(sourceDat, MakeHeader("MyDat"), null, CancellationToken.None);
 
             result.IsSuccess.Should().BeTrue();
-            Directory
-                .GetFiles(_appData.ImgsPath, "*", SearchOption.AllDirectories)
-                .Should()
-                .BeEmpty();
+            Directory.GetFiles(_appData.ImgsPath, "*", SearchOption.AllDirectories).Should().BeEmpty();
         }
 
         [Test]
@@ -168,16 +132,9 @@ namespace RomForge.Core.IntegrationTests.IO
                 await File.WriteAllTextAsync(Path.Combine(imgsDir, $"000{i}a.png"), "fake");
 
             List<ImportProgress> reported = [];
-            SyncProgress<ImportProgress> progress = new SyncProgress<ImportProgress>(p =>
-                reported.Add(p)
-            );
+            SyncProgress<ImportProgress> progress = new SyncProgress<ImportProgress>(p => reported.Add(p));
 
-            await _importer.ImportAsync(
-                sourceDat,
-                MakeHeader("MyDat"),
-                progress,
-                CancellationToken.None
-            );
+            await _importer.ImportAsync(sourceDat, MakeHeader("MyDat"), progress, CancellationToken.None);
 
             // initial report (Current=0) + one per image
             reported.Should().HaveCount(4);
@@ -200,12 +157,7 @@ namespace RomForge.Core.IntegrationTests.IO
             using CancellationTokenSource cts = new CancellationTokenSource();
             await cts.CancelAsync();
 
-            FluentResults.Result<string> result = await _importer.ImportAsync(
-                sourceDat,
-                MakeHeader("MyDat"),
-                null,
-                cts.Token
-            );
+            FluentResults.Result<string> result = await _importer.ImportAsync(sourceDat, MakeHeader("MyDat"), null, cts.Token);
 
             result.IsSuccess.Should().BeTrue();
             File.Exists(Path.Combine(_appData.DatsPath, "mydat.dat")).Should().BeTrue();

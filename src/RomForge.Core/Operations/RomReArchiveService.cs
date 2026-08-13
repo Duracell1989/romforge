@@ -66,15 +66,10 @@ namespace RomForge.Core.Operations
             string? tempArchive = null;
             try
             {
-                Result<string> extractResult = await _extractor.ExtractToTempFileAsync(
-                    target.From,
-                    cancellationToken
-                );
+                Result<string> extractResult = await _extractor.ExtractToTempFileAsync(target.From, cancellationToken);
                 if (extractResult.IsFailed)
                 {
-                    return Result.Fail(
-                        $"{Path.GetFileName(target.From)}: {extractResult.Errors[0].Message}"
-                    );
+                    return Result.Fail($"{Path.GetFileName(target.From)}: {extractResult.Errors[0].Message}");
                 }
 
                 tempFile = extractResult.Value;
@@ -85,10 +80,7 @@ namespace RomForge.Core.Operations
                 string compressTarget = _workspace.NewWorkingArchivePath(archiveFormat);
                 tempArchive = compressTarget;
 
-                string entryName = ArchiveWorkspace.BuildEntryName(
-                    target.To,
-                    match.Game.Files.RomExtension
-                );
+                string entryName = ArchiveWorkspace.BuildEntryName(target.To, match.Game.Files.RomExtension);
 
                 // Reserve this job's estimated working set before compressing so concurrent
                 // re-archive/trim operations never together exceed physical memory — the gate is a
@@ -98,9 +90,7 @@ namespace RomForge.Core.Operations
                 // writes below would block other jobs on I/O that costs no encoder memory at all.
                 long cost = _compressor.EstimateWorkingSetBytes(match.Game.RomSize, archiveFormat);
                 Result compressResult;
-                using (
-                    await _memoryGate.AcquireAsync(cost, cancellationToken).ConfigureAwait(false)
-                )
+                using (await _memoryGate.AcquireAsync(cost, cancellationToken).ConfigureAwait(false))
                 {
                     compressResult = await _compressor.CompressAsync(
                         tempFile,
@@ -115,16 +105,10 @@ namespace RomForge.Core.Operations
 
                 if (compressResult.IsFailed)
                 {
-                    return Result.Fail(
-                        $"{Path.GetFileName(target.From)}: {compressResult.Errors[0].Message}"
-                    );
+                    return Result.Fail($"{Path.GetFileName(target.From)}: {compressResult.Errors[0].Message}");
                 }
 
-                (string? placeError, bool consumed) = await _workspace.PlaceWorkingArchiveAsync(
-                    compressTarget,
-                    target.From,
-                    target.To
-                );
+                (string? placeError, bool consumed) = await _workspace.PlaceWorkingArchiveAsync(compressTarget, target.From, target.To);
                 // Only clear tempArchive once PlaceWorkingArchiveAsync has actually taken ownership
                 // of it (moved to the destination or the recovery folder). If it's still untouched,
                 // leave it set so the finally block cleans it up immediately.
@@ -139,11 +123,7 @@ namespace RomForge.Core.Operations
                 {
                     Game = match.Game,
                     Status = MatchStatus.Verified,
-                    ScannedRom = match.ScannedRom! with
-                    {
-                        FilePath = target.To,
-                        FileExtension = archiveFormat,
-                    },
+                    ScannedRom = match.ScannedRom! with { FilePath = target.To, FileExtension = archiveFormat },
                     IsIncorrectlyNamed = false,
                     // Re-archiving repacks the archive with the correct entry name.
                     IsEntryMisnamed = false,

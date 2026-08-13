@@ -16,16 +16,10 @@ namespace RomForge.Core.IntegrationTests.Helpers
             _content = content;
         }
 
-        protected override Task<HttpResponseMessage> SendAsync(
-            HttpRequestMessage request,
-            CancellationToken cancellationToken
-        )
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            HttpResponseMessage response = new HttpResponseMessage(_statusCode)
-            {
-                Content = new ByteArrayContent(_content),
-            };
+            HttpResponseMessage response = new HttpResponseMessage(_statusCode) { Content = new ByteArrayContent(_content) };
             return Task.FromResult(response);
         }
     }

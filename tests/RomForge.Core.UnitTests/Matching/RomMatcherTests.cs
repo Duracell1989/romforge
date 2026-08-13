@@ -15,12 +15,7 @@ namespace RomForge.Core.UnitTests.Matching
     [TestOf(typeof(RomMatcher))]
     public class RomMatcherTests
     {
-        private static Game GameWith(
-            uint crc,
-            string romExt = "gba",
-            int release = 0,
-            string title = ""
-        ) =>
+        private static Game GameWith(uint crc, string romExt = "gba", int release = 0, string title = "") =>
             new()
             {
                 Files = new GameFiles { RomCrc = crc, RomExtension = romExt },
@@ -102,9 +97,7 @@ namespace RomForge.Core.UnitTests.Matching
         {
             DatFile dat = DatWith();
 
-            IReadOnlyList<MatchResult> results = RomMatcher
-                .Match(dat, [RomWith(0x12345678)])
-                .Results;
+            IReadOnlyList<MatchResult> results = RomMatcher.Match(dat, [RomWith(0x12345678)]).Results;
 
             results.Should().BeEmpty();
         }
@@ -113,11 +106,7 @@ namespace RomForge.Core.UnitTests.Matching
         public void Match_DuplicateCrcInCollection_FirstWins()
         {
             DatFile dat = DatWith(GameWith(0x12345678));
-            List<ScannedRom> roms =
-            [
-                RomWith(0x12345678, path: "/roms/first.7z"),
-                RomWith(0x12345678, path: "/roms/second.7z"),
-            ];
+            List<ScannedRom> roms = [RomWith(0x12345678, path: "/roms/first.7z"), RomWith(0x12345678, path: "/roms/second.7z")];
 
             IReadOnlyList<MatchResult> results = RomMatcher.Match(dat, roms).Results;
 
@@ -174,10 +163,7 @@ namespace RomForge.Core.UnitTests.Matching
             // (File.Move on the outer file) cannot fix it, and would silently no-op. It is flagged
             // IsEntryMisnamed instead, which keeps the ROM Verified (not Good) so a re-archive fixes it.
             DatFile dat = DatWith(GameWith(0x12345678, release: 1, title: "Test Game"));
-            List<ScannedRom> roms =
-            [
-                RomWith(0x12345678, path: "/roms/0001 - Test Game.7z", entryName: "tmpAB12CD.tmp"),
-            ];
+            List<ScannedRom> roms = [RomWith(0x12345678, path: "/roms/0001 - Test Game.7z", entryName: "tmpAB12CD.tmp")];
 
             IReadOnlyList<MatchResult> results = RomMatcher.Match(dat, roms).Results;
 
@@ -191,14 +177,7 @@ namespace RomForge.Core.UnitTests.Matching
         public void Match_CorrectFilenameAndEntryName_FlagsNeitherNamingIssue()
         {
             DatFile dat = DatWith(GameWith(0x12345678, release: 1, title: "Test Game"));
-            List<ScannedRom> roms =
-            [
-                RomWith(
-                    0x12345678,
-                    path: "/roms/0001 - Test Game.7z",
-                    entryName: "0001 - Test Game"
-                ),
-            ];
+            List<ScannedRom> roms = [RomWith(0x12345678, path: "/roms/0001 - Test Game.7z", entryName: "0001 - Test Game")];
 
             IReadOnlyList<MatchResult> results = RomMatcher.Match(dat, roms).Results;
 
@@ -212,9 +191,7 @@ namespace RomForge.Core.UnitTests.Matching
             DatFile dat = DatWith(GameWith(0x12345678));
             List<ScannedRom> roms = [RomWith(0x12345678, fileExt: "zip")];
 
-            IReadOnlyList<MatchResult> results = RomMatcher
-                .Match(dat, roms, expectedArchiveExtension: "zip")
-                .Results;
+            IReadOnlyList<MatchResult> results = RomMatcher.Match(dat, roms, expectedArchiveExtension: "zip").Results;
 
             results[0].Status.Should().Be(MatchStatus.Verified);
         }
@@ -236,11 +213,7 @@ namespace RomForge.Core.UnitTests.Matching
         public void Match_FullCrcMatchTakesPriorityOverTrimmedCrc()
         {
             DatFile dat = DatWith(GameWith(0x11111111), GameWith(0x22222222));
-            List<ScannedRom> roms =
-            [
-                RomWith(0x11111111),
-                RomWith(0xDEADBEEF, trimmedCrc: 0x11111111),
-            ];
+            List<ScannedRom> roms = [RomWith(0x11111111), RomWith(0xDEADBEEF, trimmedCrc: 0x11111111)];
 
             IReadOnlyList<MatchResult> results = RomMatcher.Match(dat, roms).Results;
 
@@ -297,11 +270,7 @@ namespace RomForge.Core.UnitTests.Matching
         public void Match_DuplicateOfKnownRom_IsNotUnmatched()
         {
             DatFile dat = DatWith(GameWith(0x12345678));
-            List<ScannedRom> roms =
-            [
-                RomWith(0x12345678, path: "/roms/game.7z"),
-                RomWith(0x12345678, path: "/roms/copy.7z"),
-            ];
+            List<ScannedRom> roms = [RomWith(0x12345678, path: "/roms/game.7z"), RomWith(0x12345678, path: "/roms/copy.7z")];
 
             MatchSummary summary = RomMatcher.Match(dat, roms);
 
@@ -370,26 +339,15 @@ namespace RomForge.Core.UnitTests.Matching
                   </games>
                 </dat>
                 """;
-            DatFile parsed = await DatParser.ParseAsync(
-                new MemoryStream(Encoding.UTF8.GetBytes(dat))
-            );
-            Game game = parsed.Games[0] with
-            {
-                Files = parsed.Games[0].Files with { RomCrc = 0x12345678 },
-            };
+            DatFile parsed = await DatParser.ParseAsync(new MemoryStream(Encoding.UTF8.GetBytes(dat)));
+            Game game = parsed.Games[0] with { Files = parsed.Games[0].Files with { RomCrc = 0x12345678 } };
 
             const string archivePath = "/roms/0001 - Test Game.7z";
-            string entryOnDisk = ArchiveWorkspace.BuildEntryName(
-                archivePath,
-                game.Files.RomExtension
-            );
+            string entryOnDisk = ArchiveWorkspace.BuildEntryName(archivePath, game.Files.RomExtension);
             string entryAsRescanned = Path.GetFileNameWithoutExtension(entryOnDisk);
 
             DatFile dataFile = DatWith(game);
-            List<ScannedRom> roms =
-            [
-                RomWith(0x12345678, path: archivePath, entryName: entryAsRescanned),
-            ];
+            List<ScannedRom> roms = [RomWith(0x12345678, path: archivePath, entryName: entryAsRescanned)];
 
             IReadOnlyList<MatchResult> results = RomMatcher.Match(dataFile, roms).Results;
 
@@ -400,10 +358,7 @@ namespace RomForge.Core.UnitTests.Matching
         public void Match_BothWrongArchiveAndWrongName_SetsBothFlags()
         {
             DatFile dat = DatWith(GameWith(0x12345678, release: 1, title: "Correct Name"));
-            List<ScannedRom> roms =
-            [
-                RomWith(0x12345678, fileExt: "zip", path: "/roms/Wrong Name.zip"),
-            ];
+            List<ScannedRom> roms = [RomWith(0x12345678, fileExt: "zip", path: "/roms/Wrong Name.zip")];
 
             IReadOnlyList<MatchResult> results = RomMatcher.Match(dat, roms).Results;
 

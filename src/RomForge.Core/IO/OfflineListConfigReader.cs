@@ -33,13 +33,7 @@ namespace RomForge.Core.IO
 
                 options.TryGetValue("RomFolder", out var romFolder);
 
-                return Result.Ok(
-                    new OfflineListConfig
-                    {
-                        RomFolderPath = string.IsNullOrEmpty(romFolder) ? null : romFolder,
-                        LanguageBits = bits,
-                    }
-                );
+                return Result.Ok(new OfflineListConfig { RomFolderPath = string.IsNullOrEmpty(romFolder) ? null : romFolder, LanguageBits = bits });
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {

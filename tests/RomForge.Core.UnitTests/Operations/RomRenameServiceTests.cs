@@ -59,18 +59,13 @@ namespace RomForge.Core.UnitTests.Operations
 
             result.IsSuccess.Should().BeTrue();
             result.Value.Should().BeNull();
-            _fileOps.Verify(
-                f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()),
-                Times.Never
-            );
+            _fileOps.Verify(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
         }
 
         [Test]
         public async Task RenameAsync_IncorrectlyNamed_MovesFileToExpectedNameAndReturnsUpdatedMatch()
         {
-            _fileOps
-                .Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(Result.Ok());
+            _fileOps.Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(Result.Ok());
 
             Result<MatchResult?> result = await _service.RenameAsync(IncorrectlyNamed(), Mask);
 
@@ -79,24 +74,14 @@ namespace RomForge.Core.UnitTests.Operations
             result.Value.IsIncorrectlyNamed.Should().BeFalse();
             result.Value.Status.Should().Be(MatchStatus.Verified);
             result.Value.ScannedRom!.FilePath.Should().Be("/roms/0001 - Correct Title.7z");
-            _fileOps.Verify(
-                f => f.RenameAsync("/roms/Wrong Name.7z", "/roms/0001 - Correct Title.7z"),
-                Times.Once
-            );
+            _fileOps.Verify(f => f.RenameAsync("/roms/Wrong Name.7z", "/roms/0001 - Correct Title.7z"), Times.Once);
         }
 
         [Test]
         public async Task RenameAsync_PreservesUnrelatedFlags()
         {
-            _fileOps
-                .Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(Result.Ok());
-            MatchResult match = IncorrectlyNamed(
-                entryMisnamed: true,
-                wrongArchiveType: true,
-                untrimmed: true,
-                reArchived: true
-            );
+            _fileOps.Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(Result.Ok());
+            MatchResult match = IncorrectlyNamed(entryMisnamed: true, wrongArchiveType: true, untrimmed: true, reArchived: true);
 
             Result<MatchResult?> result = await _service.RenameAsync(match, Mask);
 
@@ -109,9 +94,7 @@ namespace RomForge.Core.UnitTests.Operations
         [Test]
         public async Task RenameAsync_FileMoveFails_ReturnsFailureCarryingTheError()
         {
-            _fileOps
-                .Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(Result.Fail("disk full"));
+            _fileOps.Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(Result.Fail("disk full"));
 
             Result<MatchResult?> result = await _service.RenameAsync(IncorrectlyNamed(), Mask);
 

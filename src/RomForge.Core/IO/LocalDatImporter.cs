@@ -21,12 +21,7 @@ namespace RomForge.Core.IO
             _logger = logger.ForContext<LocalDatImporter>();
         }
 
-        public async Task<Result<string>> ImportAsync(
-            string sourceDatPath,
-            DatHeader header,
-            IProgress<ImportProgress>? progress,
-            CancellationToken ct
-        )
+        public async Task<Result<string>> ImportAsync(string sourceDatPath, DatHeader header, IProgress<ImportProgress>? progress, CancellationToken ct)
         {
             ArgumentNullException.ThrowIfNull(header);
 
@@ -37,10 +32,7 @@ namespace RomForge.Core.IO
                 try
                 {
                     File.Copy(sourceDatPath, destDatPath, overwrite: true);
-                    _logger.Information(
-                        "Imported DAT {FileName} to managed store",
-                        Path.GetFileName(sourceDatPath)
-                    );
+                    _logger.Information("Imported DAT {FileName} to managed store", Path.GetFileName(sourceDatPath));
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
@@ -54,22 +46,13 @@ namespace RomForge.Core.IO
             }
             catch (OperationCanceledException ex)
             {
-                _logger.Information(
-                    ex,
-                    "Image copy cancelled for {Dat}",
-                    Path.GetFileName(sourceDatPath)
-                );
+                _logger.Information(ex, "Image copy cancelled for {Dat}", Path.GetFileName(sourceDatPath));
             }
 
             return Result.Ok(destDatPath);
         }
 
-        private async Task CopyImagesAsync(
-            string sourceDatPath,
-            DatHeader header,
-            IProgress<ImportProgress>? progress,
-            CancellationToken ct
-        )
+        private async Task CopyImagesAsync(string sourceDatPath, DatHeader header, IProgress<ImportProgress>? progress, CancellationToken ct)
         {
             var sourceImgsBase = FindSourceImgsBase(sourceDatPath);
             if (sourceImgsBase is null)
@@ -78,9 +61,7 @@ namespace RomForge.Core.IO
             if (sourceImgsBase.StartsWith(_appData.ImgsPath, StringComparison.OrdinalIgnoreCase))
                 return;
 
-            var folderName = string.IsNullOrEmpty(header.ImFolder)
-                ? header.DatName
-                : header.ImFolder;
+            var folderName = string.IsNullOrEmpty(header.ImFolder) ? header.DatName : header.ImFolder;
             var sourceImgFolder = Path.Combine(sourceImgsBase, folderName);
             if (!Directory.Exists(sourceImgFolder))
                 return;
@@ -93,9 +74,7 @@ namespace RomForge.Core.IO
 
             var destImgFolder = Path.Combine(_appData.ImgsPath, folderName);
 
-            progress?.Report(
-                new ImportProgress(Current: 0, Total: files.Length, CurrentFile: string.Empty)
-            );
+            progress?.Report(new ImportProgress(Current: 0, Total: files.Length, CurrentFile: string.Empty));
 
             for (int i = 0; i < files.Length; i++)
             {
@@ -110,20 +89,10 @@ namespace RomForge.Core.IO
 
                 await Task.Run(() => File.Copy(file, destFile, overwrite: true), ct);
 
-                progress?.Report(
-                    new ImportProgress(
-                        Current: i + 1,
-                        Total: files.Length,
-                        CurrentFile: Path.GetFileName(file)
-                    )
-                );
+                progress?.Report(new ImportProgress(Current: i + 1, Total: files.Length, CurrentFile: Path.GetFileName(file)));
             }
 
-            _logger.Information(
-                "Image copy complete: {Count} files for {Folder}",
-                files.Length,
-                folderName
-            );
+            _logger.Information("Image copy complete: {Count} files for {Folder}", files.Length, folderName);
         }
 
         private static string? FindSourceImgsBase(string datFilePath)

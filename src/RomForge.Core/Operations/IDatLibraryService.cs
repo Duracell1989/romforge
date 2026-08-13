@@ -40,9 +40,7 @@ namespace RomForge.Core.Operations
         /// The results and whether they came from the persisted cache (only cached results are worth an
         /// integrity check).
         /// </returns>
-        Task<(IReadOnlyList<MatchResult> Results, bool FromCache)> LoadResultsAsync(
-            DatFile datFile
-        );
+        Task<(IReadOnlyList<MatchResult> Results, bool FromCache)> LoadResultsAsync(DatFile datFile);
 
         /// <summary>
         /// Detects persisted results whose backing files are gone, persists them as
@@ -51,11 +49,7 @@ namespace RomForge.Core.Operations
         /// unavailable folder is not wrongly recorded as missing.
         /// </summary>
         /// <returns>The results that were cleared to missing, keyed by release number.</returns>
-        Task<IReadOnlyList<MatchResult>> FindAndClearStaleAsync(
-            string datName,
-            string? romFolder,
-            IReadOnlyList<MatchResult> results
-        );
+        Task<IReadOnlyList<MatchResult>> FindAndClearStaleAsync(string datName, string? romFolder, IReadOnlyList<MatchResult> results);
 
         /// <summary>
         /// The managed DAT file paths on disk.

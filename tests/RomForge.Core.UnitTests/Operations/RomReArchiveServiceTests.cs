@@ -38,9 +38,7 @@ namespace RomForge.Core.UnitTests.Operations
             _extractor = new Mock<IArchiveExtractor>();
             _compressor = new Mock<IArchiveCompressor>();
             _fileOps = new Mock<IRomFileOperations>();
-            _fileOps
-                .Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(Result.Ok());
+            _fileOps.Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(Result.Ok());
             _fileOps.Setup(f => f.DeleteAsync(It.IsAny<string>())).ReturnsAsync(Result.Ok());
 
             ArchiveWorkspace workspace = new ArchiveWorkspace(appData, _fileOps.Object, logger);
@@ -78,11 +76,7 @@ namespace RomForge.Core.UnitTests.Operations
             };
 
         private void SetupExtract(Result<string> result) =>
-            _extractor
-                .Setup(e =>
-                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
-                .ReturnsAsync(result);
+            _extractor.Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(result);
 
         private void SetupCompress(Result result) =>
             _compressor

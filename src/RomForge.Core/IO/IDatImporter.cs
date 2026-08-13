@@ -10,11 +10,6 @@ namespace RomForge.Core.IO
 
     public interface IDatImporter
     {
-        Task<Result<string>> ImportAsync(
-            string sourceDatPath,
-            DatHeader header,
-            IProgress<ImportProgress>? progress,
-            CancellationToken ct
-        );
+        Task<Result<string>> ImportAsync(string sourceDatPath, DatHeader header, IProgress<ImportProgress>? progress, CancellationToken ct);
     }
 }

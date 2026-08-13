@@ -35,11 +35,7 @@ namespace RomForge.UI.ViewModels
         /// </summary>
         public Action<bool>? RequestClose { get; set; }
 
-        public SettingsVM(
-            AppPreferencesService preferencesService,
-            IFileDialogService fileDialogs,
-            AppPreferences current
-        )
+        public SettingsVM(AppPreferencesService preferencesService, IFileDialogService fileDialogs, AppPreferences current)
         {
             ArgumentNullException.ThrowIfNull(current);
             _preferencesService = preferencesService;
@@ -63,11 +59,7 @@ namespace RomForge.UI.ViewModels
         [RelayCommand]
         private async Task SaveAsync()
         {
-            await _preferencesService.UpdateSettingsAsync(
-                ArchiveFormat,
-                UnverifiedFolder,
-                CheckForUpdatesOnStartup
-            );
+            await _preferencesService.UpdateSettingsAsync(ArchiveFormat, UnverifiedFolder, CheckForUpdatesOnStartup);
             RequestClose?.Invoke(true);
         }
 

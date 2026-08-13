@@ -29,10 +29,7 @@ namespace RomForge.Core.IntegrationTests.IO
             Directory.CreateDirectory(_tempDir);
             // A generous budget so AffordableDictionaryCeiling never binds here — these tests
             // exercise the size-only MaxDictionarySize cap, not machine-adaptive sizing.
-            _sut = new SevenZipSharperCompressor(
-                NullLogger<SevenZipCompressor>.Instance,
-                new WorkingSetBudgetGate(1_000_000_000_000L)
-            );
+            _sut = new SevenZipSharperCompressor(NullLogger<SevenZipCompressor>.Instance, new WorkingSetBudgetGate(1_000_000_000_000L));
         }
 
         [TearDown]
@@ -55,17 +52,10 @@ namespace RomForge.Core.IntegrationTests.IO
             await File.WriteAllBytesAsync(path, payload);
         }
 
-        private static async Task<IReadOnlyList<string>> ListEntryPathsAsync(
-            string archivePath,
-            ArchiveFormat format
-        )
+        private static async Task<IReadOnlyList<string>> ListEntryPathsAsync(string archivePath, ArchiveFormat format)
         {
             await using FileStream input = File.OpenRead(archivePath);
-            using SevenZipExtractor extractor = new SevenZipExtractor(
-                input,
-                format,
-                NullLogger<SevenZipExtractor>.Instance
-            );
+            using SevenZipExtractor extractor = new SevenZipExtractor(input, format, NullLogger<SevenZipExtractor>.Instance);
             await extractor.OpenAsync();
             Result<IReadOnlyList<ArchiveEntry>> entries = await extractor.ListEntriesAsync();
             entries.IsSuccess.Should().BeTrue();
@@ -92,9 +82,7 @@ namespace RomForge.Core.IntegrationTests.IO
 
             result.IsSuccess.Should().BeTrue();
             File.Exists(dest).Should().BeTrue();
-            (await ListEntryPathsAsync(dest, ArchiveFormat.SevenZip))
-                .Should()
-                .BeEquivalentTo("source.bin");
+            (await ListEntryPathsAsync(dest, ArchiveFormat.SevenZip)).Should().BeEquivalentTo("source.bin");
         }
 
         [Test]
@@ -105,19 +93,11 @@ namespace RomForge.Core.IntegrationTests.IO
             string source = await CreateSourceFileAsync();
             string dest = Path.Combine(_tempDir, "out.zip");
 
-            Result result = await _sut.CompressAsync(
-                source,
-                dest,
-                "source.bin",
-                2048,
-                format: "zip"
-            );
+            Result result = await _sut.CompressAsync(source, dest, "source.bin", 2048, format: "zip");
 
             result.IsSuccess.Should().BeTrue();
             File.Exists(dest).Should().BeTrue();
-            (await ListEntryPathsAsync(dest, ArchiveFormat.Zip))
-                .Should()
-                .BeEquivalentTo("source.bin");
+            (await ListEntryPathsAsync(dest, ArchiveFormat.Zip)).Should().BeEquivalentTo("source.bin");
         }
 
         [Test]
@@ -134,9 +114,7 @@ namespace RomForge.Core.IntegrationTests.IO
             Result result = await _sut.CompressAsync(source, dest, "0001 - Super Game.bin", 2048);
 
             result.IsSuccess.Should().BeTrue();
-            (await ListEntryPathsAsync(dest, ArchiveFormat.SevenZip))
-                .Should()
-                .BeEquivalentTo("0001 - Super Game.bin");
+            (await ListEntryPathsAsync(dest, ArchiveFormat.SevenZip)).Should().BeEquivalentTo("0001 - Super Game.bin");
         }
 
         [Test]
@@ -158,9 +136,7 @@ namespace RomForge.Core.IntegrationTests.IO
             Result result = await _sut.CompressAsync(source, dest, "source.bin", 2048);
 
             result.IsSuccess.Should().BeTrue();
-            (await ListEntryPathsAsync(dest, ArchiveFormat.SevenZip))
-                .Should()
-                .BeEquivalentTo("source.bin");
+            (await ListEntryPathsAsync(dest, ArchiveFormat.SevenZip)).Should().BeEquivalentTo("source.bin");
         }
 
         [Test]
@@ -170,12 +146,7 @@ namespace RomForge.Core.IntegrationTests.IO
 
             string dest = Path.Combine(_tempDir, "out.7z");
 
-            Result result = await _sut.CompressAsync(
-                Path.Combine(_tempDir, "nonexistent.bin"),
-                dest,
-                "nonexistent.bin",
-                0
-            );
+            Result result = await _sut.CompressAsync(Path.Combine(_tempDir, "nonexistent.bin"), dest, "nonexistent.bin", 0);
 
             result.IsFailed.Should().BeTrue();
         }
@@ -194,13 +165,7 @@ namespace RomForge.Core.IntegrationTests.IO
             string dest = Path.Combine(_tempDir, "out.7z");
 
             using CancellationTokenSource cts = new CancellationTokenSource();
-            Task<Result> compressTask = _sut.CompressAsync(
-                source,
-                dest,
-                "big.bin",
-                payload.Length,
-                cancellationToken: cts.Token
-            );
+            Task<Result> compressTask = _sut.CompressAsync(source, dest, "big.bin", payload.Length, cancellationToken: cts.Token);
 
             await Task.Delay(50);
             await cts.CancelAsync();
@@ -221,10 +186,7 @@ namespace RomForge.Core.IntegrationTests.IO
         // allocator pool, which understates the delta (observed: a correct standalone 10.6x read
         // on the ratio-4 test collapsed to ~0x when run immediately after the other two). This is
         // measurement noise from process-level memory carryover, not a defect in the fix.
-        private async Task<double> MeasureLzma2EncoderMemoryMultiplierAsync(
-            int dictionaryBytes,
-            TimeSpan maxSampleDuration
-        )
+        private async Task<double> MeasureLzma2EncoderMemoryMultiplierAsync(int dictionaryBytes, TimeSpan maxSampleDuration)
         {
             string source = Path.Combine(_tempDir, "big.bin");
             await WriteIncompressibleFileAsync(source, dictionaryBytes);
@@ -243,13 +205,7 @@ namespace RomForge.Core.IntegrationTests.IO
             long baseline = process.WorkingSet64;
 
             using CancellationTokenSource cts = new CancellationTokenSource();
-            Task<Result> compressTask = _sut.CompressAsync(
-                source,
-                dest,
-                "big.bin",
-                dictionaryBytes,
-                cancellationToken: cts.Token
-            );
+            Task<Result> compressTask = _sut.CompressAsync(source, dest, "big.bin", dictionaryBytes, cancellationToken: cts.Token);
 
             // Sample the process working set while the encoder allocates its match-finder buffers.
             // The peak is reached shortly after the encoder starts, so once it stops growing for a
@@ -294,19 +250,14 @@ namespace RomForge.Core.IntegrationTests.IO
         }
 
         [Test]
-        [Explicit(
-            "Heavy/slow: allocates a large LZMA2 encoder and samples process memory. Run on demand."
-        )]
+        [Explicit("Heavy/slow: allocates a large LZMA2 encoder and samples process memory. Run on demand.")]
         public async Task CompressAsync_SevenZip_PeakWorkingSetIsAboutElevenTimesTheDictionary()
         {
             Assume.That(_sut.IsAvailable, Is.True, "7-Zip native library not available; skipping.");
 
             // A power-of-two payload makes DictionarySizeFor return exactly the payload size.
             const int dictionaryBytes = 64 * 1024 * 1024; // 2^26 -> 64 MB dictionary.
-            double measuredMultiplier = await MeasureLzma2EncoderMemoryMultiplierAsync(
-                dictionaryBytes,
-                TimeSpan.FromSeconds(30)
-            );
+            double measuredMultiplier = await MeasureLzma2EncoderMemoryMultiplierAsync(dictionaryBytes, TimeSpan.FromSeconds(30));
 
             // Process-RSS sampling is noisy (file cache, runtime, GC), so this proves the multiplier
             // is of the right order (~11), ruling out both "no multiplier" (~1x) and a wild
@@ -315,9 +266,7 @@ namespace RomForge.Core.IntegrationTests.IO
         }
 
         [Test]
-        [Explicit(
-            "Very heavy/slow: writes a 256 MB payload and allocates the max-size LZMA2 encoder. Run on demand."
-        )]
+        [Explicit("Very heavy/slow: writes a 256 MB payload and allocates the max-size LZMA2 encoder. Run on demand.")]
         public async Task CompressAsync_SevenZipAtMaxDictionarySize_PeakWorkingSetIsAboutElevenTimesTheDictionary()
         {
             Assume.That(_sut.IsAvailable, Is.True, "7-Zip native library not available; skipping.");
@@ -327,10 +276,7 @@ namespace RomForge.Core.IntegrationTests.IO
             // holds at a small dictionary; this proves it doesn't drift at the size the re-archive
             // memory gate actually budgets concurrency from.
             const int dictionaryBytes = 268_435_456; // 256 MB.
-            double measuredMultiplier = await MeasureLzma2EncoderMemoryMultiplierAsync(
-                dictionaryBytes,
-                TimeSpan.FromSeconds(60)
-            );
+            double measuredMultiplier = await MeasureLzma2EncoderMemoryMultiplierAsync(dictionaryBytes, TimeSpan.FromSeconds(60));
 
             measuredMultiplier.Should().BeGreaterThan(4.0).And.BeLessThan(20.0);
         }
@@ -344,10 +290,7 @@ namespace RomForge.Core.IntegrationTests.IO
         // must track the dictionary (not the ROM), so this must land in the same 4-20x-of-dictionary
         // band as the ratio-1 tests above. Before the ThreadCount pin, this would have measured
         // ~ROM x 10.5 (~42x the dictionary at this ratio) and failed the upper bound.
-        private async Task<long> MeasureLzma2EncoderPeakWorkingSetAsync(
-            long romSizeBytes,
-            TimeSpan maxSampleDuration
-        )
+        private async Task<long> MeasureLzma2EncoderPeakWorkingSetAsync(long romSizeBytes, TimeSpan maxSampleDuration)
         {
             string source = Path.Combine(_tempDir, "big.bin");
             await WriteIncompressibleFileAsync(source, checked((int)romSizeBytes));
@@ -364,13 +307,7 @@ namespace RomForge.Core.IntegrationTests.IO
             long baseline = process.WorkingSet64;
 
             using CancellationTokenSource cts = new CancellationTokenSource();
-            Task<Result> compressTask = _sut.CompressAsync(
-                source,
-                dest,
-                "big.bin",
-                romSizeBytes,
-                cancellationToken: cts.Token
-            );
+            Task<Result> compressTask = _sut.CompressAsync(source, dest, "big.bin", romSizeBytes, cancellationToken: cts.Token);
 
             long peak = baseline;
             Stopwatch sw = Stopwatch.StartNew();
@@ -405,23 +342,16 @@ namespace RomForge.Core.IntegrationTests.IO
         }
 
         [Test]
-        [Explicit(
-            "Very heavy/slow: writes a 1 GB payload to exercise a 4x dictionary-clamp ratio. Run on demand."
-        )]
+        [Explicit("Very heavy/slow: writes a 1 GB payload to exercise a 4x dictionary-clamp ratio. Run on demand.")]
         public async Task CompressAsync_SevenZipRomFourTimesTheDictionaryClamp_PeakWorkingSetTracksDictionaryNotRom()
         {
             Assume.That(_sut.IsAvailable, Is.True, "7-Zip native library not available; skipping.");
 
             const long romSizeBytes = 1_073_741_824; // 1 GB -> clamps to the 256 MB dictionary (ratio 4).
             uint dictionaryBytes = SevenZipSharperCompressor.DictionarySizeFor(romSizeBytes);
-            dictionaryBytes
-                .Should()
-                .Be(268_435_456u, "the test only proves what it claims at ratio 4");
+            dictionaryBytes.Should().Be(268_435_456u, "the test only proves what it claims at ratio 4");
 
-            long encoderWorkingSet = await MeasureLzma2EncoderPeakWorkingSetAsync(
-                romSizeBytes,
-                TimeSpan.FromSeconds(90)
-            );
+            long encoderWorkingSet = await MeasureLzma2EncoderPeakWorkingSetAsync(romSizeBytes, TimeSpan.FromSeconds(90));
             double measuredMultiplier = (double)encoderWorkingSet / dictionaryBytes;
             TestContext.WriteLine(
                 $"Measured encoder working set: {encoderWorkingSet / (1024 * 1024)} MB over a "
@@ -443,13 +373,7 @@ namespace RomForge.Core.IntegrationTests.IO
             string dest = Path.Combine(_tempDir, "out.7z");
             List<int> reported = [];
 
-            Result result = await _sut.CompressAsync(
-                source,
-                dest,
-                "source.bin",
-                2048,
-                new Progress<int>(p => reported.Add(p))
-            );
+            Result result = await _sut.CompressAsync(source, dest, "source.bin", 2048, new Progress<int>(p => reported.Add(p)));
 
             result.IsSuccess.Should().BeTrue();
         }

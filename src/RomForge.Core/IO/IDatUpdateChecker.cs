@@ -12,9 +12,6 @@ namespace RomForge.Core.IO
         /// <summary>
         /// Fetches the latest version string from the given URL.
         /// </summary>
-        Task<Result<string>> FetchLatestVersionAsync(
-            string versionUrl,
-            CancellationToken ct = default
-        );
+        Task<Result<string>> FetchLatestVersionAsync(string versionUrl, CancellationToken ct = default);
     }
 }

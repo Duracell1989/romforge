@@ -6,12 +6,6 @@ namespace RomForge.Core.IO
     {
         uint? GetCrc(string filePath, long fileSize, DateTime lastModified);
         uint? GetTrimmedCrc(string filePath, long fileSize, DateTime lastModified);
-        void Set(
-            string filePath,
-            long fileSize,
-            DateTime lastModified,
-            uint crc,
-            uint? trimmedCrc = null
-        );
+        void Set(string filePath, long fileSize, DateTime lastModified, uint crc, uint? trimmedCrc = null);
     }
 }

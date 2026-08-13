@@ -6,10 +6,7 @@ namespace RomForge.Core.IO
 {
     public interface IRomSource
     {
-        IAsyncEnumerable<RomContent> EnumerateAsync(
-            string folderPath,
-            CancellationToken cancellationToken = default
-        );
+        IAsyncEnumerable<RomContent> EnumerateAsync(string folderPath, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Returns a fast estimate of the number of files in the folder without opening archives.
