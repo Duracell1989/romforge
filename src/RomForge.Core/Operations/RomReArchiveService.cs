@@ -71,9 +71,11 @@ namespace RomForge.Core.Operations
                     cancellationToken
                 );
                 if (extractResult.IsFailed)
+                {
                     return Result.Fail(
                         $"{Path.GetFileName(target.From)}: {extractResult.Errors[0].Message}"
                     );
+                }
 
                 tempFile = extractResult.Value;
 
@@ -112,9 +114,11 @@ namespace RomForge.Core.Operations
                 }
 
                 if (compressResult.IsFailed)
+                {
                     return Result.Fail(
                         $"{Path.GetFileName(target.From)}: {compressResult.Errors[0].Message}"
                     );
+                }
 
                 (string? placeError, bool consumed) = await _workspace.PlaceWorkingArchiveAsync(
                     compressTarget,

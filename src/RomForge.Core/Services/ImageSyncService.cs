@@ -96,7 +96,7 @@ namespace RomForge.Core.Services
             string imgsBasePath
         )
         {
-            List<(string, string)> missing = new List<(string, string)>();
+            List<(string, string)> missing = [];
             HashSet<string> seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (
                 int imageNumber in datFile

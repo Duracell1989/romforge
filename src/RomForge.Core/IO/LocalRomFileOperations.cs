@@ -33,22 +33,22 @@ namespace RomForge.Core.IO
             }
         }
 
-        public Task<Result> TruncateAsync(string path, long length)
+        public async Task<Result> TruncateAsync(string path, long length)
         {
             try
             {
-                using var fs = new FileStream(
+                await using var fs = new FileStream(
                     path,
                     FileMode.Open,
                     FileAccess.Write,
                     FileShare.None
                 );
                 fs.SetLength(length);
-                return Task.FromResult(Result.Ok());
+                return Result.Ok();
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                return Task.FromResult(Result.Fail(new ExceptionalError(ex)));
+                return Result.Fail(new ExceptionalError(ex));
             }
         }
 

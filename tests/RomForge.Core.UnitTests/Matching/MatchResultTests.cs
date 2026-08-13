@@ -73,20 +73,20 @@ namespace RomForge.Core.UnitTests.Matching
 
         [Test]
         public void DisplayStatus_UntrimmedAndWrongArchive_UntrimmedWins() =>
-            Verified(untrimmed: true, wrongArchiveType: true)
+            Verified(wrongArchiveType: true, untrimmed: true)
                 .DisplayStatus.Should()
                 .Be(RomStatus.Untrimmed);
 
         [Test]
         public void DisplayStatus_WrongArchiveAndIncorrectlyNamed_WrongArchiveWins() =>
-            Verified(wrongArchiveType: true, incorrectlyNamed: true)
+            Verified(incorrectlyNamed: true, wrongArchiveType: true)
                 .DisplayStatus.Should()
                 .Be(RomStatus.WrongArchive);
 
         [Test]
         public void DisplayStatus_ReArchivedButWrongArchive_WrongArchiveWins() =>
             // A stale re-archived mark never hides an outstanding issue.
-            Verified(reArchived: true, wrongArchiveType: true)
+            Verified(wrongArchiveType: true, reArchived: true)
                 .DisplayStatus.Should()
                 .Be(RomStatus.WrongArchive);
 
@@ -101,7 +101,7 @@ namespace RomForge.Core.UnitTests.Matching
         public void DisplayStatus_ReArchivedButEntryMisnamed_ReturnsVerified() =>
             // A misnamed inner entry blocks Good even when the re-archived mark is set: the archive
             // still needs repacking to rewrite the entry.
-            Verified(reArchived: true, entryMisnamed: true)
+            Verified(entryMisnamed: true, reArchived: true)
                 .DisplayStatus.Should()
                 .Be(RomStatus.Verified);
 
@@ -119,21 +119,21 @@ namespace RomForge.Core.UnitTests.Matching
 
         [Test]
         public void IsGood_ReArchivedButEntryMisnamed_ReturnsFalse() =>
-            Verified(reArchived: true, entryMisnamed: true).IsGood.Should().BeFalse();
+            Verified(entryMisnamed: true, reArchived: true).IsGood.Should().BeFalse();
 
         [Test]
         public void IsGood_Missing_ReturnsFalse() => Missing().IsGood.Should().BeFalse();
 
         [Test]
         public void IsGood_ReArchivedButUntrimmed_ReturnsFalse() =>
-            Verified(reArchived: true, untrimmed: true).IsGood.Should().BeFalse();
+            Verified(untrimmed: true, reArchived: true).IsGood.Should().BeFalse();
 
         [Test]
         public void IsGood_ReArchivedButWrongArchiveType_ReturnsFalse() =>
-            Verified(reArchived: true, wrongArchiveType: true).IsGood.Should().BeFalse();
+            Verified(wrongArchiveType: true, reArchived: true).IsGood.Should().BeFalse();
 
         [Test]
         public void IsGood_ReArchivedButIncorrectlyNamed_ReturnsFalse() =>
-            Verified(reArchived: true, incorrectlyNamed: true).IsGood.Should().BeFalse();
+            Verified(incorrectlyNamed: true, reArchived: true).IsGood.Should().BeFalse();
     }
 }

@@ -14,11 +14,13 @@ namespace RomForge.UI.Views
         private void OnLoaded(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
         {
             if (DataContext is ImageDownloadWindowVM vm)
+            {
                 vm.PropertyChanged += (_, args) =>
                 {
                     if (args.PropertyName == nameof(ImageDownloadWindowVM.LogText))
                         ScrollToBottom();
                 };
+            }
         }
 
         private void ScrollToBottom()

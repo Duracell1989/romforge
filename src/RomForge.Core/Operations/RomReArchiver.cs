@@ -20,7 +20,9 @@ namespace RomForge.Core.Operations
                 || result.IsUntrimmed
                 || result.ScannedRom is null
             )
+            {
                 return null;
+            }
 
             string expectedStem = string.IsNullOrEmpty(namingMask)
                 ? Path.GetFileNameWithoutExtension(result.ScannedRom.FilePath)

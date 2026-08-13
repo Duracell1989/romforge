@@ -105,7 +105,8 @@ namespace RomForge.Core.IO
                 EntryName = Path.GetFileNameWithoutExtension(filePath),
                 FileSize = fileInfo.Length,
                 LastModified = fileInfo.LastWriteTimeUtc,
-                OpenStreamAsync = ct => new ValueTask<Stream>(File.OpenRead(filePath)),
+                // File.OpenRead completes synchronously, so there is nothing to cancel here.
+                OpenStreamAsync = _ => new ValueTask<Stream>(File.OpenRead(filePath)),
             };
         }
 

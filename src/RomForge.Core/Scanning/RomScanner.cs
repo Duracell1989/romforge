@@ -28,7 +28,7 @@ namespace RomForge.Core.Scanning
                 .ConfigureAwait(false);
             int found = 0;
 
-            List<RomContent> contents = new();
+            List<RomContent> contents = [];
             await foreach (RomContent c in source.EnumerateAsync(folderPath, cancellationToken))
             {
                 contents.Add(c);
@@ -47,7 +47,7 @@ namespace RomForge.Core.Scanning
                 return [];
 
             ScannedRom?[] results = new ScannedRom?[contents.Count];
-            List<(RomContent Content, int Index)> needsCrc = new List<(RomContent, int)>();
+            List<(RomContent Content, int Index)> needsCrc = [];
 
             for (int i = 0; i < contents.Count; i++)
             {
@@ -78,7 +78,9 @@ namespace RomForge.Core.Scanning
                     };
                 }
                 else
+                {
                     needsCrc.Add((c, i));
+                }
             }
 
             int crcTotal = needsCrc.Count;
@@ -124,9 +126,12 @@ namespace RomForge.Core.Scanning
             uint crc;
             uint? trimmedCrc;
 
-            if (fileSize.HasValue && fileSize.Value <= TrimDetectionThresholdBytes)
+            // A null fileSize compares false here, matching the previous explicit HasValue check.
+            if (fileSize <= TrimDetectionThresholdBytes)
+            {
                 (crc, trimmedCrc) = await ComputeCrcsBufferedAsync(stream, cancellationToken)
                     .ConfigureAwait(false);
+            }
             else
             {
                 crc = await ComputeCrc32StreamedAsync(stream, cancellationToken)
@@ -174,7 +179,7 @@ namespace RomForge.Core.Scanning
         {
             await using (stream)
             {
-                using MemoryStream ms = new MemoryStream();
+                await using MemoryStream ms = new MemoryStream();
                 await stream.CopyToAsync(ms, ct).ConfigureAwait(false);
                 return ComputeCrcs(ms.ToArray());
             }

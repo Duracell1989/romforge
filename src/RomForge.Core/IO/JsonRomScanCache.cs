@@ -74,18 +74,18 @@ namespace RomForge.Core.IO
         private static Dictionary<string, CacheEntry> Load(string filePath)
         {
             if (!File.Exists(filePath))
-                return new Dictionary<string, CacheEntry>();
+                return [];
 
             try
             {
                 using var fs = File.OpenRead(filePath);
                 return JsonSerializer.Deserialize<Dictionary<string, CacheEntry>>(fs, JsonOptions)
-                    ?? new Dictionary<string, CacheEntry>();
+                    ?? [];
             }
             catch (Exception ex)
                 when (ex is IOException or UnauthorizedAccessException or JsonException)
             {
-                return new Dictionary<string, CacheEntry>();
+                return [];
             }
         }
 

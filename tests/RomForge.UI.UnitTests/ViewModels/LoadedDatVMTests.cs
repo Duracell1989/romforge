@@ -26,6 +26,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         {
             LoadedDatVM vm = new LoadedDatVM(MakeDat(), "/test/dat.xml");
             foreach (Game g in games)
+            {
                 vm.Games.Add(
                     new GameRowVM(
                         new MatchResult { Game = g, Status = MatchStatus.Missing },
@@ -34,6 +35,8 @@ namespace RomForge.UI.UnitTests.ViewModels
                         []
                     )
                 );
+            }
+
             return vm;
         }
 
@@ -748,8 +751,8 @@ namespace RomForge.UI.UnitTests.ViewModels
         {
             LoadedDatVM vm = MakeVm(MakeGame(1, "Mario"));
 
-            vm.Games = new ObservableCollection<GameRowVM>
-            {
+            vm.Games =
+            [
                 MakeRow(
                     new MatchResult
                     {
@@ -757,7 +760,7 @@ namespace RomForge.UI.UnitTests.ViewModels
                         Status = MatchStatus.Verified,
                     }
                 ),
-            };
+            ];
 
             vm.FilteredGames.Should().HaveCount(1);
             vm.FilteredGames[0].Title.Should().Be("Zelda");

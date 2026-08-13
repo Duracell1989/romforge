@@ -24,7 +24,7 @@ namespace RomForge.Core.Services
         {
             ArgumentNullException.ThrowIfNull(results);
 
-            List<MatchResult> stale = new List<MatchResult>();
+            List<MatchResult> stale = [];
             foreach (MatchResult result in results)
             {
                 if (result.Status != MatchStatus.Verified || result.ScannedRom is null)

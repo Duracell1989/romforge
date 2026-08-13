@@ -20,7 +20,7 @@ namespace RomForge.Core.Matching
 
             Dictionary<uint, ScannedRom> byCrc = BuildCrcIndex(scannedRoms);
             Dictionary<uint, ScannedRom> byTrimmedCrc = BuildTrimmedCrcIndex(scannedRoms);
-            string namingMask = NamingMask.DefaultMask;
+            const string namingMask = NamingMask.DefaultMask;
 
             List<MatchResult> results = datFile
                 .Games.Select(game =>
@@ -53,10 +53,13 @@ namespace RomForge.Core.Matching
             IReadOnlyList<ScannedRom> scannedRoms
         )
         {
-            Dictionary<uint, ScannedRom> index = new();
+            Dictionary<uint, ScannedRom> index = [];
             foreach (ScannedRom rom in scannedRoms)
+            {
                 if (rom.TrimmedCrc.HasValue)
                     index.TryAdd(rom.TrimmedCrc.Value, rom);
+            }
+
             return index;
         }
 
@@ -112,6 +115,7 @@ namespace RomForge.Core.Matching
 
             // Trimmed CRC match — ROM is found but needs trimming; other flags not checked here.
             if (byTrimmedCrc.TryGetValue(game.Files.RomCrc, out ScannedRom? trimmedRom))
+            {
                 return new MatchResult
                 {
                     Game = game,
@@ -119,6 +123,7 @@ namespace RomForge.Core.Matching
                     ScannedRom = trimmedRom,
                     IsUntrimmed = true,
                 };
+            }
 
             return new MatchResult { Game = game, Status = MatchStatus.Missing };
         }

@@ -62,7 +62,7 @@ namespace RomForge.Core.IO
 
         internal static string GetSubfolder(int imageNumber)
         {
-            var start = ((imageNumber - 1) / 500) * 500 + 1;
+            var start = (((imageNumber - 1) / 500) * 500) + 1;
             return $"{start}-{start + 499}";
         }
     }
