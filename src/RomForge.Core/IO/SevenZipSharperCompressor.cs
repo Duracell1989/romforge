@@ -205,7 +205,7 @@ namespace RomForge.Core.IO
                 : CostFor(DictionarySizeFor(romSize, _memoryGate.BudgetBytes));
 
         private static long CostFor(uint dictionaryBytes) =>
-            (long)dictionaryBytes * Lzma2EncoderMemoryMultiplier + Lzma2EncoderFixedOverheadBytes;
+            ((long)dictionaryBytes * Lzma2EncoderMemoryMultiplier) + Lzma2EncoderFixedOverheadBytes;
 
         // A dictionary larger than the data being compressed can't improve the ratio for this
         // single-entry archive — it only costs memory — so use the smallest power-of-2 that still
