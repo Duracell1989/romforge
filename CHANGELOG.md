@@ -4,6 +4,12 @@ All notable changes to RomForge are documented here. This project follows [Seman
 
 ## [Unreleased]
 
+## [1.5.5] — 2026-08-13
+
+### Changed
+
+- No user-facing changes. Build-time static analysis (Roslynator and .NET IDE style rules) is now enforced, catching issues that were previously invisible locally until CI ran a separate analysis pass.
+
 ## [1.5.4] — 2026-08-12
 
 ### Fixed
