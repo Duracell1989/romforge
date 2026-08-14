@@ -609,6 +609,20 @@ namespace RomForge.UI.ViewModels
             && !IsTrimming
             && ActiveDat?.Games.Any(g => g.IsIncorrectlyNamed) == true;
 
+        /// <summary>
+        /// Opens the CRC scan cache for <see cref="ActiveDat"/>'s ROM folder, or <see langword="null"/>
+        /// when no folder has been scanned yet. Re-archive operations warm this cache with the
+        /// verified CRC of the freshly-placed archive so the next full scan does not need to
+        /// recompute it.
+        /// </summary>
+        private JsonRomScanCache? CreateScanCacheForActiveDat()
+        {
+            string? folder = ActiveDat?.RomFolder;
+            return string.IsNullOrEmpty(folder)
+                ? null
+                : new JsonRomScanCache(_appData.GetScanCachePath(folder));
+        }
+
         [RelayCommand(CanExecute = nameof(CanReArchive))]
         private async Task ReArchiveSelectedAsync()
         {
@@ -632,7 +646,13 @@ namespace RomForge.UI.ViewModels
 
             var snapshotGame = SelectedGame;
             var progressVm = new ProgressWindowVM(1, isCancellable: true);
-            var operationTask = ReArchiveSelectedCoreAsync(snapshotGame, target.Value, progressVm);
+            var scanCache = CreateScanCacheForActiveDat();
+            var operationTask = ReArchiveSelectedCoreAsync(
+                snapshotGame,
+                target.Value,
+                progressVm,
+                scanCache
+            );
             await _notifier.ShowProgressAsync(
                 $"Re-Archiving to {ArchiveFormat}",
                 progressVm,
@@ -640,6 +660,8 @@ namespace RomForge.UI.ViewModels
             );
 
             var error = await operationTask;
+            if (scanCache is not null)
+                await scanCache.SaveAsync();
             if (error is not null)
                 await _notifier.NotifyErrorAsync(error);
         }
@@ -647,7 +669,8 @@ namespace RomForge.UI.ViewModels
         private async Task<string?> ReArchiveSelectedCoreAsync(
             GameRowVM game,
             (string From, string To) target,
-            ProgressWindowVM progress
+            ProgressWindowVM progress,
+            JsonRomScanCache? scanCache
         )
         {
             IsReArchiving = true;
@@ -665,6 +688,7 @@ namespace RomForge.UI.ViewModels
                     ArchiveFormat,
                     datName,
                     progress.CancellationToken,
+                    scanCache,
                     compressionProgress
                 );
 
@@ -719,7 +743,13 @@ namespace RomForge.UI.ViewModels
                 maxConcurrency,
                 isCancellable: true
             );
-            var operationTask = ReArchiveAllCoreAsync(targets, progressVm, maxConcurrency);
+            var scanCache = CreateScanCacheForActiveDat();
+            var operationTask = ReArchiveAllCoreAsync(
+                targets,
+                progressVm,
+                maxConcurrency,
+                scanCache
+            );
             await _notifier.ShowBatchProgressAsync(
                 $"Re-Archiving ROMs to {ArchiveFormat}",
                 progressVm,
@@ -727,6 +757,8 @@ namespace RomForge.UI.ViewModels
             );
 
             List<string> errors = await operationTask;
+            if (scanCache is not null)
+                await scanCache.SaveAsync();
             _logger.Information(
                 "Re-archive all: {Succeeded}/{Total} succeeded",
                 targets.Count - errors.Count,
@@ -769,7 +801,8 @@ namespace RomForge.UI.ViewModels
         private async Task<List<string>> ReArchiveAllCoreAsync(
             List<GameRowVM> targets,
             BatchProgressWindowVM progress,
-            int maxConcurrency
+            int maxConcurrency,
+            JsonRomScanCache? scanCache
         )
         {
             IsReArchiving = true;
@@ -821,6 +854,7 @@ namespace RomForge.UI.ViewModels
                                 archiveFormat,
                                 datName,
                                 ct,
+                                scanCache,
                                 slotProgress
                             );
 

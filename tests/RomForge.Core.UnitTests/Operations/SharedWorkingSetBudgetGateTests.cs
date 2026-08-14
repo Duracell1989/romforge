@@ -25,6 +25,9 @@ namespace RomForge.Core.UnitTests.Operations
     [TestOf(typeof(RomTrimService))]
     public sealed class SharedWorkingSetBudgetGateTests
     {
+        private static readonly byte[] RomBytes = [0x01, 0x02, 0x03, 0x04];
+        private static readonly uint RomCrc = RomScanner.ComputeCrcs(RomBytes).FullCrc;
+
         private static MatchResult Match(string filePath) =>
             new MatchResult
             {
@@ -32,7 +35,7 @@ namespace RomForge.Core.UnitTests.Operations
                 {
                     ReleaseNumber = 1,
                     Title = "Test Game",
-                    Files = new GameFiles { RomCrc = 0x12345678, RomExtension = "gba" },
+                    Files = new GameFiles { RomCrc = RomCrc, RomExtension = "gba" },
                 },
                 Status = MatchStatus.Verified,
                 ScannedRom = new ScannedRom
@@ -40,7 +43,7 @@ namespace RomForge.Core.UnitTests.Operations
                     FilePath = filePath,
                     FileExtension = "zip",
                     RomExtension = "gba",
-                    Crc = 0x12345678,
+                    Crc = RomCrc,
                 },
                 IsWrongArchiveType = true,
             };
@@ -67,6 +70,9 @@ namespace RomForge.Core.UnitTests.Operations
             fileOps
                 .Setup(f => f.TruncateAsync(It.IsAny<string>(), It.IsAny<long>()))
                 .ReturnsAsync(Result.Ok());
+            fileOps
+                .Setup(f => f.OpenReadAsync(It.IsAny<string>()))
+                .ReturnsAsync(() => new MemoryStream(RomBytes));
 
             // Each job costs 10; a budget of 15 admits only one at a time.
             TaskCompletionSource<Result> reArchiveCompressGate = new TaskCompletionSource<Result>();
