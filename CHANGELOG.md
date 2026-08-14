@@ -4,6 +4,12 @@ All notable changes to RomForge are documented here. This project follows [Seman
 
 ## [Unreleased]
 
+## [1.6.0] — 2026-08-14
+
+### Added
+
+- Re-archiving now verifies the newly-written archive by reading it back and checking its CRC before marking the ROM re-archived, catching a corrupted write instead of trusting it. The verified CRC also warms the scan cache, so a "Scan Folder" run right after a re-archive no longer recomputes CRCs it already just confirmed.
+
 ## [1.5.5] — 2026-08-13
 
 ### Changed
