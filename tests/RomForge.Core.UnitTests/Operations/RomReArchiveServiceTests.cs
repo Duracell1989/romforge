@@ -57,14 +57,17 @@ namespace RomForge.Core.UnitTests.Operations
             );
         }
 
-        private static MatchResult Match(string filePath) =>
+        private static readonly byte[] ValidRomBytes = [0x01, 0x02, 0x03, 0x04];
+        private static readonly uint ValidRomCrc = RomScanner.ComputeCrcs(ValidRomBytes).FullCrc;
+
+        private static MatchResult Match(string filePath, uint? crc = null) =>
             new MatchResult
             {
                 Game = new Game
                 {
                     ReleaseNumber = 1,
                     Title = "Test Game",
-                    Files = new GameFiles { RomCrc = 0x12345678, RomExtension = "gba" },
+                    Files = new GameFiles { RomCrc = crc ?? ValidRomCrc, RomExtension = "gba" },
                 },
                 Status = MatchStatus.Verified,
                 ScannedRom = new ScannedRom
@@ -72,7 +75,7 @@ namespace RomForge.Core.UnitTests.Operations
                     FilePath = filePath,
                     FileExtension = "zip",
                     RomExtension = "gba",
-                    Crc = 0x12345678,
+                    Crc = crc ?? ValidRomCrc,
                 },
                 IsWrongArchiveType = true,
             };
@@ -155,6 +158,9 @@ namespace RomForge.Core.UnitTests.Operations
             await _scanStore.InitializeAsync();
             SetupExtract(Result.Ok("/tmp/extracted.rom"));
             SetupCompress(Result.Ok());
+            _fileOps
+                .Setup(f => f.OpenReadAsync(It.IsAny<string>()))
+                .ReturnsAsync(() => new MemoryStream(ValidRomBytes));
 
             Result<MatchResult> result = await _service.ReArchiveAsync(
                 Match("/roms/Old.zip"),
@@ -171,6 +177,63 @@ namespace RomForge.Core.UnitTests.Operations
             result.Value.IsGood.Should().BeTrue();
             result.Value.ScannedRom!.FilePath.Should().Be("/roms/0001 - Test Game.7z");
             result.Value.ScannedRom.FileExtension.Should().Be("7z");
+        }
+
+        [Test]
+        public async Task ReArchiveAsync_PostWriteCrcMismatch_ReturnsFailureAndDoesNotMarkReArchived()
+        {
+            await _reArchiveStore.InitializeAsync();
+            await _scanStore.InitializeAsync();
+            SetupExtract(Result.Ok("/tmp/extracted.rom"));
+            SetupCompress(Result.Ok());
+            // Bytes deliberately different from ValidRomBytes, so the placed archive's CRC
+            // never matches the DAT's expected CRC — simulating a corrupted write.
+            _fileOps
+                .Setup(f => f.OpenReadAsync(It.IsAny<string>()))
+                .ReturnsAsync(() => new MemoryStream([0xDE, 0xAD, 0xBE, 0xEF]));
+
+            Result<MatchResult> result = await _service.ReArchiveAsync(
+                Match("/roms/Old.zip"),
+                ("/roms/Old.zip", "/roms/0001 - Test Game.7z"),
+                "7z",
+                DatName,
+                CancellationToken.None
+            );
+
+            result.IsFailed.Should().BeTrue();
+            result.Errors[0].Message.Should().Contain("CRC verification");
+        }
+
+        [Test]
+        public async Task ReArchiveAsync_Succeeds_WarmsScanCacheWhenProvided()
+        {
+            await _reArchiveStore.InitializeAsync();
+            await _scanStore.InitializeAsync();
+            SetupExtract(Result.Ok("/tmp/extracted.rom"));
+            SetupCompress(Result.Ok());
+            _fileOps
+                .Setup(f => f.OpenReadAsync(It.IsAny<string>()))
+                .ReturnsAsync(() => new MemoryStream(ValidRomBytes));
+            DateTime lastModified = new DateTime(2026, 8, 14, 0, 0, 0, DateTimeKind.Utc);
+            _fileOps
+                .Setup(f => f.GetFileInfoAsync("/roms/0001 - Test Game.7z"))
+                .ReturnsAsync((4096L, lastModified));
+            Mock<IRomScanCache> scanCache = new Mock<IRomScanCache>();
+
+            Result<MatchResult> result = await _service.ReArchiveAsync(
+                Match("/roms/Old.zip"),
+                ("/roms/Old.zip", "/roms/0001 - Test Game.7z"),
+                "7z",
+                DatName,
+                CancellationToken.None,
+                scanCache.Object
+            );
+
+            result.IsSuccess.Should().BeTrue();
+            scanCache.Verify(
+                c => c.Set("/roms/0001 - Test Game.7z", 4096L, lastModified, ValidRomCrc, null),
+                Times.Once
+            );
         }
     }
 }

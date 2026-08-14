@@ -123,21 +123,12 @@ namespace RomForge.Core.Scanning
 
             Stream stream = await content.OpenStreamAsync(cancellationToken).ConfigureAwait(false);
 
-            uint crc;
-            uint? trimmedCrc;
-
-            // A null fileSize compares false here, matching the previous explicit HasValue check.
-            if (fileSize <= TrimDetectionThresholdBytes)
-            {
-                (crc, trimmedCrc) = await ComputeCrcsBufferedAsync(stream, cancellationToken)
-                    .ConfigureAwait(false);
-            }
-            else
-            {
-                crc = await ComputeCrc32StreamedAsync(stream, cancellationToken)
-                    .ConfigureAwait(false);
-                trimmedCrc = null;
-            }
+            (uint crc, uint? trimmedCrc) = await ComputeCrcAsync(
+                    stream,
+                    fileSize,
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
 
             if (cache is not null && fileSize.HasValue && lastModified.HasValue)
                 cache.Set(content.FilePath, fileSize.Value, lastModified.Value, crc, trimmedCrc);
@@ -152,6 +143,29 @@ namespace RomForge.Core.Scanning
                 TrimmedCrc = trimmedCrc,
                 LastModified = content.LastModified,
             };
+        }
+
+        /// <summary>
+        /// Computes the full CRC32 (and, where applicable, the trailing-0xFF-trimmed CRC32) of
+        /// <paramref name="stream"/>, buffering in memory for files at or under the trim-detection
+        /// threshold and streaming above it. Shared by the scan path and by post-write re-archive
+        /// verification, which both need the same size-dependent buffered/streamed choice.
+        /// </summary>
+        internal static async Task<(uint Crc, uint? TrimmedCrc)> ComputeCrcAsync(
+            Stream stream,
+            long? fileSize,
+            CancellationToken cancellationToken
+        )
+        {
+            // A null fileSize compares false here, so a stream of unknown length is streamed rather
+            // than buffered.
+            if (fileSize <= TrimDetectionThresholdBytes)
+                return await ComputeCrcsBufferedAsync(stream, cancellationToken)
+                    .ConfigureAwait(false);
+
+            uint crc = await ComputeCrc32StreamedAsync(stream, cancellationToken)
+                .ConfigureAwait(false);
+            return (crc, null);
         }
 
         internal static (uint FullCrc, uint? TrimmedCrc) ComputeCrcs(byte[] bytes)

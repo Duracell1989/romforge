@@ -53,6 +53,12 @@ namespace RomForge.UI.UnitTests.ViewModels
             // Temp-file cleanup guards check the real filesystem; mirror it so tests that write real
             // working files (and those that don't) behave as they did under the previous File.Exists.
             _fileOps.Setup(f => f.FileExists(It.IsAny<string>())).Returns<string>(File.Exists);
+            // Post-write re-archive verification reads the placed archive back and hashes it; an
+            // empty stream CRCs to 0, matching the default (unset) GameFiles.RomCrc these tests use.
+            // Individual tests that assert a specific RomCrc override this setup.
+            _fileOps
+                .Setup(f => f.OpenReadAsync(It.IsAny<string>()))
+                .ReturnsAsync(() => new MemoryStream());
             _compressor = new Mock<IArchiveCompressor>();
             _extractor = new Mock<IArchiveExtractor>();
             _updateChecker = new Mock<IDatUpdateChecker>();

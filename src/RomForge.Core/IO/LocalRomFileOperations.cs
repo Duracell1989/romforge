@@ -55,5 +55,14 @@ namespace RomForge.Core.IO
         public bool DirectoryExists(string path) => Directory.Exists(path);
 
         public bool FileExists(string path) => File.Exists(path);
+
+        public Task<Stream> OpenReadAsync(string path) =>
+            Task.FromResult<Stream>(File.OpenRead(path));
+
+        public Task<(long Size, DateTime LastWriteTimeUtc)> GetFileInfoAsync(string path)
+        {
+            FileInfo info = new FileInfo(path);
+            return Task.FromResult((info.Length, info.LastWriteTimeUtc));
+        }
     }
 }
