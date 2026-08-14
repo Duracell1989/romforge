@@ -160,8 +160,10 @@ namespace RomForge.Core.Scanning
             // A null fileSize compares false here, so a stream of unknown length is streamed rather
             // than buffered.
             if (fileSize <= TrimDetectionThresholdBytes)
+            {
                 return await ComputeCrcsBufferedAsync(stream, cancellationToken)
                     .ConfigureAwait(false);
+            }
 
             uint crc = await ComputeCrc32StreamedAsync(stream, cancellationToken)
                 .ConfigureAwait(false);
