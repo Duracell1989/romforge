@@ -1,8 +1,10 @@
+![RomForge](https://raw.githubusercontent.com/Duracell1989/romforge/main/assets/icon.png)
+
 # RomForge
 
 A cross-platform ROM management tool for the OfflineList DAT ecosystem.
 
-[![CI](https://github.com/Duracell1989/RomForge/actions/workflows/ci.yml/badge.svg)](https://github.com/Duracell1989/RomForge/actions/workflows/ci.yml)
+[![CI](https://github.com/Duracell1989/romforge/actions/workflows/ci.yml/badge.svg)](https://github.com/Duracell1989/romforge/actions/workflows/ci.yml)
 
 RomForge is a modern rewrite of OfflineList — a Windows-only C++ tool that has had no active development since the mid-2000s. It preserves full compatibility with the existing community DAT files while bringing a native cross-platform UI built on .NET 10 and [Avalonia](https://avaloniaui.net).
 
@@ -52,8 +54,8 @@ Download the latest release for your platform from the [Releases](../../releases
 **Prerequisites:** [.NET 10 SDK](https://dotnet.microsoft.com/download)
 
 ```bash
-git clone git@github.com:Duracell1989/RomForge.git
-cd RomForge
+git clone git@github.com:Duracell1989/romforge.git
+cd romforge
 make build    # dotnet build
 make test     # run all tests
 make run      # launch the UI
