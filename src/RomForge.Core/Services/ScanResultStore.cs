@@ -106,7 +106,7 @@ namespace RomForge.Core.Services
                         pFilePath.Value = (object?)r.ScannedRom?.FilePath ?? DBNull.Value;
                         pFileExt.Value = (object?)r.ScannedRom?.FileExtension ?? DBNull.Value;
                         pRomExt.Value = (object?)r.ScannedRom?.RomExtension ?? DBNull.Value;
-                        pCrc.Value = r.ScannedRom is not null ? (object)(long)r.ScannedRom.Crc : DBNull.Value;
+                        pCrc.Value = r.ScannedRom is not null ? (long)r.ScannedRom.Crc : DBNull.Value;
                         pIncorrectlyNamed.Value = r.IsIncorrectlyNamed ? 1 : 0;
                         pWrongArchive.Value = r.IsWrongArchiveType ? 1 : 0;
                         pUntrimmed.Value = r.IsUntrimmed ? 1 : 0;
@@ -262,7 +262,7 @@ namespace RomForge.Core.Services
                 cmd.Parameters.AddWithValue("@FilePath", (object?)result.ScannedRom?.FilePath ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@FileExtension", (object?)result.ScannedRom?.FileExtension ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@RomExtension", (object?)result.ScannedRom?.RomExtension ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@Crc", result.ScannedRom is not null ? (object)(long)result.ScannedRom.Crc : DBNull.Value);
+                cmd.Parameters.AddWithValue("@Crc", result.ScannedRom is not null ? (long)result.ScannedRom.Crc : DBNull.Value);
                 cmd.Parameters.AddWithValue("@IsIncorrectlyNamed", result.IsIncorrectlyNamed ? 1 : 0);
                 cmd.Parameters.AddWithValue("@IsWrongArchiveType", result.IsWrongArchiveType ? 1 : 0);
                 cmd.Parameters.AddWithValue("@IsUntrimmed", result.IsUntrimmed ? 1 : 0);

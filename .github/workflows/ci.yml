@@ -99,3 +99,47 @@ jobs:
           name: coverage-report
           path: artifacts/coverage/
           if-no-files-found: warn
+
+  # ReSharper InspectCode — the same inspection engine behind Rider's live editor hints, run
+  # headless. It reads the committed RomForge.sln.DotSettings (named .sln even though this repo
+  # only has RomForge.slnx — JetBrains normalises to the .sln name) plus the per-project
+  # .csproj.DotSettings, so what Ben sees inline while editing is what CI enforces.
+  # -e=WARNING mirrors TreatWarningsAsErrors: Warning and Error fail the job, while
+  # Suggestion/Hint/Info stay advisory. Findings also land in GitHub code scanning.
+  inspect-code:
+    name: inspectcode (resharper)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # upload-sarif writes to code scanning
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Inspect code
+        uses: JetBrains/ReSharper-InspectCode@96fdc3456bf2908dd877213a2644ccb9e3010785 # v0.14
+        with:
+          solution: RomForge.slnx
+          sEverity: WARNING
+          output: inspectcode.sarif.json
+          upload-sarif: true
+          # Keep in sync with dotnet-tools.json. Drift between the version CI installs and the
+          # one `dotnet jb` runs locally silently changes which inspections fire.
+          tool-version: 2026.2.1
+
+      # InspectCode exits 0 even when it reports findings — the gate has to be explicit.
+      - name: Fail on findings
+        run: |
+          count=$(jq '[.runs[].results[]] | length' inspectcode.sarif.json)
+          echo "InspectCode findings at WARNING or above: $count"
+          if [ "$count" -gt 0 ]; then
+            jq -r '.runs[].results[]
+                   | "\(.locations[0].physicalLocation.artifactLocation.uri):\(.locations[0].physicalLocation.region.startLine)  [\(.ruleId)] \(.message.text)"' \
+              inspectcode.sarif.json
+            exit 1
+          fi

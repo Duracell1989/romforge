@@ -33,7 +33,12 @@ namespace RomForge.UI
                 ConfigureLogging();
                 RegisterGlobalExceptionHandlers();
 
+                // Deferred on purpose: services that need the main window are resolved long
+                // after the container is built, but the window cannot exist until the container
+                // provides its view model. The closure is only ever invoked after the assignment
+                // below, so reading the reassigned value is the point, not a capture bug.
                 MainWindow? mainWindow = null;
+                // ReSharper disable once AccessToModifiedClosure
                 ServiceProvider services = ConfigureServices(() => mainWindow);
 
                 MainWindowVM vm = services.GetRequiredService<MainWindowVM>();
@@ -97,6 +102,10 @@ namespace RomForge.UI
         private static ServiceProvider ConfigureServices(Func<Window?> getWindow)
         {
             ServiceCollection services = new ServiceCollection();
+            // The service type stays explicit: inference would take it from Log.Logger's
+            // declared type, so a change there would silently re-register under a different
+            // service type and break ILogger resolution at runtime instead of at build time.
+            // ReSharper disable once RedundantTypeArgumentsOfMethod
             services.AddSingleton<ILogger>(Log.Logger);
             services.AddLogging(builder => builder.AddSerilog(Log.Logger, dispose: false));
             services.AddSingleton<IFileDialogService>(_ => new AvaloniaFileDialogService(getWindow));

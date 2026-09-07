@@ -10,6 +10,9 @@ namespace RomForge.Core.Parsers
 {
     internal static class DatParser
     {
+        /// <summary>
+        /// Parses an OfflineList DAT XML document from <paramref name="stream"/>.
+        /// </summary>
         /// <exception cref="InvalidDataException">The stream does not contain a valid DAT XML document.</exception>
         public static async Task<DatFile> ParseAsync(Stream stream, CancellationToken cancellationToken = default)
         {

@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using RomForge.Core.Matching;
-using RomForge.Core.Models;
 
 namespace RomForge.Core.Operations
 {

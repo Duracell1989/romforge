@@ -371,9 +371,7 @@ namespace RomForge.Core.IntegrationTests.IO
 
             string source = await CreateSourceFileAsync();
             string dest = Path.Combine(_tempDir, "out.7z");
-            List<int> reported = [];
-
-            Result result = await _sut.CompressAsync(source, dest, "source.bin", 2048, new Progress<int>(p => reported.Add(p)));
+            Result result = await _sut.CompressAsync(source, dest, "source.bin", 2048, new Progress<int>(_ => { }));
 
             result.IsSuccess.Should().BeTrue();
         }

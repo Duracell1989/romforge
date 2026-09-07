@@ -84,7 +84,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public async Task RunAsync_SomeFail_AggregatesErrorsAndReturnsSucceededCount()
         {
-            int succeeded = await _runner.RunAsync(Operation(["ok", "bad", "ok2"], (t, _) => Task.FromResult<string?>(t == "bad" ? "boom" : null)));
+            int succeeded = await _runner.RunAsync(Operation(["ok", "bad", "ok2"], (t, _) => Task.FromResult(t == "bad" ? "boom" : null)));
 
             succeeded.Should().Be(2);
             _notifier.Verify(n => n.NotifyErrorAsync(It.Is<string>(m => m.Contains("1 file(s)") && m.Contains("boom"))), Times.Once);

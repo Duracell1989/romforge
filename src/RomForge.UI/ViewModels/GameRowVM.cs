@@ -80,7 +80,6 @@ namespace RomForge.UI.ViewModels
                 RomStatus.WrongArchive => "Wrong Archive",
                 RomStatus.IncorrectlyNamed => "Incorrectly Named",
                 RomStatus.Good => "Good",
-                RomStatus.Verified => "Verified",
                 _ => "Verified",
             };
 
@@ -92,7 +91,6 @@ namespace RomForge.UI.ViewModels
                 RomStatus.WrongArchive => StatusColors.WrongArchiveType,
                 RomStatus.IncorrectlyNamed => StatusColors.IncorrectlyNamed,
                 RomStatus.Good => StatusColors.Good,
-                RomStatus.Verified => StatusColors.Verified,
                 _ => StatusColors.Verified,
             };
 

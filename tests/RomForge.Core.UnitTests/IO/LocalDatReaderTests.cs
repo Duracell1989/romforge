@@ -63,7 +63,7 @@ namespace RomForge.Core.UnitTests.IO
             string path = WriteXmlFile("test.xml");
             LocalDatReader reader = new(path);
 
-            FluentResults.Result<RomForge.Core.Models.DatFile> result = await reader.ReadAsync();
+            FluentResults.Result<Models.DatFile> result = await reader.ReadAsync();
 
             result.IsSuccess.Should().BeTrue();
             result.Value.Header.DatName.Should().Be("Test DAT");
@@ -76,7 +76,7 @@ namespace RomForge.Core.UnitTests.IO
             string path = WriteZipFile("test.zip", "test.xml");
             LocalDatReader reader = new(path);
 
-            FluentResults.Result<RomForge.Core.Models.DatFile> result = await reader.ReadAsync();
+            FluentResults.Result<Models.DatFile> result = await reader.ReadAsync();
 
             result.IsSuccess.Should().BeTrue();
             result.Value.Header.DatName.Should().Be("Test DAT");
@@ -88,7 +88,7 @@ namespace RomForge.Core.UnitTests.IO
         {
             LocalDatReader reader = new(Path.Combine(_tempDir, "missing.xml"));
 
-            FluentResults.Result<RomForge.Core.Models.DatFile> result = await reader.ReadAsync();
+            FluentResults.Result<Models.DatFile> result = await reader.ReadAsync();
 
             result.IsFailed.Should().BeTrue();
         }

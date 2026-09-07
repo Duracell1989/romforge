@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using FluentResults;
 using RomForge.Core.IO;
 using RomForge.Core.Matching;
-using RomForge.Core.Scanning;
 
 namespace RomForge.Core.Operations
 {

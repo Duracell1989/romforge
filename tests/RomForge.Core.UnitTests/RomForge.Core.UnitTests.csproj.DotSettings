@@ -1,0 +1,13 @@
+<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+
+	<!--
+	Test-only, deliberately not solution-wide so src/ keeps the inspection.
+
+	A test that exercises "the default archive format still yields a target" should state the
+	format it is asserting about, even when it matches the parameter default. Relying on the
+	default would let a change to it silently repoint the test at a different scenario while
+	still passing.
+	-->
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=RedundantArgumentDefaultValue/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+
+</wpf:ResourceDictionary>
