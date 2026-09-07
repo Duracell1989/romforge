@@ -27,9 +27,7 @@ namespace RomForge.UI.Services
             if (window is null)
                 return;
 
-            await MessageBoxManager
-                .GetMessageBoxStandard("Information", message, ButtonEnum.Ok, Icon.Info)
-                .ShowWindowDialogAsync(window);
+            await MessageBoxManager.GetMessageBoxStandard("Information", message, ButtonEnum.Ok, Icon.Info).ShowWindowDialogAsync(window);
         }
 
         public async Task NotifyErrorAsync(string message)
@@ -38,9 +36,7 @@ namespace RomForge.UI.Services
             if (window is null)
                 return;
 
-            await MessageBoxManager
-                .GetMessageBoxStandard("Error", message, ButtonEnum.Ok, Icon.Error)
-                .ShowWindowDialogAsync(window);
+            await MessageBoxManager.GetMessageBoxStandard("Error", message, ButtonEnum.Ok, Icon.Error).ShowWindowDialogAsync(window);
         }
 
         public async Task<bool> ConfirmAsync(string title, string message)
@@ -49,9 +45,7 @@ namespace RomForge.UI.Services
             if (window is null)
                 return false;
 
-            var result = await MessageBoxManager
-                .GetMessageBoxStandard(title, message, ButtonEnum.YesNo, Icon.Info)
-                .ShowWindowDialogAsync(window);
+            var result = await MessageBoxManager.GetMessageBoxStandard(title, message, ButtonEnum.YesNo, Icon.Info).ShowWindowDialogAsync(window);
 
             return result == ButtonResult.Yes;
         }
@@ -136,11 +130,7 @@ namespace RomForge.UI.Services
             }
         }
 
-        public async Task ShowImageDownloadAsync(
-            string title,
-            ImageDownloadWindowVM vm,
-            Task operationTask
-        )
+        public async Task ShowImageDownloadAsync(string title, ImageDownloadWindowVM vm, Task operationTask)
         {
             var parent = _getWindow();
             var window = new ImageDownloadWindow { Title = title, DataContext = vm };
@@ -177,11 +167,7 @@ namespace RomForge.UI.Services
                 window.Show();
         }
 
-        public async Task ShowBatchProgressAsync(
-            string title,
-            BatchProgressWindowVM vm,
-            Task operationTask
-        )
+        public async Task ShowBatchProgressAsync(string title, BatchProgressWindowVM vm, Task operationTask)
         {
             var parent = _getWindow();
             var window = new BatchProgressWindow { Title = title, DataContext = vm };

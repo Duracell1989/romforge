@@ -20,11 +20,7 @@ namespace RomForge.Core.Operations
         private readonly IDatDownloader _downloader;
         private readonly AppDataService _appData;
 
-        public DatUpdateService(
-            IDatUpdateChecker updateChecker,
-            IDatDownloader downloader,
-            AppDataService appData
-        )
+        public DatUpdateService(IDatUpdateChecker updateChecker, IDatDownloader downloader, AppDataService appData)
         {
             ArgumentNullException.ThrowIfNull(updateChecker);
             ArgumentNullException.ThrowIfNull(downloader);
@@ -34,36 +30,21 @@ namespace RomForge.Core.Operations
             _appData = appData;
         }
 
-        public async Task<Result<DatUpdateCheck>> CheckForUpdateAsync(
-            DatHeader header,
-            CancellationToken cancellationToken = default
-        )
+        public async Task<Result<DatUpdateCheck>> CheckForUpdateAsync(DatHeader header, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(header);
 
             if (header.NewDatVersionUrl is null)
                 return Result.Fail("No update URL is configured for this DAT.");
 
-            Result<string> versionResult = await _updateChecker.FetchLatestVersionAsync(
-                header.NewDatVersionUrl,
-                cancellationToken
-            );
+            Result<string> versionResult = await _updateChecker.FetchLatestVersionAsync(header.NewDatVersionUrl, cancellationToken);
             if (versionResult.IsFailed)
                 return Result.Fail(versionResult.Errors[0].Message);
 
             string latest = versionResult.Value;
-            bool isNewer = int.TryParse(
-                latest,
-                NumberStyles.Integer,
-                CultureInfo.InvariantCulture,
-                out int latestVersion
-            )
+            bool isNewer = int.TryParse(latest, NumberStyles.Integer, CultureInfo.InvariantCulture, out int latestVersion)
                 ? latestVersion > header.DatVersion
-                : !string.Equals(
-                    latest,
-                    header.DatVersion.ToString(CultureInfo.InvariantCulture),
-                    StringComparison.Ordinal
-                );
+                : !string.Equals(latest, header.DatVersion.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal);
 
             return Result.Ok(
                 new DatUpdateCheck
@@ -75,11 +56,7 @@ namespace RomForge.Core.Operations
             );
         }
 
-        public async Task<Result> DownloadUpdateAsync(
-            DatHeader header,
-            IProgress<int>? progress,
-            CancellationToken cancellationToken = default
-        )
+        public async Task<Result> DownloadUpdateAsync(DatHeader header, IProgress<int>? progress, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(header);
 

@@ -80,10 +80,7 @@ namespace RomForge.Core.UnitTests.Services
         [Test]
         public async Task SaveAsync_ThenLoadAsync_RoundTripsLastActiveDatName()
         {
-            AppPreferences prefs = new AppPreferences
-            {
-                LastActiveDatName = "GBA - Official OfflineList",
-            };
+            AppPreferences prefs = new AppPreferences { LastActiveDatName = "GBA - Official OfflineList" };
 
             await _svc.SaveAsync(prefs);
             AppPreferences loaded = await _svc.LoadAsync();
@@ -103,9 +100,7 @@ namespace RomForge.Core.UnitTests.Services
         [Test]
         public async Task UpdateLastActiveDatAsync_ClearsName_WhenNull()
         {
-            await _svc.SaveAsync(
-                new AppPreferences { LastActiveDatName = "GBA - Official OfflineList" }
-            );
+            await _svc.SaveAsync(new AppPreferences { LastActiveDatName = "GBA - Official OfflineList" });
 
             await _svc.UpdateLastActiveDatAsync(null);
 
@@ -140,9 +135,7 @@ namespace RomForge.Core.UnitTests.Services
                 }
             );
 
-            IEnumerable<Task> updates = Enumerable
-                .Range(0, 100)
-                .Select(i => _svc.UpdateLastActiveDatAsync($"dat-{i}"));
+            IEnumerable<Task> updates = Enumerable.Range(0, 100).Select(i => _svc.UpdateLastActiveDatAsync($"dat-{i}"));
             await Task.WhenAll(updates);
 
             AppPreferences loaded = await _svc.LoadAsync();

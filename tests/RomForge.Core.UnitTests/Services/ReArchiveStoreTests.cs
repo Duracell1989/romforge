@@ -48,10 +48,7 @@ namespace RomForge.Core.UnitTests.Services
 
         private static async Task<string> ReadJournalModeAsync(string dbPath)
         {
-            string connectionString = new SqliteConnectionStringBuilder
-            {
-                DataSource = dbPath,
-            }.ToString();
+            string connectionString = new SqliteConnectionStringBuilder { DataSource = dbPath }.ToString();
             await using SqliteConnection conn = new SqliteConnection(connectionString);
             await conn.OpenAsync();
             await using SqliteCommand cmd = conn.CreateCommand();

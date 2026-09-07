@@ -56,37 +56,24 @@ namespace RomForge.Core.Operations
             string? tempArchive = null;
             try
             {
-                Result<string> extractResult = await _extractor.ExtractToTempFileAsync(
-                    target.From,
-                    cancellationToken
-                );
+                Result<string> extractResult = await _extractor.ExtractToTempFileAsync(target.From, cancellationToken);
                 if (extractResult.IsFailed)
                 {
-                    return Result.Fail(
-                        $"{Path.GetFileName(target.From)}: {extractResult.Errors[0].Message}"
-                    );
+                    return Result.Fail($"{Path.GetFileName(target.From)}: {extractResult.Errors[0].Message}");
                 }
 
                 tempRom = extractResult.Value;
 
-                Result truncateResult = await _fileOperations.TruncateAsync(
-                    tempRom,
-                    match.Game.RomSize
-                );
+                Result truncateResult = await _fileOperations.TruncateAsync(tempRom, match.Game.RomSize);
                 if (truncateResult.IsFailed)
                 {
-                    return Result.Fail(
-                        $"{Path.GetFileName(target.From)}: {truncateResult.Errors[0].Message}"
-                    );
+                    return Result.Fail($"{Path.GetFileName(target.From)}: {truncateResult.Errors[0].Message}");
                 }
 
                 string archiveDest = _workspace.NewWorkingArchivePath(archiveFormat);
                 tempArchive = archiveDest;
 
-                string entryName = ArchiveWorkspace.BuildEntryName(
-                    target.To,
-                    match.Game.Files.RomExtension
-                );
+                string entryName = ArchiveWorkspace.BuildEntryName(target.To, match.Game.Files.RomExtension);
 
                 // Reserve this job's estimated working set before compressing so concurrent
                 // re-archive/trim operations never together exceed physical memory — the gate is a
@@ -96,9 +83,7 @@ namespace RomForge.Core.Operations
                 // other jobs on I/O that costs no encoder memory at all.
                 long cost = _compressor.EstimateWorkingSetBytes(match.Game.RomSize, archiveFormat);
                 Result compressResult;
-                using (
-                    await _memoryGate.AcquireAsync(cost, cancellationToken).ConfigureAwait(false)
-                )
+                using (await _memoryGate.AcquireAsync(cost, cancellationToken).ConfigureAwait(false))
                 {
                     compressResult = await _compressor.CompressAsync(
                         tempRom,
@@ -113,16 +98,10 @@ namespace RomForge.Core.Operations
 
                 if (compressResult.IsFailed)
                 {
-                    return Result.Fail(
-                        $"{Path.GetFileName(target.From)}: {compressResult.Errors[0].Message}"
-                    );
+                    return Result.Fail($"{Path.GetFileName(target.From)}: {compressResult.Errors[0].Message}");
                 }
 
-                (string? placeError, bool consumed) = await _workspace.PlaceWorkingArchiveAsync(
-                    archiveDest,
-                    target.From,
-                    target.To
-                );
+                (string? placeError, bool consumed) = await _workspace.PlaceWorkingArchiveAsync(archiveDest, target.From, target.To);
                 if (consumed)
                     tempArchive = null;
                 if (placeError is not null)

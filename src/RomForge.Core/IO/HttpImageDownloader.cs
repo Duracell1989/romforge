@@ -20,19 +20,11 @@ namespace RomForge.Core.IO
             _logger = logger.ForContext<HttpImageDownloader>();
         }
 
-        public async Task<Result> DownloadImageAsync(
-            string imageUrl,
-            string destPath,
-            CancellationToken ct = default
-        )
+        public async Task<Result> DownloadImageAsync(string imageUrl, string destPath, CancellationToken ct = default)
         {
             try
             {
-                using HttpResponseMessage response = await _http.GetAsync(
-                    new Uri(imageUrl),
-                    HttpCompletionOption.ResponseHeadersRead,
-                    ct
-                );
+                using HttpResponseMessage response = await _http.GetAsync(new Uri(imageUrl), HttpCompletionOption.ResponseHeadersRead, ct);
                 response.EnsureSuccessStatusCode();
 
                 Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
@@ -46,8 +38,7 @@ namespace RomForge.Core.IO
                 TryDelete(destPath);
                 throw;
             }
-            catch (Exception ex)
-                when (ex is HttpRequestException or IOException or UnauthorizedAccessException)
+            catch (Exception ex) when (ex is HttpRequestException or IOException or UnauthorizedAccessException)
             {
                 TryDelete(destPath);
                 _logger.Debug(ex, "Failed to download image {Url}", imageUrl);

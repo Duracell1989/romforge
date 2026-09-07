@@ -67,15 +67,10 @@ namespace RomForge.Core.Operations
             string? tempArchive = null;
             try
             {
-                Result<string> extractResult = await _extractor.ExtractToTempFileAsync(
-                    target.From,
-                    cancellationToken
-                );
+                Result<string> extractResult = await _extractor.ExtractToTempFileAsync(target.From, cancellationToken);
                 if (extractResult.IsFailed)
                 {
-                    return Result.Fail(
-                        $"{Path.GetFileName(target.From)}: {extractResult.Errors[0].Message}"
-                    );
+                    return Result.Fail($"{Path.GetFileName(target.From)}: {extractResult.Errors[0].Message}");
                 }
 
                 tempFile = extractResult.Value;
@@ -86,10 +81,7 @@ namespace RomForge.Core.Operations
                 string compressTarget = _workspace.NewWorkingArchivePath(archiveFormat);
                 tempArchive = compressTarget;
 
-                string entryName = ArchiveWorkspace.BuildEntryName(
-                    target.To,
-                    match.Game.Files.RomExtension
-                );
+                string entryName = ArchiveWorkspace.BuildEntryName(target.To, match.Game.Files.RomExtension);
 
                 // Reserve this job's estimated working set before compressing so concurrent
                 // re-archive/trim operations never together exceed physical memory — the gate is a
@@ -99,9 +91,7 @@ namespace RomForge.Core.Operations
                 // writes below would block other jobs on I/O that costs no encoder memory at all.
                 long cost = _compressor.EstimateWorkingSetBytes(match.Game.RomSize, archiveFormat);
                 Result compressResult;
-                using (
-                    await _memoryGate.AcquireAsync(cost, cancellationToken).ConfigureAwait(false)
-                )
+                using (await _memoryGate.AcquireAsync(cost, cancellationToken).ConfigureAwait(false))
                 {
                     compressResult = await _compressor.CompressAsync(
                         tempFile,
@@ -116,16 +106,10 @@ namespace RomForge.Core.Operations
 
                 if (compressResult.IsFailed)
                 {
-                    return Result.Fail(
-                        $"{Path.GetFileName(target.From)}: {compressResult.Errors[0].Message}"
-                    );
+                    return Result.Fail($"{Path.GetFileName(target.From)}: {compressResult.Errors[0].Message}");
                 }
 
-                (string? placeError, bool consumed) = await _workspace.PlaceWorkingArchiveAsync(
-                    compressTarget,
-                    target.From,
-                    target.To
-                );
+                (string? placeError, bool consumed) = await _workspace.PlaceWorkingArchiveAsync(compressTarget, target.From, target.To);
                 // Only clear tempArchive once PlaceWorkingArchiveAsync has actually taken ownership
                 // of it (moved to the destination or the recovery folder). If it's still untouched,
                 // leave it set so the finally block cleans it up immediately.
@@ -134,32 +118,23 @@ namespace RomForge.Core.Operations
                 if (placeError is not null)
                     return Result.Fail($"{Path.GetFileName(target.From)}: {placeError}");
 
-                Result<(uint Crc, uint? TrimmedCrc)> verifyResult = await VerifyPlacedArchiveAsync(
-                        target.To,
-                        cancellationToken
-                    )
-                    .ConfigureAwait(false);
+                Result<(uint Crc, uint? TrimmedCrc)> verifyResult = await VerifyPlacedArchiveAsync(target.To, cancellationToken).ConfigureAwait(false);
                 if (verifyResult.IsFailed)
                 {
-                    return Result.Fail(
-                        $"{Path.GetFileName(target.To)}: re-archived but verification failed: {verifyResult.Errors[0].Message}"
-                    );
+                    return Result.Fail($"{Path.GetFileName(target.To)}: re-archived but verification failed: {verifyResult.Errors[0].Message}");
                 }
 
                 (uint crc, uint? trimmedCrc) = verifyResult.Value;
                 if (crc != match.Game.Files.RomCrc)
                 {
                     return Result.Fail(
-                        $"{Path.GetFileName(target.To)}: re-archived file failed CRC verification "
-                            + $"(expected {match.Game.Files.RomCrc:X8}, got {crc:X8})"
+                        $"{Path.GetFileName(target.To)}: re-archived file failed CRC verification " + $"(expected {match.Game.Files.RomCrc:X8}, got {crc:X8})"
                     );
                 }
 
                 if (scanCache is not null)
                 {
-                    (long size, DateTime lastModified) = await _fileOperations
-                        .GetFileInfoAsync(target.To)
-                        .ConfigureAwait(false);
+                    (long size, DateTime lastModified) = await _fileOperations.GetFileInfoAsync(target.To).ConfigureAwait(false);
                     scanCache.Set(target.To, size, lastModified, crc, trimmedCrc);
                 }
 
@@ -169,11 +144,7 @@ namespace RomForge.Core.Operations
                 {
                     Game = match.Game,
                     Status = MatchStatus.Verified,
-                    ScannedRom = match.ScannedRom! with
-                    {
-                        FilePath = target.To,
-                        FileExtension = archiveFormat,
-                    },
+                    ScannedRom = match.ScannedRom! with { FilePath = target.To, FileExtension = archiveFormat },
                     IsIncorrectlyNamed = false,
                     // Re-archiving repacks the archive with the correct entry name.
                     IsEntryMisnamed = false,
@@ -201,26 +172,17 @@ namespace RomForge.Core.Operations
         // so a corrupted write (compressor bug, bad disk) is caught immediately rather than
         // discovered on the next scan. Hashing the pre-compression temp file instead would only
         // prove what should have been written, not what actually landed on disk.
-        private async Task<Result<(uint Crc, uint? TrimmedCrc)>> VerifyPlacedArchiveAsync(
-            string archivePath,
-            CancellationToken cancellationToken
-        )
+        private async Task<Result<(uint Crc, uint? TrimmedCrc)>> VerifyPlacedArchiveAsync(string archivePath, CancellationToken cancellationToken)
         {
-            Result<string> extractResult = await _extractor
-                .ExtractToTempFileAsync(archivePath, cancellationToken)
-                .ConfigureAwait(false);
+            Result<string> extractResult = await _extractor.ExtractToTempFileAsync(archivePath, cancellationToken).ConfigureAwait(false);
             if (extractResult.IsFailed)
                 return Result.Fail(extractResult.Errors[0].Message);
 
             string verifyTempFile = extractResult.Value;
             try
             {
-                Stream stream = await _fileOperations
-                    .OpenReadAsync(verifyTempFile)
-                    .ConfigureAwait(false);
-                (uint crc, uint? trimmedCrc) = await RomScanner
-                    .ComputeCrcAsync(stream, stream.Length, cancellationToken)
-                    .ConfigureAwait(false);
+                Stream stream = await _fileOperations.OpenReadAsync(verifyTempFile).ConfigureAwait(false);
+                (uint crc, uint? trimmedCrc) = await RomScanner.ComputeCrcAsync(stream, stream.Length, cancellationToken).ConfigureAwait(false);
                 return Result.Ok((crc, trimmedCrc));
             }
             finally

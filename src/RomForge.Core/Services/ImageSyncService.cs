@@ -24,11 +24,7 @@ namespace RomForge.Core.Services
         private readonly IRomFileOperations _fileOps;
         private readonly ILogger _logger;
 
-        public ImageSyncService(
-            IImageDownloader downloader,
-            IRomFileOperations fileOps,
-            ILogger logger
-        )
+        public ImageSyncService(IImageDownloader downloader, IRomFileOperations fileOps, ILogger logger)
         {
             ArgumentNullException.ThrowIfNull(logger);
             _downloader = downloader;
@@ -54,10 +50,7 @@ namespace RomForge.Core.Services
             if (string.IsNullOrEmpty(imUrlBase))
                 return Result.Ok(new ImageSyncSummary(0, 0, 0));
 
-            List<(string RelativeUrl, string DestPath)> missing = CollectMissing(
-                datFile,
-                imgsBasePath
-            );
+            List<(string RelativeUrl, string DestPath)> missing = CollectMissing(datFile, imgsBasePath);
             int total = missing.Count;
 
             int downloaded = 0;
@@ -67,11 +60,7 @@ namespace RomForge.Core.Services
                 ct.ThrowIfCancellationRequested();
                 (string relativeUrl, string destPath) = missing[i];
 
-                Result result = await _downloader.DownloadImageAsync(
-                    CombineUrl(imUrlBase, relativeUrl),
-                    destPath,
-                    ct
-                );
+                Result result = await _downloader.DownloadImageAsync(CombineUrl(imUrlBase, relativeUrl), destPath, ct);
 
                 bool ok = result.IsSuccess;
                 if (ok)
@@ -82,46 +71,28 @@ namespace RomForge.Core.Services
                 progress?.Report(new ImageSyncProgress(i + 1, total, relativeUrl, ok));
             }
 
-            _logger.Information(
-                "Image sync complete: {Downloaded} downloaded, {Failed} failed of {Total} missing",
-                downloaded,
-                failed,
-                total
-            );
+            _logger.Information("Image sync complete: {Downloaded} downloaded, {Failed} failed of {Total} missing", downloaded, failed, total);
             return Result.Ok(new ImageSyncSummary(downloaded, failed, total));
         }
 
-        private List<(string RelativeUrl, string DestPath)> CollectMissing(
-            DatFile datFile,
-            string imgsBasePath
-        )
+        private List<(string RelativeUrl, string DestPath)> CollectMissing(DatFile datFile, string imgsBasePath)
         {
             List<(string, string)> missing = [];
             HashSet<string> seen = new HashSet<string>(StringComparer.Ordinal);
-            foreach (
-                int imageNumber in datFile
-                    .Games.Where(g => g.ImageNumber > 0)
-                    .Select(g => g.ImageNumber)
-            )
+            foreach (int imageNumber in datFile.Games.Where(g => g.ImageNumber > 0).Select(g => g.ImageNumber))
             {
                 foreach (string slot in Slots)
                 {
-                    string destPath = Path.Combine(
-                        imgsBasePath,
-                        ImagePathResolver.BuildRelativeLocalPath(datFile.Header, imageNumber, slot)
-                    );
+                    string destPath = Path.Combine(imgsBasePath, ImagePathResolver.BuildRelativeLocalPath(datFile.Header, imageNumber, slot));
                     if (!seen.Add(destPath) || _fileOps.FileExists(destPath))
                         continue;
 
-                    missing.Add(
-                        (ImagePathResolver.BuildRelativeUrlPath(imageNumber, slot), destPath)
-                    );
+                    missing.Add((ImagePathResolver.BuildRelativeUrlPath(imageNumber, slot), destPath));
                 }
             }
             return missing;
         }
 
-        private static string CombineUrl(string baseUrl, string relative) =>
-            $"{baseUrl.TrimEnd('/')}/{relative}";
+        private static string CombineUrl(string baseUrl, string relative) => $"{baseUrl.TrimEnd('/')}/{relative}";
     }
 }

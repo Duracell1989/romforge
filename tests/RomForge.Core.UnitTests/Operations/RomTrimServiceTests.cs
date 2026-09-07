@@ -36,22 +36,12 @@ namespace RomForge.Core.UnitTests.Operations
             _extractor = new Mock<IArchiveExtractor>();
             _compressor = new Mock<IArchiveCompressor>();
             _fileOps = new Mock<IRomFileOperations>();
-            _fileOps
-                .Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(Result.Ok());
+            _fileOps.Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(Result.Ok());
             _fileOps.Setup(f => f.DeleteAsync(It.IsAny<string>())).ReturnsAsync(Result.Ok());
-            _fileOps
-                .Setup(f => f.TruncateAsync(It.IsAny<string>(), It.IsAny<long>()))
-                .ReturnsAsync(Result.Ok());
+            _fileOps.Setup(f => f.TruncateAsync(It.IsAny<string>(), It.IsAny<long>())).ReturnsAsync(Result.Ok());
 
             ArchiveWorkspace workspace = new ArchiveWorkspace(appData, _fileOps.Object, logger);
-            _service = new RomTrimService(
-                _extractor.Object,
-                _compressor.Object,
-                _fileOps.Object,
-                workspace,
-                new WorkingSetBudgetGate(1_000_000_000_000L)
-            );
+            _service = new RomTrimService(_extractor.Object, _compressor.Object, _fileOps.Object, workspace, new WorkingSetBudgetGate(1_000_000_000_000L));
         }
 
         private static MatchResult Untrimmed(string filePath = "/roms/Old.7z") =>
@@ -76,11 +66,7 @@ namespace RomForge.Core.UnitTests.Operations
             };
 
         private void SetupExtract(Result<string> result) =>
-            _extractor
-                .Setup(e =>
-                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
-                .ReturnsAsync(result);
+            _extractor.Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(result);
 
         private void SetupCompress(Result result) =>
             _compressor
@@ -102,36 +88,21 @@ namespace RomForge.Core.UnitTests.Operations
         {
             SetupExtract(Result.Fail("extract failed"));
 
-            Result<MatchResult> result = await _service.TrimAsync(
-                Untrimmed(),
-                ("/roms/Old.7z", "/roms/0001 - Test Game.7z"),
-                "7z",
-                CancellationToken.None
-            );
+            Result<MatchResult> result = await _service.TrimAsync(Untrimmed(), ("/roms/Old.7z", "/roms/0001 - Test Game.7z"), "7z", CancellationToken.None);
 
             result.IsFailed.Should().BeTrue();
             result.Errors[0].Message.Should().StartWith("Old.7z:");
             result.Errors[0].Message.Should().Contain("extract failed");
-            _fileOps.Verify(
-                f => f.TruncateAsync(It.IsAny<string>(), It.IsAny<long>()),
-                Times.Never
-            );
+            _fileOps.Verify(f => f.TruncateAsync(It.IsAny<string>(), It.IsAny<long>()), Times.Never);
         }
 
         [Test]
         public async Task TrimAsync_TruncateFails_ReturnsFailureAndDoesNotCompress()
         {
             SetupExtract(Result.Ok("/tmp/extracted.rom"));
-            _fileOps
-                .Setup(f => f.TruncateAsync(It.IsAny<string>(), It.IsAny<long>()))
-                .ReturnsAsync(Result.Fail("truncate failed"));
+            _fileOps.Setup(f => f.TruncateAsync(It.IsAny<string>(), It.IsAny<long>())).ReturnsAsync(Result.Fail("truncate failed"));
 
-            Result<MatchResult> result = await _service.TrimAsync(
-                Untrimmed(),
-                ("/roms/Old.7z", "/roms/0001 - Test Game.7z"),
-                "7z",
-                CancellationToken.None
-            );
+            Result<MatchResult> result = await _service.TrimAsync(Untrimmed(), ("/roms/Old.7z", "/roms/0001 - Test Game.7z"), "7z", CancellationToken.None);
 
             result.IsFailed.Should().BeTrue();
             result.Errors[0].Message.Should().Contain("truncate failed");
@@ -143,12 +114,7 @@ namespace RomForge.Core.UnitTests.Operations
             SetupExtract(Result.Ok("/tmp/extracted.rom"));
             SetupCompress(Result.Fail("compress failed"));
 
-            Result<MatchResult> result = await _service.TrimAsync(
-                Untrimmed(),
-                ("/roms/Old.7z", "/roms/0001 - Test Game.7z"),
-                "7z",
-                CancellationToken.None
-            );
+            Result<MatchResult> result = await _service.TrimAsync(Untrimmed(), ("/roms/Old.7z", "/roms/0001 - Test Game.7z"), "7z", CancellationToken.None);
 
             result.IsFailed.Should().BeTrue();
             result.Errors[0].Message.Should().Contain("compress failed");
@@ -160,12 +126,7 @@ namespace RomForge.Core.UnitTests.Operations
             SetupExtract(Result.Ok("/tmp/extracted.rom"));
             SetupCompress(Result.Ok());
 
-            Result<MatchResult> result = await _service.TrimAsync(
-                Untrimmed(),
-                ("/roms/Old.7z", "/roms/0001 - Test Game.7z"),
-                "7z",
-                CancellationToken.None
-            );
+            Result<MatchResult> result = await _service.TrimAsync(Untrimmed(), ("/roms/Old.7z", "/roms/0001 - Test Game.7z"), "7z", CancellationToken.None);
 
             result.IsSuccess.Should().BeTrue();
             result.Value.IsUntrimmed.Should().BeFalse();

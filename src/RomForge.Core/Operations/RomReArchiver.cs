@@ -7,19 +7,11 @@ namespace RomForge.Core.Operations
 {
     public static class RomReArchiver
     {
-        public static (string From, string To)? GetReArchiveTarget(
-            MatchResult result,
-            string namingMask,
-            string targetExtension = "7z"
-        )
+        public static (string From, string To)? GetReArchiveTarget(MatchResult result, string namingMask, string targetExtension = "7z")
         {
             ArgumentNullException.ThrowIfNull(result);
 
-            if (
-                result.Status == MatchStatus.Missing
-                || result.IsUntrimmed
-                || result.ScannedRom is null
-            )
+            if (result.Status == MatchStatus.Missing || result.IsUntrimmed || result.ScannedRom is null)
             {
                 return null;
             }

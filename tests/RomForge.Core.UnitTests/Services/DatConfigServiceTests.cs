@@ -52,14 +52,7 @@ namespace RomForge.Core.UnitTests.Services
         [Test]
         public async Task SaveAsync_ThenLoadAsync_RoundTripsLanguageBits()
         {
-            DatConfig config = new DatConfig
-            {
-                LanguageBits =
-                [
-                    new LanguageBit(BitIndex: 1, Label: "En"),
-                    new LanguageBit(BitIndex: 8, Label: "JP"),
-                ],
-            };
+            DatConfig config = new DatConfig { LanguageBits = [new LanguageBit(BitIndex: 1, Label: "En"), new LanguageBit(BitIndex: 8, Label: "JP")] };
 
             await _svc.SaveAsync("TestDat", config);
             DatConfig? loaded = await _svc.LoadAsync("TestDat");

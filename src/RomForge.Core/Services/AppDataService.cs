@@ -29,12 +29,7 @@ namespace RomForge.Core.Services
         public string StatusDbPath { get; }
 
         public AppDataService()
-            : this(
-                Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "RomForge"
-                )
-            ) { }
+            : this(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RomForge")) { }
 
         internal AppDataService(string rootPath)
         {
@@ -69,11 +64,7 @@ namespace RomForge.Core.Services
         }
 
         public IReadOnlyList<string> GetImportedDatPaths() =>
-            Directory
-                .GetFiles(DatsPath, "*.zip")
-                .Concat(Directory.GetFiles(DatsPath, "*.xml"))
-                .Order()
-                .ToList<string>();
+            Directory.GetFiles(DatsPath, "*.zip").Concat(Directory.GetFiles(DatsPath, "*.xml")).Order().ToList<string>();
 
         private void CleanTemp()
         {

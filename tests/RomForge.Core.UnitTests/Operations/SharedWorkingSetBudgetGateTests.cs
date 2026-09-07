@@ -56,31 +56,19 @@ namespace RomForge.Core.UnitTests.Operations
             ILogger logger = new LoggerConfiguration().CreateLogger();
 
             Mock<IArchiveExtractor> extractor = new Mock<IArchiveExtractor>();
-            extractor
-                .Setup(e =>
-                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
-                .ReturnsAsync(Result.Ok("/tmp/extracted.rom"));
+            extractor.Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(Result.Ok("/tmp/extracted.rom"));
 
             Mock<IRomFileOperations> fileOps = new Mock<IRomFileOperations>();
-            fileOps
-                .Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(Result.Ok());
+            fileOps.Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(Result.Ok());
             fileOps.Setup(f => f.DeleteAsync(It.IsAny<string>())).ReturnsAsync(Result.Ok());
-            fileOps
-                .Setup(f => f.TruncateAsync(It.IsAny<string>(), It.IsAny<long>()))
-                .ReturnsAsync(Result.Ok());
-            fileOps
-                .Setup(f => f.OpenReadAsync(It.IsAny<string>()))
-                .ReturnsAsync(() => new MemoryStream(RomBytes));
+            fileOps.Setup(f => f.TruncateAsync(It.IsAny<string>(), It.IsAny<long>())).ReturnsAsync(Result.Ok());
+            fileOps.Setup(f => f.OpenReadAsync(It.IsAny<string>())).ReturnsAsync(() => new MemoryStream(RomBytes));
 
             // Each job costs 10; a budget of 15 admits only one at a time.
             TaskCompletionSource<Result> reArchiveCompressGate = new TaskCompletionSource<Result>();
             TaskCompletionSource<Result> trimCompressGate = new TaskCompletionSource<Result>();
             Mock<IArchiveCompressor> compressor = new Mock<IArchiveCompressor>();
-            compressor
-                .Setup(c => c.EstimateWorkingSetBytes(It.IsAny<long>(), It.IsAny<string>()))
-                .Returns(10);
+            compressor.Setup(c => c.EstimateWorkingSetBytes(It.IsAny<long>(), It.IsAny<string>())).Returns(10);
             compressor
                 .SetupSequence(c =>
                     c.CompressAsync(
@@ -107,13 +95,7 @@ namespace RomForge.Core.UnitTests.Operations
                 new ScanResultStore(appData, logger),
                 sharedGate
             );
-            RomTrimService trimService = new RomTrimService(
-                extractor.Object,
-                compressor.Object,
-                fileOps.Object,
-                workspace,
-                sharedGate
-            );
+            RomTrimService trimService = new RomTrimService(extractor.Object, compressor.Object, fileOps.Object, workspace, sharedGate);
 
             Task<Result<MatchResult>> reArchiveTask = reArchiveService.ReArchiveAsync(
                 Match("/roms/Old.zip"),
@@ -140,9 +122,7 @@ namespace RomForge.Core.UnitTests.Operations
             await reArchiveTask;
 
             await Task.WhenAny(trimTask, Task.Delay(200));
-            trimTask
-                .IsCompleted.Should()
-                .BeFalse("still waiting on its own CompressAsync to return");
+            trimTask.IsCompleted.Should().BeFalse("still waiting on its own CompressAsync to return");
 
             trimCompressGate.SetResult(Result.Ok());
             Result<MatchResult> trimResult = await trimTask;

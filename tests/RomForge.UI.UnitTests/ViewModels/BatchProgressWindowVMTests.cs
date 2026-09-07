@@ -11,11 +11,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void Slots_Count_MatchesSlotCountArgument()
         {
-            BatchProgressWindowVM vm = new BatchProgressWindowVM(
-                total: 10,
-                slotCount: 3,
-                isCancellable: false
-            );
+            BatchProgressWindowVM vm = new BatchProgressWindowVM(total: 10, slotCount: 3, isCancellable: false);
 
             vm.Slots.Should().HaveCount(3);
         }
@@ -23,11 +19,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void CountText_ReflectsCompletedAndTotal()
         {
-            BatchProgressWindowVM vm = new BatchProgressWindowVM(
-                total: 10,
-                slotCount: 2,
-                isCancellable: false
-            );
+            BatchProgressWindowVM vm = new BatchProgressWindowVM(total: 10, slotCount: 2, isCancellable: false);
 
             vm.Completed = 4;
 
@@ -37,11 +29,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void CountText_RaisesPropertyChanged_WhenCompletedChanges()
         {
-            BatchProgressWindowVM vm = new BatchProgressWindowVM(
-                total: 10,
-                slotCount: 2,
-                isCancellable: false
-            );
+            BatchProgressWindowVM vm = new BatchProgressWindowVM(total: 10, slotCount: 2, isCancellable: false);
             List<string?> raised = [];
             vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
 
@@ -53,11 +41,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void CancellationToken_IsNone_WhenNotCancellable()
         {
-            BatchProgressWindowVM vm = new BatchProgressWindowVM(
-                total: 5,
-                slotCount: 2,
-                isCancellable: false
-            );
+            BatchProgressWindowVM vm = new BatchProgressWindowVM(total: 5, slotCount: 2, isCancellable: false);
 
             vm.CancellationToken.Should().Be(System.Threading.CancellationToken.None);
         }
@@ -65,11 +49,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void CancellationToken_IsCancelled_AfterCancelCommand()
         {
-            BatchProgressWindowVM vm = new BatchProgressWindowVM(
-                total: 5,
-                slotCount: 2,
-                isCancellable: true
-            );
+            BatchProgressWindowVM vm = new BatchProgressWindowVM(total: 5, slotCount: 2, isCancellable: true);
 
             vm.CancelCommand.Execute(null);
 

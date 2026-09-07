@@ -33,12 +33,10 @@ namespace RomForge.Core.IntegrationTests.IO
         }
 
         [Test]
-        public void DirectoryExists_WhenDirectoryPresent_ReturnsTrue() =>
-            _sut.DirectoryExists(_tempDir).Should().BeTrue();
+        public void DirectoryExists_WhenDirectoryPresent_ReturnsTrue() => _sut.DirectoryExists(_tempDir).Should().BeTrue();
 
         [Test]
-        public void DirectoryExists_WhenDirectoryMissing_ReturnsFalse() =>
-            _sut.DirectoryExists(Path.Combine(_tempDir, "no-such-folder")).Should().BeFalse();
+        public void DirectoryExists_WhenDirectoryMissing_ReturnsFalse() => _sut.DirectoryExists(Path.Combine(_tempDir, "no-such-folder")).Should().BeFalse();
 
         [Test]
         public async Task RenameAsync_ExistingFile_MovesFileToNewPath()

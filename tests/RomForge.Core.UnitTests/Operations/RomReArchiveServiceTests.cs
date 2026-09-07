@@ -38,9 +38,7 @@ namespace RomForge.Core.UnitTests.Operations
             _extractor = new Mock<IArchiveExtractor>();
             _compressor = new Mock<IArchiveCompressor>();
             _fileOps = new Mock<IRomFileOperations>();
-            _fileOps
-                .Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>()))
-                .ReturnsAsync(Result.Ok());
+            _fileOps.Setup(f => f.RenameAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(Result.Ok());
             _fileOps.Setup(f => f.DeleteAsync(It.IsAny<string>())).ReturnsAsync(Result.Ok());
 
             ArchiveWorkspace workspace = new ArchiveWorkspace(appData, _fileOps.Object, logger);
@@ -81,11 +79,7 @@ namespace RomForge.Core.UnitTests.Operations
             };
 
         private void SetupExtract(Result<string> result) =>
-            _extractor
-                .Setup(e =>
-                    e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
-                .ReturnsAsync(result);
+            _extractor.Setup(e => e.ExtractToTempFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(result);
 
         private void SetupCompress(Result result) =>
             _compressor
@@ -158,9 +152,7 @@ namespace RomForge.Core.UnitTests.Operations
             await _scanStore.InitializeAsync();
             SetupExtract(Result.Ok("/tmp/extracted.rom"));
             SetupCompress(Result.Ok());
-            _fileOps
-                .Setup(f => f.OpenReadAsync(It.IsAny<string>()))
-                .ReturnsAsync(() => new MemoryStream(ValidRomBytes));
+            _fileOps.Setup(f => f.OpenReadAsync(It.IsAny<string>())).ReturnsAsync(() => new MemoryStream(ValidRomBytes));
 
             Result<MatchResult> result = await _service.ReArchiveAsync(
                 Match("/roms/Old.zip"),
@@ -188,9 +180,7 @@ namespace RomForge.Core.UnitTests.Operations
             SetupCompress(Result.Ok());
             // Bytes deliberately different from ValidRomBytes, so the placed archive's CRC
             // never matches the DAT's expected CRC — simulating a corrupted write.
-            _fileOps
-                .Setup(f => f.OpenReadAsync(It.IsAny<string>()))
-                .ReturnsAsync(() => new MemoryStream([0xDE, 0xAD, 0xBE, 0xEF]));
+            _fileOps.Setup(f => f.OpenReadAsync(It.IsAny<string>())).ReturnsAsync(() => new MemoryStream([0xDE, 0xAD, 0xBE, 0xEF]));
 
             Result<MatchResult> result = await _service.ReArchiveAsync(
                 Match("/roms/Old.zip"),
@@ -211,13 +201,9 @@ namespace RomForge.Core.UnitTests.Operations
             await _scanStore.InitializeAsync();
             SetupExtract(Result.Ok("/tmp/extracted.rom"));
             SetupCompress(Result.Ok());
-            _fileOps
-                .Setup(f => f.OpenReadAsync(It.IsAny<string>()))
-                .ReturnsAsync(() => new MemoryStream(ValidRomBytes));
+            _fileOps.Setup(f => f.OpenReadAsync(It.IsAny<string>())).ReturnsAsync(() => new MemoryStream(ValidRomBytes));
             DateTime lastModified = new DateTime(2026, 8, 14, 0, 0, 0, DateTimeKind.Utc);
-            _fileOps
-                .Setup(f => f.GetFileInfoAsync("/roms/0001 - Test Game.7z"))
-                .ReturnsAsync((4096L, lastModified));
+            _fileOps.Setup(f => f.GetFileInfoAsync("/roms/0001 - Test Game.7z")).ReturnsAsync((4096L, lastModified));
             Mock<IRomScanCache> scanCache = new Mock<IRomScanCache>();
 
             Result<MatchResult> result = await _service.ReArchiveAsync(
@@ -230,10 +216,7 @@ namespace RomForge.Core.UnitTests.Operations
             );
 
             result.IsSuccess.Should().BeTrue();
-            scanCache.Verify(
-                c => c.Set("/roms/0001 - Test Game.7z", 4096L, lastModified, ValidRomCrc, null),
-                Times.Once
-            );
+            scanCache.Verify(c => c.Set("/roms/0001 - Test Game.7z", 4096L, lastModified, ValidRomCrc, null), Times.Once);
         }
     }
 }

@@ -23,9 +23,7 @@ namespace RomForge.Core.Scanning
         {
             ArgumentNullException.ThrowIfNull(source);
 
-            int estimatedTotal = await source
-                .CountAsync(folderPath, cancellationToken)
-                .ConfigureAwait(false);
+            int estimatedTotal = await source.CountAsync(folderPath, cancellationToken).ConfigureAwait(false);
             int found = 0;
 
             List<RomContent> contents = [];
@@ -33,14 +31,7 @@ namespace RomForge.Core.Scanning
             {
                 contents.Add(c);
                 found++;
-                progress?.Report(
-                    new ScanProgress(
-                        found,
-                        estimatedTotal,
-                        Path.GetFileName(c.FilePath),
-                        "Enumerating files..."
-                    )
-                );
+                progress?.Report(new ScanProgress(found, estimatedTotal, Path.GetFileName(c.FilePath), "Enumerating files..."));
             }
 
             if (contents.Count == 0)
@@ -69,11 +60,7 @@ namespace RomForge.Core.Scanning
                         RomExtension = c.RomExtension,
                         EntryName = c.EntryName,
                         Crc = cachedCrc,
-                        TrimmedCrc = cache.GetTrimmedCrc(
-                            c.FilePath,
-                            fileSize.Value,
-                            lastModified.Value
-                        ),
+                        TrimmedCrc = cache.GetTrimmedCrc(c.FilePath, fileSize.Value, lastModified.Value),
                         LastModified = lastModified,
                     };
                 }
@@ -88,47 +75,26 @@ namespace RomForge.Core.Scanning
 
             await Parallel.ForEachAsync(
                 needsCrc,
-                new ParallelOptions
-                {
-                    MaxDegreeOfParallelism = Math.Min(Environment.ProcessorCount, 8),
-                    CancellationToken = cancellationToken,
-                },
+                new ParallelOptions { MaxDegreeOfParallelism = Math.Min(Environment.ProcessorCount, 8), CancellationToken = cancellationToken },
                 async (item, ct) =>
                 {
-                    results[item.Index] = await ComputeAndCacheAsync(item.Content, cache, ct)
-                        .ConfigureAwait(false);
+                    results[item.Index] = await ComputeAndCacheAsync(item.Content, cache, ct).ConfigureAwait(false);
                     int c = Interlocked.Increment(ref completed);
-                    progress?.Report(
-                        new ScanProgress(
-                            c,
-                            crcTotal,
-                            Path.GetFileName(item.Content.FilePath),
-                            "Computing CRCs..."
-                        )
-                    );
+                    progress?.Report(new ScanProgress(c, crcTotal, Path.GetFileName(item.Content.FilePath), "Computing CRCs..."));
                 }
             );
 
             return Array.ConvertAll(results, r => r!);
         }
 
-        private static async Task<ScannedRom> ComputeAndCacheAsync(
-            RomContent content,
-            IRomScanCache? cache,
-            CancellationToken cancellationToken
-        )
+        private static async Task<ScannedRom> ComputeAndCacheAsync(RomContent content, IRomScanCache? cache, CancellationToken cancellationToken)
         {
             long? fileSize = content.FileSize;
             DateTime? lastModified = content.LastModified;
 
             Stream stream = await content.OpenStreamAsync(cancellationToken).ConfigureAwait(false);
 
-            (uint crc, uint? trimmedCrc) = await ComputeCrcAsync(
-                    stream,
-                    fileSize,
-                    cancellationToken
-                )
-                .ConfigureAwait(false);
+            (uint crc, uint? trimmedCrc) = await ComputeCrcAsync(stream, fileSize, cancellationToken).ConfigureAwait(false);
 
             if (cache is not null && fileSize.HasValue && lastModified.HasValue)
                 cache.Set(content.FilePath, fileSize.Value, lastModified.Value, crc, trimmedCrc);
@@ -151,22 +117,16 @@ namespace RomForge.Core.Scanning
         /// threshold and streaming above it. Shared by the scan path and by post-write re-archive
         /// verification, which both need the same size-dependent buffered/streamed choice.
         /// </summary>
-        internal static async Task<(uint Crc, uint? TrimmedCrc)> ComputeCrcAsync(
-            Stream stream,
-            long? fileSize,
-            CancellationToken cancellationToken
-        )
+        internal static async Task<(uint Crc, uint? TrimmedCrc)> ComputeCrcAsync(Stream stream, long? fileSize, CancellationToken cancellationToken)
         {
             // A null fileSize compares false here, so a stream of unknown length is streamed rather
             // than buffered.
             if (fileSize <= TrimDetectionThresholdBytes)
             {
-                return await ComputeCrcsBufferedAsync(stream, cancellationToken)
-                    .ConfigureAwait(false);
+                return await ComputeCrcsBufferedAsync(stream, cancellationToken).ConfigureAwait(false);
             }
 
-            uint crc = await ComputeCrc32StreamedAsync(stream, cancellationToken)
-                .ConfigureAwait(false);
+            uint crc = await ComputeCrc32StreamedAsync(stream, cancellationToken).ConfigureAwait(false);
             return (crc, null);
         }
 
@@ -188,10 +148,7 @@ namespace RomForge.Core.Scanning
             return (fullCrc, trimHasher.GetCurrentHashAsUInt32());
         }
 
-        private static async Task<(uint FullCrc, uint? TrimmedCrc)> ComputeCrcsBufferedAsync(
-            Stream stream,
-            CancellationToken ct
-        )
+        private static async Task<(uint FullCrc, uint? TrimmedCrc)> ComputeCrcsBufferedAsync(Stream stream, CancellationToken ct)
         {
             await using (stream)
             {
@@ -201,10 +158,7 @@ namespace RomForge.Core.Scanning
             }
         }
 
-        private static async Task<uint> ComputeCrc32StreamedAsync(
-            Stream stream,
-            CancellationToken ct
-        )
+        private static async Task<uint> ComputeCrc32StreamedAsync(Stream stream, CancellationToken ct)
         {
             await using (stream)
             {

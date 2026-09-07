@@ -16,8 +16,7 @@ namespace RomForge.Core.IO
     {
         // The checker targets exactly one repository; this is a fixed, public GitHub API endpoint.
 #pragma warning disable S1075 // URIs should not be hardcoded
-        private const string LatestReleaseUrl =
-            "https://api.github.com/repos/Duracell1989/RomForge/releases/latest";
+        private const string LatestReleaseUrl = "https://api.github.com/repos/Duracell1989/RomForge/releases/latest";
 
         /// <summary>
         /// Human-facing GitHub Releases page for RomForge (downloads and changelog).
@@ -37,34 +36,22 @@ namespace RomForge.Core.IO
             _logger = logger.ForContext<GitHubReleaseChecker>();
         }
 
-        public async Task<Result<ReleaseInfo>> FetchLatestReleaseAsync(
-            CancellationToken ct = default
-        )
+        public async Task<Result<ReleaseInfo>> FetchLatestReleaseAsync(CancellationToken ct = default)
         {
             try
             {
-                using HttpRequestMessage request = new HttpRequestMessage(
-                    HttpMethod.Get,
-                    LatestReleaseUrl
-                );
+                using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, LatestReleaseUrl);
                 request.Headers.Accept.ParseAdd("application/vnd.github+json");
 
                 using HttpResponseMessage response = await _http.SendAsync(request, ct);
                 response.EnsureSuccessStatusCode();
 
                 await using Stream stream = await response.Content.ReadAsStreamAsync(ct);
-                using JsonDocument document = await JsonDocument.ParseAsync(
-                    stream,
-                    cancellationToken: ct
-                );
+                using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
 
                 JsonElement root = document.RootElement;
-                string? tag = root.TryGetProperty(TagNameProperty, out JsonElement tagElement)
-                    ? tagElement.GetString()
-                    : null;
-                string? htmlUrl = root.TryGetProperty(HtmlUrlProperty, out JsonElement urlElement)
-                    ? urlElement.GetString()
-                    : null;
+                string? tag = root.TryGetProperty(TagNameProperty, out JsonElement tagElement) ? tagElement.GetString() : null;
+                string? htmlUrl = root.TryGetProperty(HtmlUrlProperty, out JsonElement urlElement) ? urlElement.GetString() : null;
 
                 if (string.IsNullOrWhiteSpace(tag) || string.IsNullOrWhiteSpace(htmlUrl))
                     return Result.Fail("The release response did not contain the expected fields.");

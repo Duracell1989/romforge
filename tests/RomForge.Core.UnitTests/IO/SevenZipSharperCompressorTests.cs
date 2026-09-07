@@ -16,16 +16,12 @@ namespace RomForge.Core.UnitTests.IO
         // care about size-based behaviour see the same values as before budget-awareness existed.
         private const long GenerousBudgetBytes = 1_000_000_000_000L; // 1 TB.
 
-        private static WorkingSetBudgetGate GenerousGate() =>
-            new WorkingSetBudgetGate(GenerousBudgetBytes);
+        private static WorkingSetBudgetGate GenerousGate() => new WorkingSetBudgetGate(GenerousBudgetBytes);
 
         [Test]
         public void BuildParameters_ZipFormat_UsesUltraLevelWithoutWordSize()
         {
-            CompressionParameters parameters = SevenZipSharperCompressor.BuildParameters(
-                "zip",
-                romSize: 4 * 1024 * 1024
-            );
+            CompressionParameters parameters = SevenZipSharperCompressor.BuildParameters("zip", romSize: 4 * 1024 * 1024);
 
             parameters.Level.Should().Be(CompressionLevel.Ultra);
             // DictionarySize is deliberately not set for zip — see BuildParameters for why.
@@ -36,10 +32,7 @@ namespace RomForge.Core.UnitTests.IO
         [Test]
         public void BuildParameters_SevenZipFormat_SetsUltraLevelAndWordSize()
         {
-            CompressionParameters parameters = SevenZipSharperCompressor.BuildParameters(
-                "7z",
-                romSize: 4 * 1024 * 1024
-            );
+            CompressionParameters parameters = SevenZipSharperCompressor.BuildParameters("7z", romSize: 4 * 1024 * 1024);
 
             parameters.Level.Should().Be(CompressionLevel.Ultra);
             parameters.DictionarySize.Should().Be(4 * 1024 * 1024);
@@ -60,10 +53,7 @@ namespace RomForge.Core.UnitTests.IO
             // block-splitting and the ROM x 10.5 working set behind three kernel panics. The only
             // test that measures the real behaviour is [Explicit] and never runs in CI, so this
             // literal is the sole automated guard on the value.
-            CompressionParameters parameters = SevenZipSharperCompressor.BuildParameters(
-                "7z",
-                romSize: 4 * 1024 * 1024
-            );
+            CompressionParameters parameters = SevenZipSharperCompressor.BuildParameters("7z", romSize: 4 * 1024 * 1024);
 
             parameters.ThreadCount.Should().Be(2);
         }
@@ -76,10 +66,7 @@ namespace RomForge.Core.UnitTests.IO
         [TestCase(268_435_456L, 268_435_456u)]
         [TestCase(1_073_741_824L, 268_435_456u)]
         [TestCase(2_000_000_000L, 268_435_456u)]
-        public void DictionarySizeFor_ReturnsSmallestPowerOfTwoCoveringRomSize_ClampedToRange(
-            long romSize,
-            uint expected
-        )
+        public void DictionarySizeFor_ReturnsSmallestPowerOfTwoCoveringRomSize_ClampedToRange(long romSize, uint expected)
         {
             uint actual = SevenZipSharperCompressor.DictionarySizeFor(romSize);
 
@@ -90,10 +77,7 @@ namespace RomForge.Core.UnitTests.IO
         [TestCase(3_019_898_880L, 268_435_456u)] // 256 MB dict's exact cost -> affords the full cap.
         [TestCase(3_019_898_869L, 134_217_728u)] // One byte under -> drops to the next power of 2.
         [TestCase(67_108_864L, 1024u)] // Budget only covers the fixed overhead -> floors at Min.
-        public void AffordableDictionaryCeiling_ReturnsLargestPowerOfTwoWithinBudget(
-            long budgetBytes,
-            uint expected
-        )
+        public void AffordableDictionaryCeiling_ReturnsLargestPowerOfTwoWithinBudget(long budgetBytes, uint expected)
         {
             uint actual = SevenZipSharperCompressor.AffordableDictionaryCeiling(budgetBytes);
 
@@ -106,10 +90,7 @@ namespace RomForge.Core.UnitTests.IO
             // A 3DS-sized ROM would otherwise clamp to the 256 MB MaxDictionarySize cap, but this
             // budget can only afford a 64 MB dictionary (see AffordableDictionaryCeiling_* above
             // for how 805,306,368 -> exactly 64 MB was derived).
-            uint actual = SevenZipSharperCompressor.DictionarySizeFor(
-                romSize: 4L * 1024 * 1024 * 1024,
-                memoryBudgetBytes: 805_306_368L
-            );
+            uint actual = SevenZipSharperCompressor.DictionarySizeFor(romSize: 4L * 1024 * 1024 * 1024, memoryBudgetBytes: 805_306_368L);
 
             actual.Should().Be(64 * 1024 * 1024u);
         }
@@ -133,11 +114,7 @@ namespace RomForge.Core.UnitTests.IO
         {
             // Deflate's window is fixed-size and DictionarySize isn't set for zip at all (see the
             // 2-arg overload), so the budget-aware overload must fall through to the same params.
-            CompressionParameters parameters = SevenZipSharperCompressor.BuildParameters(
-                "zip",
-                romSize: 4L * 1024 * 1024 * 1024,
-                memoryBudgetBytes: 1024L
-            );
+            CompressionParameters parameters = SevenZipSharperCompressor.BuildParameters("zip", romSize: 4L * 1024 * 1024 * 1024, memoryBudgetBytes: 1024L);
 
             parameters.DictionarySize.Should().BeNull();
         }
@@ -150,9 +127,7 @@ namespace RomForge.Core.UnitTests.IO
         [TestCase(8L * 1024 * 1024 * 1024)]
         [TestCase(16L * 1024 * 1024 * 1024)]
         [TestCase(48L * 1024 * 1024 * 1024)] // The dev machine the panic was measured on.
-        public void EstimateWorkingSetBytes_WithBudget_NeverExceedsBudget_AtAnyRomSize(
-            long budgetBytes
-        )
+        public void EstimateWorkingSetBytes_WithBudget_NeverExceedsBudget_AtAnyRomSize(long budgetBytes)
         {
             SevenZipSharperCompressor sut = new SevenZipSharperCompressor(
                 NullLogger<SevenZipCompressor>.Instance,
@@ -160,16 +135,7 @@ namespace RomForge.Core.UnitTests.IO
                 isAvailable: true
             );
 
-            foreach (
-                long romSize in new[]
-                {
-                    3 * 1024 * 1024L,
-                    32 * 1024 * 1024L,
-                    268_435_456L,
-                    1_073_741_824L,
-                    4L * 1024 * 1024 * 1024,
-                }
-            )
+            foreach (long romSize in new[] { 3 * 1024 * 1024L, 32 * 1024 * 1024L, 268_435_456L, 1_073_741_824L, 4L * 1024 * 1024 * 1024 })
             {
                 long estimate = sut.EstimateWorkingSetBytes(romSize, "7z");
                 estimate.Should().BeLessThanOrEqualTo(budgetBytes);
@@ -179,11 +145,7 @@ namespace RomForge.Core.UnitTests.IO
         [Test]
         public void EstimateWorkingSetBytes_SevenZipLargeRom_ClampsDictionaryThenAppliesMultiplier()
         {
-            SevenZipSharperCompressor sut = new SevenZipSharperCompressor(
-                NullLogger<SevenZipCompressor>.Instance,
-                GenerousGate(),
-                isAvailable: true
-            );
+            SevenZipSharperCompressor sut = new SevenZipSharperCompressor(NullLogger<SevenZipCompressor>.Instance, GenerousGate(), isAvailable: true);
 
             long estimate = sut.EstimateWorkingSetBytes(2_000_000_000L, "7z");
 
@@ -195,11 +157,7 @@ namespace RomForge.Core.UnitTests.IO
         [Test]
         public void EstimateWorkingSetBytes_SevenZipSmallRom_UsesRoundedDictionary()
         {
-            SevenZipSharperCompressor sut = new SevenZipSharperCompressor(
-                NullLogger<SevenZipCompressor>.Instance,
-                GenerousGate(),
-                isAvailable: true
-            );
+            SevenZipSharperCompressor sut = new SevenZipSharperCompressor(NullLogger<SevenZipCompressor>.Instance, GenerousGate(), isAvailable: true);
 
             long estimate = sut.EstimateWorkingSetBytes(3 * 1024 * 1024L, "7z");
 
@@ -212,15 +170,9 @@ namespace RomForge.Core.UnitTests.IO
         [TestCase(268_435_456L)]
         [TestCase(1_073_741_824L)]
         [TestCase(2_000_000_000L)]
-        public void EstimateWorkingSetBytes_SevenZip_AppliesElevenTimesTheDictionaryPlusFixedOverhead(
-            long romSize
-        )
+        public void EstimateWorkingSetBytes_SevenZip_AppliesElevenTimesTheDictionaryPlusFixedOverhead(long romSize)
         {
-            SevenZipSharperCompressor sut = new SevenZipSharperCompressor(
-                NullLogger<SevenZipCompressor>.Instance,
-                GenerousGate(),
-                isAvailable: true
-            );
+            SevenZipSharperCompressor sut = new SevenZipSharperCompressor(NullLogger<SevenZipCompressor>.Instance, GenerousGate(), isAvailable: true);
 
             long estimate = sut.EstimateWorkingSetBytes(romSize, "7z");
             uint dictionary = SevenZipSharperCompressor.DictionarySizeFor(romSize);
@@ -234,11 +186,7 @@ namespace RomForge.Core.UnitTests.IO
         [Test]
         public void EstimateWorkingSetBytes_ZipFormat_ReturnsFlatEstimateBelowLzmaScale()
         {
-            SevenZipSharperCompressor sut = new SevenZipSharperCompressor(
-                NullLogger<SevenZipCompressor>.Instance,
-                GenerousGate(),
-                isAvailable: true
-            );
+            SevenZipSharperCompressor sut = new SevenZipSharperCompressor(NullLogger<SevenZipCompressor>.Instance, GenerousGate(), isAvailable: true);
 
             long small = sut.EstimateWorkingSetBytes(4 * 1024 * 1024L, "zip");
             long large = sut.EstimateWorkingSetBytes(2_000_000_000L, "zip");
@@ -252,11 +200,7 @@ namespace RomForge.Core.UnitTests.IO
         [Test]
         public void IsAvailable_ProbeSucceeded_ReturnsTrue()
         {
-            SevenZipSharperCompressor sut = new SevenZipSharperCompressor(
-                NullLogger<SevenZipCompressor>.Instance,
-                GenerousGate(),
-                isAvailable: true
-            );
+            SevenZipSharperCompressor sut = new SevenZipSharperCompressor(NullLogger<SevenZipCompressor>.Instance, GenerousGate(), isAvailable: true);
 
             sut.IsAvailable.Should().BeTrue();
         }
@@ -264,11 +208,7 @@ namespace RomForge.Core.UnitTests.IO
         [Test]
         public void IsAvailable_ProbeFailed_ReturnsFalse()
         {
-            SevenZipSharperCompressor sut = new SevenZipSharperCompressor(
-                NullLogger<SevenZipCompressor>.Instance,
-                GenerousGate(),
-                isAvailable: false
-            );
+            SevenZipSharperCompressor sut = new SevenZipSharperCompressor(NullLogger<SevenZipCompressor>.Instance, GenerousGate(), isAvailable: false);
 
             sut.IsAvailable.Should().BeFalse();
         }
@@ -276,11 +216,7 @@ namespace RomForge.Core.UnitTests.IO
         [Test]
         public async Task CompressAsync_WhenUnavailable_ReturnsFail()
         {
-            SevenZipSharperCompressor sut = new SevenZipSharperCompressor(
-                NullLogger<SevenZipCompressor>.Instance,
-                GenerousGate(),
-                isAvailable: false
-            );
+            SevenZipSharperCompressor sut = new SevenZipSharperCompressor(NullLogger<SevenZipCompressor>.Instance, GenerousGate(), isAvailable: false);
 
             Result result = await sut.CompressAsync("/src/game.gba", "/out/game.7z", "game.gba", 0);
 

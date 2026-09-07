@@ -64,11 +64,7 @@ namespace RomForge.UI
 
         private static void RegisterGlobalExceptionHandlers()
         {
-            AppDomain.CurrentDomain.UnhandledException += (_, e) =>
-                Log.Fatal(
-                    e.ExceptionObject as Exception,
-                    "Unhandled exception; application terminating"
-                );
+            AppDomain.CurrentDomain.UnhandledException += (_, e) => Log.Fatal(e.ExceptionObject as Exception, "Unhandled exception; application terminating");
 
             TaskScheduler.UnobservedTaskException += (_, e) =>
             {
@@ -79,11 +75,7 @@ namespace RomForge.UI
 
         private static void ConfigureLogging()
         {
-            string logDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "RomForge",
-                "logs"
-            );
+            string logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RomForge", "logs");
 
             Log.Logger = new LoggerConfiguration()
                 .MinimumLevel.Debug()
@@ -107,9 +99,7 @@ namespace RomForge.UI
             ServiceCollection services = new ServiceCollection();
             services.AddSingleton<ILogger>(Log.Logger);
             services.AddLogging(builder => builder.AddSerilog(Log.Logger, dispose: false));
-            services.AddSingleton<IFileDialogService>(_ => new AvaloniaFileDialogService(
-                getWindow
-            ));
+            services.AddSingleton<IFileDialogService>(_ => new AvaloniaFileDialogService(getWindow));
             services.AddSingleton<IUserNotifier>(_ => new AvaloniaUserNotifier(getWindow));
             services.AddSingleton<IUrlLauncher>(_ => new AvaloniaUrlLauncher(getWindow));
             services.AddSingleton<IUiDispatcher, AvaloniaUiDispatcher>();

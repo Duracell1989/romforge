@@ -10,12 +10,7 @@ namespace RomForge.Core.UnitTests.Operations
     [TestOf(typeof(RomTrimmer))]
     public sealed class RomTrimmerTests
     {
-        private static MatchResult MakeResult(
-            bool isUntrimmed,
-            string? filePath = "/roms/game.7z",
-            int release = 1,
-            string title = "My Game"
-        ) =>
+        private static MatchResult MakeResult(bool isUntrimmed, string? filePath = "/roms/game.7z", int release = 1, string title = "My Game") =>
             new MatchResult
             {
                 Game = new Game { ReleaseNumber = release, Title = title },
@@ -86,10 +81,7 @@ namespace RomForge.Core.UnitTests.Operations
         [Test]
         public void GetTrimTarget_EmptyMask_UsesExistingFileStem()
         {
-            MatchResult result = MakeResult(
-                isUntrimmed: true,
-                filePath: "/roms/My Favourite Game.7z"
-            );
+            MatchResult result = MakeResult(isUntrimmed: true, filePath: "/roms/My Favourite Game.7z");
 
             (string From, string To)? target = RomTrimmer.GetTrimTarget(result, string.Empty);
 

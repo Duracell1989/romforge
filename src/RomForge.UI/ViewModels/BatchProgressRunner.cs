@@ -44,28 +44,17 @@ namespace RomForge.UI.ViewModels
 
             var errors = await operationTask;
             var succeeded = operation.Targets.Count - errors.Count;
-            _logger.Information(
-                "{Label}: {Succeeded}/{Total} {Verb}",
-                operation.LogLabel,
-                succeeded,
-                operation.Targets.Count,
-                operation.CompletedVerb
-            );
+            _logger.Information("{Label}: {Succeeded}/{Total} {Verb}", operation.LogLabel, succeeded, operation.Targets.Count, operation.CompletedVerb);
 
             if (errors.Count > 0)
             {
-                await _notifier.NotifyErrorAsync(
-                    $"{operation.FailureLabel} failed for {errors.Count} file(s):\n{string.Join("\n", errors)}"
-                );
+                await _notifier.NotifyErrorAsync($"{operation.FailureLabel} failed for {errors.Count} file(s):\n{string.Join("\n", errors)}");
             }
 
             return succeeded;
         }
 
-        private async Task<List<string>> RunCoreAsync<T>(
-            BatchProgressOperation<T> operation,
-            ProgressWindowVM progress
-        )
+        private async Task<List<string>> RunCoreAsync<T>(BatchProgressOperation<T> operation, ProgressWindowVM progress)
         {
             operation.BusyFlag?.Invoke(true);
             var errors = new List<string>();
@@ -96,13 +85,7 @@ namespace RomForge.UI.ViewModels
             }
             catch (OperationCanceledException ex)
             {
-                _logger.Information(
-                    ex,
-                    "{Label} cancelled after {Completed} of {Total}",
-                    operation.LogLabel,
-                    progress.Current,
-                    operation.Targets.Count
-                );
+                _logger.Information(ex, "{Label} cancelled after {Completed} of {Total}", operation.LogLabel, progress.Current, operation.Targets.Count);
             }
             finally
             {

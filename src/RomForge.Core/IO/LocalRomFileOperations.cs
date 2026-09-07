@@ -37,12 +37,7 @@ namespace RomForge.Core.IO
         {
             try
             {
-                await using var fs = new FileStream(
-                    path,
-                    FileMode.Open,
-                    FileAccess.Write,
-                    FileShare.None
-                );
+                await using var fs = new FileStream(path, FileMode.Open, FileAccess.Write, FileShare.None);
                 fs.SetLength(length);
                 return Result.Ok();
             }
@@ -56,8 +51,7 @@ namespace RomForge.Core.IO
 
         public bool FileExists(string path) => File.Exists(path);
 
-        public Task<Stream> OpenReadAsync(string path) =>
-            Task.FromResult<Stream>(File.OpenRead(path));
+        public Task<Stream> OpenReadAsync(string path) => Task.FromResult<Stream>(File.OpenRead(path));
 
         public Task<(long Size, DateTime LastWriteTimeUtc)> GetFileInfoAsync(string path)
         {

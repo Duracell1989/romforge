@@ -27,11 +27,7 @@ namespace RomForge.Core.UnitTests.Operations
             Directory.CreateDirectory(_tempDir);
             _appData = new AppDataService(_tempDir);
             _fileOps = new Mock<IRomFileOperations>();
-            _sut = new ArchiveWorkspace(
-                _appData,
-                _fileOps.Object,
-                new LoggerConfiguration().CreateLogger()
-            );
+            _sut = new ArchiveWorkspace(_appData, _fileOps.Object, new LoggerConfiguration().CreateLogger());
         }
 
         [TearDown]
@@ -67,19 +63,10 @@ namespace RomForge.Core.UnitTests.Operations
             const string rom = "/roms/0001 - Mario.7z";
             string working = Path.Combine(_appData.TempPath, "rearchive-abc.7z");
             _fileOps.Setup(f => f.RenameAsync(rom, rom + ".bak")).ReturnsAsync(Result.Ok());
-            _fileOps
-                .Setup(f => f.RenameAsync(working, rom))
-                .ReturnsAsync(Result.Fail("volume gone"));
+            _fileOps.Setup(f => f.RenameAsync(working, rom)).ReturnsAsync(Result.Fail("volume gone"));
             _fileOps.Setup(f => f.RenameAsync(rom + ".bak", rom)).ReturnsAsync(Result.Ok());
             _fileOps
-                .Setup(f =>
-                    f.RenameAsync(
-                        working,
-                        It.Is<string>(p =>
-                            p.StartsWith(_appData.RecoveredPath, StringComparison.Ordinal)
-                        )
-                    )
-                )
+                .Setup(f => f.RenameAsync(working, It.Is<string>(p => p.StartsWith(_appData.RecoveredPath, StringComparison.Ordinal))))
                 .ReturnsAsync(Result.Ok());
 
             (string? error, bool consumed) = await _sut.PlaceWorkingArchiveAsync(working, rom, rom);
@@ -96,21 +83,10 @@ namespace RomForge.Core.UnitTests.Operations
             const string rom = "/roms/0001 - Mario.7z";
             string working = Path.Combine(_appData.TempPath, "rearchive-abc.7z");
             _fileOps.Setup(f => f.RenameAsync(rom, rom + ".bak")).ReturnsAsync(Result.Ok());
+            _fileOps.Setup(f => f.RenameAsync(working, rom)).ReturnsAsync(Result.Fail("volume gone"));
+            _fileOps.Setup(f => f.RenameAsync(rom + ".bak", rom)).ReturnsAsync(Result.Fail("still gone"));
             _fileOps
-                .Setup(f => f.RenameAsync(working, rom))
-                .ReturnsAsync(Result.Fail("volume gone"));
-            _fileOps
-                .Setup(f => f.RenameAsync(rom + ".bak", rom))
-                .ReturnsAsync(Result.Fail("still gone"));
-            _fileOps
-                .Setup(f =>
-                    f.RenameAsync(
-                        working,
-                        It.Is<string>(p =>
-                            p.StartsWith(_appData.RecoveredPath, StringComparison.Ordinal)
-                        )
-                    )
-                )
+                .Setup(f => f.RenameAsync(working, It.Is<string>(p => p.StartsWith(_appData.RecoveredPath, StringComparison.Ordinal))))
                 .ReturnsAsync(Result.Ok());
 
             (string? error, bool consumed) = await _sut.PlaceWorkingArchiveAsync(working, rom, rom);
@@ -126,19 +102,10 @@ namespace RomForge.Core.UnitTests.Operations
             const string rom = "/roms/0001 - Mario.7z";
             string working = Path.Combine(_appData.TempPath, "rearchive-abc.7z");
             _fileOps.Setup(f => f.RenameAsync(rom, rom + ".bak")).ReturnsAsync(Result.Ok());
-            _fileOps
-                .Setup(f => f.RenameAsync(working, rom))
-                .ReturnsAsync(Result.Fail("volume gone"));
+            _fileOps.Setup(f => f.RenameAsync(working, rom)).ReturnsAsync(Result.Fail("volume gone"));
             _fileOps.Setup(f => f.RenameAsync(rom + ".bak", rom)).ReturnsAsync(Result.Ok());
             _fileOps
-                .Setup(f =>
-                    f.RenameAsync(
-                        working,
-                        It.Is<string>(p =>
-                            p.StartsWith(_appData.RecoveredPath, StringComparison.Ordinal)
-                        )
-                    )
-                )
+                .Setup(f => f.RenameAsync(working, It.Is<string>(p => p.StartsWith(_appData.RecoveredPath, StringComparison.Ordinal))))
                 .ReturnsAsync(Result.Fail("recovered/ unwritable"));
 
             (string? error, bool consumed) = await _sut.PlaceWorkingArchiveAsync(working, rom, rom);

@@ -23,8 +23,7 @@ namespace RomForge.Core.UnitTests.Services
             _logger = new LoggerConfiguration().CreateLogger();
         }
 
-        private UpdateCheckService Make(string currentVersion) =>
-            new UpdateCheckService(_releaseChecker.Object, _logger, currentVersion);
+        private UpdateCheckService Make(string currentVersion) => new UpdateCheckService(_releaseChecker.Object, _logger, currentVersion);
 
         private void SetupLatest(string tag) =>
             _releaseChecker
@@ -66,9 +65,7 @@ namespace RomForge.Core.UnitTests.Services
         [Test]
         public async Task CheckAsync_WhenFetchFails_ReturnsCheckFailedWithError()
         {
-            _releaseChecker
-                .Setup(c => c.FetchLatestReleaseAsync(It.IsAny<CancellationToken>()))
-                .ReturnsAsync(Result.Fail<ReleaseInfo>("network down"));
+            _releaseChecker.Setup(c => c.FetchLatestReleaseAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Result.Fail<ReleaseInfo>("network down"));
 
             UpdateCheckOutcome outcome = await Make("1.1.0").CheckAsync();
 
@@ -100,7 +97,6 @@ namespace RomForge.Core.UnitTests.Services
         [TestCase("V2.0.0", "2.0.0")]
         [TestCase("1.1.0", "1.1.0")]
         [TestCase("  v1.1.0  ", "1.1.0")]
-        public void NormalizeVersion_StripsLeadingVAndWhitespace(string tag, string expected) =>
-            UpdateCheckService.NormalizeVersion(tag).Should().Be(expected);
+        public void NormalizeVersion_StripsLeadingVAndWhitespace(string tag, string expected) => UpdateCheckService.NormalizeVersion(tag).Should().Be(expected);
     }
 }

@@ -58,9 +58,7 @@ namespace RomForge.Core.UnitTests.IO
             // 30 > 20, so the third job must not be admitted while both leases are held.
             Task<IDisposable> third = gate.AcquireAsync(10, CancellationToken.None);
             await Task.WhenAny(third, Task.Delay(100));
-            third
-                .IsCompleted.Should()
-                .BeFalse("the budget is full while two 10-cost leases are held");
+            third.IsCompleted.Should().BeFalse("the budget is full while two 10-cost leases are held");
 
             // Releasing one lease frees enough budget for the waiting job.
             first.Dispose();
