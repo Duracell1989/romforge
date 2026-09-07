@@ -19,10 +19,16 @@ namespace RomForge.Core.Operations
         /// After placement, the newly-written archive is read back and its CRC verified against
         /// <see cref="Matching.MatchResult.Game"/>'s expected CRC before the re-archive is recorded.
         /// </summary>
+        /// <param name="match">The scan result identifying the ROM to re-archive.</param>
+        /// <param name="target">The resolved source and destination paths for the move.</param>
+        /// <param name="archiveFormat">Archive format to write, e.g. <c>7z</c> or <c>zip</c>.</param>
+        /// <param name="datName">DAT name, used to resolve the destination folder.</param>
+        /// <param name="cancellationToken">Token observed throughout extraction, compression and verification.</param>
         /// <param name="scanCache">
         /// When provided, the verified CRC is written into the cache under the placed archive's
         /// current size and last-write time, so the next full scan does not need to recompute it.
         /// </param>
+        /// <param name="compressionProgress">Receives compression progress as a percentage, when supplied.</param>
         /// <returns>
         /// A success carrying the updated <see cref="MatchResult"/>, or a failure whose message is
         /// already prefixed with the source file name.

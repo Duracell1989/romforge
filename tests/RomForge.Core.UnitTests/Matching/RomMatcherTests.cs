@@ -38,7 +38,7 @@ namespace RomForge.Core.UnitTests.Matching
                 FileExtension = fileExt,
                 FilePath = path,
                 TrimmedCrc = trimmedCrc,
-                EntryName = entryName ?? System.IO.Path.GetFileNameWithoutExtension(path),
+                EntryName = entryName ?? Path.GetFileNameWithoutExtension(path),
             };
 
         private static DatFile DatWith(params Game[] games) => new() { Games = [.. games] };

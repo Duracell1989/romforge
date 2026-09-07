@@ -265,11 +265,11 @@ xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                             <ListBox.ContextMenu>
                                 <ContextMenu>
                                     <MenuItem Header="Rename"
-                                              Command="{Binding $parent[Window].DataContext.RenameSelectedCommand}"/>
+                                              Command="{Binding $parent[Window].((vm:MainWindowVM)DataContext).RenameSelectedCommand}"/>
                                     <MenuItem Header="Re-archive"
-                                              Command="{Binding $parent[Window].DataContext.ReArchiveSelectedCommand}"/>
+                                              Command="{Binding $parent[Window].((vm:MainWindowVM)DataContext).ReArchiveSelectedCommand}"/>
                                     <MenuItem Header="Trim"
-                                              Command="{Binding $parent[Window].DataContext.TrimSelectedCommand}"/>
+                                              Command="{Binding $parent[Window].((vm:MainWindowVM)DataContext).TrimSelectedCommand}"/>
                                 </ContextMenu>
                             </ListBox.ContextMenu>
                             <ListBox.ItemTemplate>

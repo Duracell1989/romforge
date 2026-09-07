@@ -1,4 +1,56 @@
-﻿<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
-	<s:String x:Key="/Default/CodeStyle/Naming/CSharpNaming/Abbreviations/=VM/@EntryIndexedValue">VM</s:String>
-	<s:String x:Key="/Default/CustomTools/CustomToolsData/@EntryValue"></s:String>
-	<s:String x:Key="/Default/Environment/Hierarchy/Build/SolBuilderDuo/UseMsbuildSolutionBuilder/@EntryValue">No</s:String></wpf:ResourceDictionary>
+<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+
+	<!--
+	Solution-shared ReSharper settings. Read by both Rider's live inspections and
+	`jb inspectcode` in CI, so what you see while editing matches what the build enforces.
+
+	The file is named .sln.DotSettings even though this repo only has RomForge.slnx —
+	JetBrains normalises to the .sln name, and inspectcode picks it up regardless.
+
+	Every entry is a deliberate divergence from a ReSharper default, justified in place.
+	Do not add blanket suppressions here to silence a real finding.
+	-->
+
+	<!--
+	Naming is not a CI gate — Rider still surfaces it live, it just does not fail the build.
+	ReSharper's defaults disagree with conventions set in /Development/CLAUDE.md (notably
+	_camelCase private fields) and with generator-produced members it cannot see the source of.
+
+	Note for anyone tempted to fix this in .editorconfig instead: ReSharper does read
+	dotnet_naming_rule, and .editorconfig severity WINS over this file, so adding a rule there
+	silently re-enables this inspection.
+	-->
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=InconsistentNaming/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+
+	<!--
+	The pattern flagged is always the same: a `using var` (SemaphoreSlim, HttpClient, temp dir)
+	captured by a local function that is only ever run through an `await Task.WhenAll(...)` in
+	the same scope. Task.WhenAll completes only once every task has, so disposal cannot race the
+	closure. ReSharper cannot prove that lifetime and warns on principle.
+	-->
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=AccessToDisposedClosure/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+
+	<!--
+	CommunityToolkit.Mvvm generates `partial void On{Name}Changed(T oldValue, T newValue)` with
+	the property's own nullability, but the backing field starts null — so the first invocation
+	passes null for a parameter the generator declared non-nullable. The null guards ReSharper
+	calls "always true" are load-bearing; removing one throws on first assignment. This is the
+	documented pattern in /Development/CLAUDE.md -> Avalonia UI / CommunityToolkit.Mvvm.
+	-->
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+
+	<!--
+	Same generator, other half: the On{Name}Changed / On{Name}Changing hook signatures are fixed
+	by CommunityToolkit.Mvvm. A hook that only needs to react, not to read the value, still has
+	to declare the parameter. It cannot be removed.
+	-->
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=UnusedParameterInPartialMethod/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+
+	<!--
+	`App` is partial because Avalonia's XAML compiler generates the other half (InitializeComponent
+	and the named-control fields) at build time. ReSharper only sees the hand-written part and
+	reports a single-part partial; dropping the modifier breaks the build.
+	-->
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=PartialTypeWithSinglePart/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+
+</wpf:ResourceDictionary>
