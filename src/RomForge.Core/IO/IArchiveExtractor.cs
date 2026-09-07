@@ -8,9 +8,6 @@ namespace RomForge.Core.IO
     public interface IArchiveExtractor
     {
         /// <exception cref="OperationCanceledException">Cancellation was requested.</exception>
-        Task<Result<string>> ExtractToTempFileAsync(
-            string archivePath,
-            CancellationToken cancellationToken = default
-        );
+        Task<Result<string>> ExtractToTempFileAsync(string archivePath, CancellationToken cancellationToken = default);
     }
 }

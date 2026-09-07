@@ -45,11 +45,7 @@ namespace RomForge.Core.IO
         {
             if (budgetBytes <= 0)
             {
-                throw new ArgumentOutOfRangeException(
-                    nameof(budgetBytes),
-                    budgetBytes,
-                    "Budget must be positive."
-                );
+                throw new ArgumentOutOfRangeException(nameof(budgetBytes), budgetBytes, "Budget must be positive.");
             }
 
             BudgetBytes = budgetBytes;
@@ -76,14 +72,9 @@ namespace RomForge.Core.IO
         /// has to come from <c>TotalAvailableMemoryBytes - MemoryLoadBytes</c>, bearing in mind that
         /// <c>MemoryLoadBytes</c> is a snapshot from the last GC and reads zero before the first one.
         /// </remarks>
-        public static WorkingSetBudgetGate CreateDefault() =>
-            new WorkingSetBudgetGate(ComputeDefaultBudgetBytes());
+        public static WorkingSetBudgetGate CreateDefault() => new WorkingSetBudgetGate(ComputeDefaultBudgetBytes());
 
-        private static long ComputeDefaultBudgetBytes() =>
-            Math.Max(
-                1,
-                (long)(GC.GetGCMemoryInfo().TotalAvailableMemoryBytes * DefaultBudgetFraction)
-            );
+        private static long ComputeDefaultBudgetBytes() => Math.Max(1, (long)(GC.GetGCMemoryInfo().TotalAvailableMemoryBytes * DefaultBudgetFraction));
 
         /// <summary>
         /// Waits until <paramref name="costBytes"/> fits the remaining budget, then reserves it and
@@ -98,10 +89,7 @@ namespace RomForge.Core.IO
         /// <exception cref="OperationCanceledException">
         /// Thrown when <paramref name="cancellationToken"/> is cancelled while waiting.
         /// </exception>
-        public async Task<IDisposable> AcquireAsync(
-            long costBytes,
-            CancellationToken cancellationToken
-        )
+        public async Task<IDisposable> AcquireAsync(long costBytes, CancellationToken cancellationToken)
         {
             long cost = Math.Max(0, costBytes);
             cancellationToken.ThrowIfCancellationRequested();
@@ -120,11 +108,7 @@ namespace RomForge.Core.IO
 
             try
             {
-                using (
-                    cancellationToken.Register(() =>
-                        node.Value.Admitted.TrySetCanceled(cancellationToken)
-                    )
-                )
+                using (cancellationToken.Register(() => node.Value.Admitted.TrySetCanceled(cancellationToken)))
                 {
                     await node.Value.Admitted.Task.ConfigureAwait(false);
                 }
@@ -152,8 +136,7 @@ namespace RomForge.Core.IO
 
         // Admit when the job fits the remaining budget, or when nothing else is in flight — the
         // latter lets a job larger than the whole budget make progress alone instead of deadlocking.
-        private bool FitsLocked(long cost) =>
-            _inFlightBytes == 0 || _inFlightBytes + cost <= BudgetBytes;
+        private bool FitsLocked(long cost) => _inFlightBytes == 0 || _inFlightBytes + cost <= BudgetBytes;
 
         // Selects, strictly from the front, the queued jobs that now fit, and charges their cost
         // here on the releasing thread rather than letting each waiter re-check after it wakes.
@@ -222,9 +205,7 @@ namespace RomForge.Core.IO
             public Waiter(long cost)
             {
                 Cost = cost;
-                Admitted = new TaskCompletionSource(
-                    TaskCreationOptions.RunContinuationsAsynchronously
-                );
+                Admitted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             }
 
             public long Cost { get; }

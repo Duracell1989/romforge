@@ -46,34 +46,21 @@ namespace RomForge.Core.UnitTests.Operations
             };
 
         private void SetupLatest(string version) =>
-            _updateChecker
-                .Setup(c =>
-                    c.FetchLatestVersionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
-                .ReturnsAsync(Result.Ok(version));
+            _updateChecker.Setup(c => c.FetchLatestVersionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(Result.Ok(version));
 
         [Test]
         public async Task CheckForUpdateAsync_NoVersionUrl_ReturnsFailure()
         {
-            Result<DatUpdateCheck> result = await _service.CheckForUpdateAsync(
-                Header(versionUrl: null)
-            );
+            Result<DatUpdateCheck> result = await _service.CheckForUpdateAsync(Header(versionUrl: null));
 
             result.IsFailed.Should().BeTrue();
-            _updateChecker.Verify(
-                c => c.FetchLatestVersionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
-                Times.Never
-            );
+            _updateChecker.Verify(c => c.FetchLatestVersionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Test]
         public async Task CheckForUpdateAsync_FetchFails_ReturnsFailure()
         {
-            _updateChecker
-                .Setup(c =>
-                    c.FetchLatestVersionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())
-                )
-                .ReturnsAsync(Result.Fail("network down"));
+            _updateChecker.Setup(c => c.FetchLatestVersionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(Result.Fail("network down"));
 
             Result<DatUpdateCheck> result = await _service.CheckForUpdateAsync(Header());
 
@@ -86,9 +73,7 @@ namespace RomForge.Core.UnitTests.Operations
         {
             SetupLatest("6");
 
-            Result<DatUpdateCheck> result = await _service.CheckForUpdateAsync(
-                Header(currentVersion: 5)
-            );
+            Result<DatUpdateCheck> result = await _service.CheckForUpdateAsync(Header(currentVersion: 5));
 
             result.IsSuccess.Should().BeTrue();
             result.Value.IsNewer.Should().BeTrue();
@@ -101,9 +86,7 @@ namespace RomForge.Core.UnitTests.Operations
         {
             SetupLatest("5");
 
-            Result<DatUpdateCheck> result = await _service.CheckForUpdateAsync(
-                Header(currentVersion: 5)
-            );
+            Result<DatUpdateCheck> result = await _service.CheckForUpdateAsync(Header(currentVersion: 5));
 
             result.IsSuccess.Should().BeTrue();
             result.Value.IsNewer.Should().BeFalse();
@@ -114,9 +97,7 @@ namespace RomForge.Core.UnitTests.Operations
         {
             SetupLatest("2026-07-30");
 
-            Result<DatUpdateCheck> result = await _service.CheckForUpdateAsync(
-                Header(currentVersion: 5)
-            );
+            Result<DatUpdateCheck> result = await _service.CheckForUpdateAsync(Header(currentVersion: 5));
 
             result.IsSuccess.Should().BeTrue();
             result.Value.IsNewer.Should().BeTrue();
@@ -126,21 +107,12 @@ namespace RomForge.Core.UnitTests.Operations
         [Test]
         public async Task DownloadUpdateAsync_NoDatUrl_ReturnsFailureAndDoesNotDownload()
         {
-            Result result = await _service.DownloadUpdateAsync(
-                Header(datUrl: null),
-                progress: null
-            );
+            Result result = await _service.DownloadUpdateAsync(Header(datUrl: null), progress: null);
 
             result.IsFailed.Should().BeTrue();
             _downloader.Verify(
                 d =>
-                    d.DownloadDatAsync(
-                        It.IsAny<string>(),
-                        It.IsAny<string>(),
-                        It.IsAny<string?>(),
-                        It.IsAny<IProgress<int>?>(),
-                        It.IsAny<CancellationToken>()
-                    ),
+                    d.DownloadDatAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()),
                 Times.Never
             );
         }
@@ -150,13 +122,7 @@ namespace RomForge.Core.UnitTests.Operations
         {
             _downloader
                 .Setup(d =>
-                    d.DownloadDatAsync(
-                        It.IsAny<string>(),
-                        It.IsAny<string>(),
-                        It.IsAny<string?>(),
-                        It.IsAny<IProgress<int>?>(),
-                        It.IsAny<CancellationToken>()
-                    )
+                    d.DownloadDatAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>())
                 )
                 .ReturnsAsync(Result.Ok("/managed/test.dat"));
 

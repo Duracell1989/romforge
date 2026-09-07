@@ -56,11 +56,7 @@ namespace RomForge.Core.UnitTests.Parsers
         [Test]
         public void ElementCI_MultipleChildren_ReturnsFirst()
         {
-            XElement parent = new XElement(
-                "root",
-                new XElement("game", "first"),
-                new XElement("game", "second")
-            );
+            XElement parent = new XElement("root", new XElement("game", "first"), new XElement("game", "second"));
 
             XElement? result = parent.ElementCI("game");
 
@@ -73,13 +69,7 @@ namespace RomForge.Core.UnitTests.Parsers
         [Test]
         public void ElementsCI_ReturnsAllMatches()
         {
-            XElement parent = new XElement(
-                "root",
-                new XElement("game", "a"),
-                new XElement("GAME", "b"),
-                new XElement("Game", "c"),
-                new XElement("other", "d")
-            );
+            XElement parent = new XElement("root", new XElement("game", "a"), new XElement("GAME", "b"), new XElement("Game", "c"), new XElement("other", "d"));
 
             List<XElement> result = parent.ElementsCI("game").ToList();
 

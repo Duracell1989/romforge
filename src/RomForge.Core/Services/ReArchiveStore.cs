@@ -23,10 +23,7 @@ namespace RomForge.Core.Services
         {
             ArgumentNullException.ThrowIfNull(appData);
             ArgumentNullException.ThrowIfNull(logger);
-            _connectionString = new SqliteConnectionStringBuilder
-            {
-                DataSource = appData.StatusDbPath,
-            }.ToString();
+            _connectionString = new SqliteConnectionStringBuilder { DataSource = appData.StatusDbPath }.ToString();
             _logger = logger.ForContext<ReArchiveStore>();
         }
 
@@ -62,12 +59,7 @@ namespace RomForge.Core.Services
             }
             catch (SqliteException ex)
             {
-                _logger.Warning(
-                    ex,
-                    "Could not mark {DatName}/{ReleaseNumber} as re-archived",
-                    datName,
-                    releaseNumber
-                );
+                _logger.Warning(ex, "Could not mark {DatName}/{ReleaseNumber} as re-archived", datName, releaseNumber);
             }
         }
 
@@ -76,12 +68,9 @@ namespace RomForge.Core.Services
             var result = new HashSet<int>();
             try
             {
-                await using SqliteConnection conn = await StatusDbConnection.OpenAsync(
-                    _connectionString
-                );
+                await using SqliteConnection conn = await StatusDbConnection.OpenAsync(_connectionString);
                 await using SqliteCommand cmd = conn.CreateCommand();
-                cmd.CommandText =
-                    "SELECT ReleaseNumber FROM ReArchivedRoms WHERE DatName = @DatName";
+                cmd.CommandText = "SELECT ReleaseNumber FROM ReArchivedRoms WHERE DatName = @DatName";
                 cmd.Parameters.AddWithValue(ParamDatName, datName);
                 await using SqliteDataReader reader = await cmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())

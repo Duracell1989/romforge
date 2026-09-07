@@ -149,10 +149,7 @@ namespace RomForge.Core.IntegrationTests.IO
             await using (FileStream source = File.OpenRead(sourcePath))
             await using (FileStream dest = File.Create(archivePath))
             {
-                Result compressResult = await compressor.CompressAsync(
-                    [("game.gba", source)],
-                    dest
-                );
+                Result compressResult = await compressor.CompressAsync([("game.gba", source)], dest);
                 compressResult.IsSuccess.Should().BeTrue();
             }
 

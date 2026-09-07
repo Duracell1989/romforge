@@ -11,24 +11,15 @@ namespace RomForge.Core.Parsers
     internal static class DatParser
     {
         /// <exception cref="InvalidDataException">The stream does not contain a valid DAT XML document.</exception>
-        public static async Task<DatFile> ParseAsync(
-            Stream stream,
-            CancellationToken cancellationToken = default
-        )
+        public static async Task<DatFile> ParseAsync(Stream stream, CancellationToken cancellationToken = default)
         {
             XDocument doc = await XDocument.LoadAsync(stream, LoadOptions.None, cancellationToken);
-            XElement root =
-                doc.Root ?? throw new InvalidDataException("DAT file has no root element.");
+            XElement root = doc.Root ?? throw new InvalidDataException("DAT file has no root element.");
 
             return new DatFile
             {
                 Header = ParseConfiguration(root.ElementCI(Xml.Configuration)),
-                Games =
-                    root.ElementCI(nameof(DatFile.Games))
-                        ?.ElementsCI(nameof(Game))
-                        .Select(ParseGame)
-                        .ToList()
-                    ?? [],
+                Games = root.ElementCI(nameof(DatFile.Games))?.ElementsCI(nameof(Game)).Select(ParseGame).ToList() ?? [],
             };
         }
 
@@ -80,20 +71,16 @@ namespace RomForge.Core.Parsers
                     // bare ("gba"). Normalise here to bare, matching FileSystemRomSource's own
                     // extensions, so ArchiveWorkspace.BuildEntryName's "stem + '.' + extension"
                     // never produces a double dot.
-                    RomExtension = (
-                        (string?)romCrc?.Attribute(Xml.Extension) ?? string.Empty
-                    ).TrimStart('.'),
+                    RomExtension = ((string?)romCrc?.Attribute(Xml.Extension) ?? string.Empty).TrimStart('.'),
                 },
                 Im1Crc = ParseHexUInt32Nullable(game.ElementCI(nameof(Game.Im1Crc))),
                 Im2Crc = ParseHexUInt32Nullable(game.ElementCI(nameof(Game.Im2Crc))),
             };
         }
 
-        private static int ParseInt(XElement? element) =>
-            int.TryParse((string?)element, out int value) ? value : 0;
+        private static int ParseInt(XElement? element) => int.TryParse((string?)element, out int value) ? value : 0;
 
-        private static long ParseLong(XElement? element) =>
-            long.TryParse((string?)element, out long value) ? value : 0;
+        private static long ParseLong(XElement? element) => long.TryParse((string?)element, out long value) ? value : 0;
 
         private static uint ParseHexUInt32(XElement? element)
         {
@@ -107,8 +94,7 @@ namespace RomForge.Core.Parsers
             return string.IsNullOrEmpty(text) ? null : Convert.ToUInt32(text, 16);
         }
 
-        private static string? NullIfEmpty(string? value) =>
-            string.IsNullOrEmpty(value) ? null : value;
+        private static string? NullIfEmpty(string? value) => string.IsNullOrEmpty(value) ? null : value;
 
         // XML names with no direct C# property equivalent — all other names come from nameof() on model properties.
         private static class Xml

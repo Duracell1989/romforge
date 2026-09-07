@@ -19,10 +19,7 @@ namespace RomForge.Core.IO
             _logger = logger.ForContext<HttpDatUpdateChecker>();
         }
 
-        public async Task<Result<string>> FetchLatestVersionAsync(
-            string versionUrl,
-            CancellationToken ct = default
-        )
+        public async Task<Result<string>> FetchLatestVersionAsync(string versionUrl, CancellationToken ct = default)
         {
             try
             {

@@ -26,21 +26,15 @@ namespace RomForge.Core.IO
 
             try
             {
-                var xmlStream = IsZip(_filePath)
-                    ? await ExtractXmlFromZipAsync(_filePath, cancellationToken)
-                        .ConfigureAwait(false)
-                    : File.OpenRead(_filePath);
+                var xmlStream = IsZip(_filePath) ? await ExtractXmlFromZipAsync(_filePath, cancellationToken).ConfigureAwait(false) : File.OpenRead(_filePath);
 
                 await using (xmlStream)
                 {
-                    var datFile = await DatParser
-                        .ParseAsync(xmlStream, cancellationToken)
-                        .ConfigureAwait(false);
+                    var datFile = await DatParser.ParseAsync(xmlStream, cancellationToken).ConfigureAwait(false);
                     return Result.Ok(datFile);
                 }
             }
-            catch (Exception ex)
-                when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
             {
                 return Result.Fail(new ExceptionalError(ex));
             }
@@ -52,29 +46,18 @@ namespace RomForge.Core.IO
             using var fs = File.OpenRead(path);
             var read = fs.Read(header);
             // PK signature: 0x50 0x4B 0x03 0x04
-            return read >= 4
-                && header[0] == 0x50
-                && header[1] == 0x4B
-                && header[2] == 0x03
-                && header[3] == 0x04;
+            return read >= 4 && header[0] == 0x50 && header[1] == 0x4B && header[2] == 0x03 && header[3] == 0x04;
         }
 
-        private static async Task<Stream> ExtractXmlFromZipAsync(
-            string path,
-            CancellationToken cancellationToken
-        )
+        private static async Task<Stream> ExtractXmlFromZipAsync(string path, CancellationToken cancellationToken)
         {
-            await using ZipArchive archive = await ZipFile
-                .OpenReadAsync(path, cancellationToken)
-                .ConfigureAwait(false);
+            await using ZipArchive archive = await ZipFile.OpenReadAsync(path, cancellationToken).ConfigureAwait(false);
             ZipArchiveEntry? entry = archive.Entries.FirstOrDefault(e => !e.FullName.EndsWith('/'));
             if (entry is null)
                 throw new InvalidDataException($"ZIP archive contains no entries: {path}");
 
             MemoryStream ms = new MemoryStream();
-            await using (
-                Stream entryStream = await entry.OpenAsync(cancellationToken).ConfigureAwait(false)
-            )
+            await using (Stream entryStream = await entry.OpenAsync(cancellationToken).ConfigureAwait(false))
             {
                 await entryStream.CopyToAsync(ms, cancellationToken).ConfigureAwait(false);
             }

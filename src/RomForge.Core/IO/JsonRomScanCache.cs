@@ -13,10 +13,7 @@ namespace RomForge.Core.IO
         private readonly string _filePath;
         private readonly ConcurrentDictionary<string, CacheEntry> _entries;
 
-        private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions
-        {
-            WriteIndented = true,
-        };
+        private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions { WriteIndented = true };
 
         public JsonRomScanCache(string filePath)
         {
@@ -42,13 +39,7 @@ namespace RomForge.Core.IO
             return entry.TrimmedCrc;
         }
 
-        public void Set(
-            string filePath,
-            long fileSize,
-            DateTime lastModified,
-            uint crc,
-            uint? trimmedCrc = null
-        )
+        public void Set(string filePath, long fileSize, DateTime lastModified, uint crc, uint? trimmedCrc = null)
         {
             _entries[filePath] = new CacheEntry
             {
@@ -66,9 +57,7 @@ namespace RomForge.Core.IO
                 Directory.CreateDirectory(dir);
 
             await using var fs = File.Create(_filePath);
-            await JsonSerializer
-                .SerializeAsync(fs, _entries, JsonOptions, cancellationToken)
-                .ConfigureAwait(false);
+            await JsonSerializer.SerializeAsync(fs, _entries, JsonOptions, cancellationToken).ConfigureAwait(false);
         }
 
         private static Dictionary<string, CacheEntry> Load(string filePath)
@@ -79,11 +68,9 @@ namespace RomForge.Core.IO
             try
             {
                 using var fs = File.OpenRead(filePath);
-                return JsonSerializer.Deserialize<Dictionary<string, CacheEntry>>(fs, JsonOptions)
-                    ?? [];
+                return JsonSerializer.Deserialize<Dictionary<string, CacheEntry>>(fs, JsonOptions) ?? [];
             }
-            catch (Exception ex)
-                when (ex is IOException or UnauthorizedAccessException or JsonException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
             {
                 return [];
             }

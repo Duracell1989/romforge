@@ -46,11 +46,7 @@ namespace RomForge.Core.Services
             Result<OfflineListConfig> readResult = OfflineListConfigReader.Read(iniPath);
             if (readResult.IsFailed)
             {
-                _logger.Warning(
-                    "Could not read OfflineList config for {DatName}: {Error}",
-                    header.DatName,
-                    readResult.Errors[0].Message
-                );
+                _logger.Warning("Could not read OfflineList config for {DatName}: {Error}", header.DatName, readResult.Errors[0].Message);
                 return;
             }
 
@@ -60,11 +56,7 @@ namespace RomForge.Core.Services
             DatConfig updated = existing with { LanguageBits = [.. ini.LanguageBits] };
 
             await SaveAsync(header.DatName, updated);
-            _logger.Information(
-                "Saved config for {DatName}: {Count} language bits",
-                header.DatName,
-                updated.LanguageBits.Count
-            );
+            _logger.Information("Saved config for {DatName}: {Count} language bits", header.DatName, updated.LanguageBits.Count);
         }
 
         public async Task<DatConfig?> LoadAsync(string datName)
@@ -78,8 +70,7 @@ namespace RomForge.Core.Services
                 await using FileStream stream = File.OpenRead(path);
                 return await JsonSerializer.DeserializeAsync<DatConfig>(stream, JsonOptions);
             }
-            catch (Exception ex)
-                when (ex is IOException or UnauthorizedAccessException or JsonException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
             {
                 _logger.Warning(ex, "Could not load config for {DatName}", datName);
                 return null;
@@ -94,8 +85,7 @@ namespace RomForge.Core.Services
                 await using FileStream stream = File.Open(path, FileMode.Create, FileAccess.Write);
                 await JsonSerializer.SerializeAsync(stream, config, JsonOptions);
             }
-            catch (Exception ex)
-                when (ex is IOException or UnauthorizedAccessException or JsonException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
             {
                 _logger.Warning(ex, "Could not save config for {DatName}", datName);
             }
@@ -107,8 +97,7 @@ namespace RomForge.Core.Services
             await SaveAsync(datName, existing with { RomFolderPath = romFolderPath });
         }
 
-        private string GetConfigFilePath(string datName) =>
-            Path.Combine(_appData.ConfigPath, SanitizeName(datName) + ".json");
+        private string GetConfigFilePath(string datName) => Path.Combine(_appData.ConfigPath, SanitizeName(datName) + ".json");
 
         private static string? FindOfflineListIni(string sourceDatPath, string datName)
         {
@@ -125,11 +114,6 @@ namespace RomForge.Core.Services
         private static readonly char[] InvalidChars = Path.GetInvalidFileNameChars();
 
         private static string SanitizeName(string name) =>
-            string.Concat(
-                System.Linq.Enumerable.Select(
-                    name,
-                    c => Array.IndexOf(InvalidChars, c) >= 0 ? '_' : c
-                )
-            );
+            string.Concat(System.Linq.Enumerable.Select(name, c => Array.IndexOf(InvalidChars, c) >= 0 ? '_' : c));
     }
 }

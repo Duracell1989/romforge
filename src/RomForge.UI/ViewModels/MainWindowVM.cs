@@ -235,9 +235,7 @@ namespace RomForge.UI.ViewModels
             var readResult = await _datLibrary.ReadAsync(sourcePath);
             if (readResult.IsFailed)
             {
-                await _notifier.NotifyErrorAsync(
-                    $"Could not read DAT file.\n{readResult.Errors[0].Message}"
-                );
+                await _notifier.NotifyErrorAsync($"Could not read DAT file.\n{readResult.Errors[0].Message}");
                 return;
             }
 
@@ -249,20 +247,13 @@ namespace RomForge.UI.ViewModels
                 progressVm.CurrentFile = p.CurrentFile;
                 progressVm.Progress = p.Total > 0 ? p.Current * 100 / p.Total : 0;
             });
-            var importTask = _datLibrary.ImportAsync(
-                sourcePath,
-                readResult.Value.Header,
-                importProgress,
-                progressVm.CancellationToken
-            );
+            var importTask = _datLibrary.ImportAsync(sourcePath, readResult.Value.Header, importProgress, progressVm.CancellationToken);
             await _notifier.ShowProgressAsync("Importing DAT", progressVm, importTask);
 
             var importResult = await importTask;
             if (importResult.IsFailed)
             {
-                await _notifier.NotifyErrorAsync(
-                    $"Import failed.\n{importResult.Errors[0].Message}"
-                );
+                await _notifier.NotifyErrorAsync($"Import failed.\n{importResult.Errors[0].Message}");
                 return;
             }
 
@@ -283,11 +274,7 @@ namespace RomForge.UI.ViewModels
                 var result = await _datLibrary.ReadAsync(path);
                 if (result.IsFailed)
                 {
-                    _logger.Warning(
-                        "Could not load managed DAT {Path}: {Error}",
-                        path,
-                        result.Errors[0].Message
-                    );
+                    _logger.Warning("Could not load managed DAT {Path}: {Error}", path, result.Errors[0].Message);
                     continue;
                 }
 
@@ -298,13 +285,7 @@ namespace RomForge.UI.ViewModels
             if (LoadedDats.Count > 0)
             {
                 var last = prefs.LastActiveDatName is not null
-                    ? LoadedDats.FirstOrDefault(d =>
-                        string.Equals(
-                            d.DatFile.Header.DatName,
-                            prefs.LastActiveDatName,
-                            StringComparison.Ordinal
-                        )
-                    )
+                    ? LoadedDats.FirstOrDefault(d => string.Equals(d.DatFile.Header.DatName, prefs.LastActiveDatName, StringComparison.Ordinal))
                     : null;
 
                 ActiveDat = last ?? LoadedDats[0];
@@ -331,10 +312,7 @@ namespace RomForge.UI.ViewModels
             );
             await OpenSettingsAsync();
 
-            if (
-                _unverifiedFolder is not null
-                && !_fileOperations.DirectoryExists(_unverifiedFolder)
-            )
+            if (_unverifiedFolder is not null && !_fileOperations.DirectoryExists(_unverifiedFolder))
             {
                 _unverifiedFolder = null;
             }
@@ -345,13 +323,7 @@ namespace RomForge.UI.ViewModels
             var existingIndex = -1;
             for (var i = 0; i < LoadedDats.Count; i++)
             {
-                if (
-                    !string.Equals(
-                        LoadedDats[i].DatFilePath,
-                        managedPath,
-                        StringComparison.OrdinalIgnoreCase
-                    )
-                )
+                if (!string.Equals(LoadedDats[i].DatFilePath, managedPath, StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
@@ -363,9 +335,7 @@ namespace RomForge.UI.ViewModels
             var result = await _datLibrary.ReadAsync(managedPath);
             if (result.IsFailed)
             {
-                await _notifier.NotifyErrorAsync(
-                    $"Could not load imported DAT.\n{result.Errors[0].Message}"
-                );
+                await _notifier.NotifyErrorAsync($"Could not load imported DAT.\n{result.Errors[0].Message}");
                 return;
             }
 
@@ -388,9 +358,7 @@ namespace RomForge.UI.ViewModels
 
             (var matchResults, bool fromCache) = await _datLibrary.LoadResultsAsync(datFile);
 
-            datVm.Games = new ObservableCollection<GameRowVM>(
-                matchResults.Select(datVm.BuildGameRow)
-            );
+            datVm.Games = new ObservableCollection<GameRowVM>(matchResults.Select(datVm.BuildGameRow));
 
             if (fromCache)
                 _ = ValidateIntegrityAsync(datVm, matchResults);
@@ -398,24 +366,15 @@ namespace RomForge.UI.ViewModels
             return datVm;
         }
 
-        private async Task ValidateIntegrityAsync(
-            LoadedDatVM datVm,
-            IReadOnlyList<MatchResult> results
-        )
+        private async Task ValidateIntegrityAsync(LoadedDatVM datVm, IReadOnlyList<MatchResult> results)
         {
             try
             {
-                IReadOnlyList<MatchResult> cleared = await _datLibrary.FindAndClearStaleAsync(
-                    datVm.DatFile.Header.DatName,
-                    datVm.RomFolder,
-                    results
-                );
+                IReadOnlyList<MatchResult> cleared = await _datLibrary.FindAndClearStaleAsync(datVm.DatFile.Header.DatName, datVm.RomFolder, results);
 
                 foreach (var missing in cleared)
                 {
-                    var existing = datVm.Games.FirstOrDefault(g =>
-                        g.Game.ReleaseNumber == missing.Game.ReleaseNumber
-                    );
+                    var existing = datVm.Games.FirstOrDefault(g => g.Game.ReleaseNumber == missing.Game.ReleaseNumber);
                     if (existing is null)
                         continue;
 
@@ -434,11 +393,7 @@ namespace RomForge.UI.ViewModels
             catch (Exception ex)
 #pragma warning restore CA1031
             {
-                _logger.Warning(
-                    ex,
-                    "Integrity check failed for {DatName}",
-                    datVm.DatFile.Header.DatName
-                );
+                _logger.Warning(ex, "Integrity check failed for {DatName}", datVm.DatFile.Header.DatName);
             }
         }
 
@@ -465,13 +420,7 @@ namespace RomForge.UI.ViewModels
                 progressVm.Progress = p.Total > 0 ? p.Completed * 100 / p.Total : 0;
             });
 
-            var scanTask = RomScanner.ScanAsync(
-                _romSource,
-                folder,
-                cache,
-                scanProgress,
-                progressVm.CancellationToken
-            );
+            var scanTask = RomScanner.ScanAsync(_romSource, folder, cache, scanProgress, progressVm.CancellationToken);
             await _notifier.ShowProgressAsync("Scanning ROMs", progressVm, scanTask);
 
             IReadOnlyList<ScannedRom> scannedRoms;
@@ -514,9 +463,7 @@ namespace RomForge.UI.ViewModels
                 .ToList();
 
             ActiveDat.UnmatchedRoms = summary.UnmatchedRoms;
-            ActiveDat.Games = new ObservableCollection<GameRowVM>(
-                results.Select(ActiveDat.BuildGameRow)
-            );
+            ActiveDat.Games = new ObservableCollection<GameRowVM>(results.Select(ActiveDat.BuildGameRow));
             await _scanResultStore.SaveResultsAsync(datName, results);
 
             _logger.Information(
@@ -604,10 +551,7 @@ namespace RomForge.UI.ViewModels
             return null;
         }
 
-        private bool CanRenameAll() =>
-            !IsReArchiving
-            && !IsTrimming
-            && ActiveDat?.Games.Any(g => g.IsIncorrectlyNamed) == true;
+        private bool CanRenameAll() => !IsReArchiving && !IsTrimming && ActiveDat?.Games.Any(g => g.IsIncorrectlyNamed) == true;
 
         /// <summary>
         /// Opens the CRC scan cache for <see cref="ActiveDat"/>'s ROM folder, or <see langword="null"/>
@@ -618,9 +562,7 @@ namespace RomForge.UI.ViewModels
         private JsonRomScanCache? CreateScanCacheForActiveDat()
         {
             string? folder = ActiveDat?.RomFolder;
-            return string.IsNullOrEmpty(folder)
-                ? null
-                : new JsonRomScanCache(_appData.GetScanCachePath(folder));
+            return string.IsNullOrEmpty(folder) ? null : new JsonRomScanCache(_appData.GetScanCachePath(folder));
         }
 
         [RelayCommand(CanExecute = nameof(CanReArchive))]
@@ -647,17 +589,8 @@ namespace RomForge.UI.ViewModels
             var snapshotGame = SelectedGame;
             var progressVm = new ProgressWindowVM(1, isCancellable: true);
             var scanCache = CreateScanCacheForActiveDat();
-            var operationTask = ReArchiveSelectedCoreAsync(
-                snapshotGame,
-                target.Value,
-                progressVm,
-                scanCache
-            );
-            await _notifier.ShowProgressAsync(
-                $"Re-Archiving to {ArchiveFormat}",
-                progressVm,
-                operationTask
-            );
+            var operationTask = ReArchiveSelectedCoreAsync(snapshotGame, target.Value, progressVm, scanCache);
+            await _notifier.ShowProgressAsync($"Re-Archiving to {ArchiveFormat}", progressVm, operationTask);
 
             var error = await operationTask;
             if (scanCache is not null)
@@ -679,9 +612,7 @@ namespace RomForge.UI.ViewModels
                 progress.CurrentFile = Path.GetFileName(target.From);
                 var datName = ActiveDat!.DatFile.Header.DatName;
 
-                IProgress<int> compressionProgress = new Progress<int>(pct =>
-                    progress.Progress = pct
-                );
+                IProgress<int> compressionProgress = new Progress<int>(pct => progress.Progress = pct);
                 Result<MatchResult> result = await _reArchiveService.ReArchiveAsync(
                     game.Result,
                     target,
@@ -719,10 +650,7 @@ namespace RomForge.UI.ViewModels
         }
 
         private bool CanReArchive() =>
-            !IsReArchiving
-            && !IsTrimming
-            && SelectedGame is { Status: MatchStatus.Verified, IsUntrimmed: false, IsGood: false }
-            && _compressor.IsAvailable;
+            !IsReArchiving && !IsTrimming && SelectedGame is { Status: MatchStatus.Verified, IsUntrimmed: false, IsGood: false } && _compressor.IsAvailable;
 
         [RelayCommand(CanExecute = nameof(CanReArchiveAll))]
         private async Task ReArchiveAllAsync()
@@ -730,46 +658,25 @@ namespace RomForge.UI.ViewModels
             if (ActiveDat is null)
                 return;
 
-            var targets = ActiveDat
-                .Games.Where(g => g.Status == MatchStatus.Verified && !g.IsUntrimmed && !g.IsGood)
-                .ToList();
+            var targets = ActiveDat.Games.Where(g => g.Status == MatchStatus.Verified && !g.IsUntrimmed && !g.IsGood).ToList();
 
             if (targets.Count == 0)
                 return;
 
             int maxConcurrency = ComputeReArchiveConcurrency(targets);
-            var progressVm = new BatchProgressWindowVM(
-                targets.Count,
-                maxConcurrency,
-                isCancellable: true
-            );
+            var progressVm = new BatchProgressWindowVM(targets.Count, maxConcurrency, isCancellable: true);
             var scanCache = CreateScanCacheForActiveDat();
-            var operationTask = ReArchiveAllCoreAsync(
-                targets,
-                progressVm,
-                maxConcurrency,
-                scanCache
-            );
-            await _notifier.ShowBatchProgressAsync(
-                $"Re-Archiving ROMs to {ArchiveFormat}",
-                progressVm,
-                operationTask
-            );
+            var operationTask = ReArchiveAllCoreAsync(targets, progressVm, maxConcurrency, scanCache);
+            await _notifier.ShowBatchProgressAsync($"Re-Archiving ROMs to {ArchiveFormat}", progressVm, operationTask);
 
             List<string> errors = await operationTask;
             if (scanCache is not null)
                 await scanCache.SaveAsync();
-            _logger.Information(
-                "Re-archive all: {Succeeded}/{Total} succeeded",
-                targets.Count - errors.Count,
-                targets.Count
-            );
+            _logger.Information("Re-archive all: {Succeeded}/{Total} succeeded", targets.Count - errors.Count, targets.Count);
 
             if (errors.Count > 0)
             {
-                await _notifier.NotifyErrorAsync(
-                    $"Re-archive failed for {errors.Count} file(s):\n{string.Join("\n", errors)}"
-                );
+                await _notifier.NotifyErrorAsync($"Re-archive failed for {errors.Count} file(s):\n{string.Join("\n", errors)}");
             }
         }
 
@@ -845,9 +752,7 @@ namespace RomForge.UI.ViewModels
                             slot.FileName = Path.GetFileName(target.Value.From);
                             slot.Progress = 0;
 
-                            IProgress<int> slotProgress = new Progress<int>(pct =>
-                                slot.Progress = pct
-                            );
+                            IProgress<int> slotProgress = new Progress<int>(pct => slot.Progress = pct);
                             Result<MatchResult> result = await _reArchiveService.ReArchiveAsync(
                                 game.Result,
                                 target.Value,
@@ -908,12 +813,7 @@ namespace RomForge.UI.ViewModels
             }
             catch (OperationCanceledException ex)
             {
-                _logger.Information(
-                    ex,
-                    "Re-archive all cancelled after {Completed} of {Total}",
-                    completed,
-                    targets.Count
-                );
+                _logger.Information(ex, "Re-archive all cancelled after {Completed} of {Total}", completed, targets.Count);
             }
             // CA1031: the batch-level net must never abort the app; unexpected failures are logged
             // and surfaced to the user as an error entry.
@@ -937,9 +837,7 @@ namespace RomForge.UI.ViewModels
             !IsReArchiving
             && !IsTrimming
             && _compressor.IsAvailable
-            && ActiveDat?.Games.Any(g =>
-                g.Status == MatchStatus.Verified && !g.IsUntrimmed && !g.IsGood
-            ) == true;
+            && ActiveDat?.Games.Any(g => g.Status == MatchStatus.Verified && !g.IsUntrimmed && !g.IsGood) == true;
 
         [RelayCommand(CanExecute = nameof(CanTrim))]
         private async Task TrimSelectedAsync()
@@ -964,11 +862,7 @@ namespace RomForge.UI.ViewModels
 
             GameRowVM snapshotGame = SelectedGame;
             ProgressWindowVM progressVm = new ProgressWindowVM(1, isCancellable: true);
-            Task<string?> operationTask = TrimSelectedCoreAsync(
-                snapshotGame,
-                target.Value,
-                progressVm
-            );
+            Task<string?> operationTask = TrimSelectedCoreAsync(snapshotGame, target.Value, progressVm);
             await _notifier.ShowProgressAsync("Trimming ROM", progressVm, operationTask);
 
             string? error = await operationTask;
@@ -976,26 +870,14 @@ namespace RomForge.UI.ViewModels
                 await _notifier.NotifyErrorAsync(error);
         }
 
-        private async Task<string?> TrimSelectedCoreAsync(
-            GameRowVM game,
-            (string From, string To) target,
-            ProgressWindowVM progress
-        )
+        private async Task<string?> TrimSelectedCoreAsync(GameRowVM game, (string From, string To) target, ProgressWindowVM progress)
         {
             IsTrimming = true;
             try
             {
                 progress.CurrentFile = Path.GetFileName(target.From);
-                IProgress<int> compressionProgress = new Progress<int>(pct =>
-                    progress.Progress = pct
-                );
-                Result<MatchResult> result = await _trimService.TrimAsync(
-                    game.Result,
-                    target,
-                    ArchiveFormat,
-                    progress.CancellationToken,
-                    compressionProgress
-                );
+                IProgress<int> compressionProgress = new Progress<int>(pct => progress.Progress = pct);
+                Result<MatchResult> result = await _trimService.TrimAsync(game.Result, target, ArchiveFormat, progress.CancellationToken, compressionProgress);
 
                 if (result.IsFailed)
                     return result.Errors[0].Message;
@@ -1014,11 +896,7 @@ namespace RomForge.UI.ViewModels
             }
         }
 
-        private bool CanTrim() =>
-            !IsTrimming
-            && !IsReArchiving
-            && SelectedGame?.IsUntrimmed == true
-            && _compressor.IsAvailable;
+        private bool CanTrim() => !IsTrimming && !IsReArchiving && SelectedGame?.IsUntrimmed == true && _compressor.IsAvailable;
 
         [RelayCommand(CanExecute = nameof(CanTrimAll))]
         private async Task TrimAllAsync()
@@ -1048,11 +926,7 @@ namespace RomForge.UI.ViewModels
 
         private async Task<string?> TrimOneAsync(GameRowVM game, ProgressWindowVM progress)
         {
-            (string From, string To)? target = RomTrimmer.GetTrimTarget(
-                game.Result,
-                NamingMask.DefaultMask,
-                ArchiveFormat
-            );
+            (string From, string To)? target = RomTrimmer.GetTrimTarget(game.Result, NamingMask.DefaultMask, ArchiveFormat);
 
             if (target is null)
                 return null;
@@ -1061,9 +935,7 @@ namespace RomForge.UI.ViewModels
             // runner leaves BumpOverallProgress off for trim so each file publishes its own fraction.
             int fileBase = (progress.Current - 1) * 100 / progress.Total;
             int fileRange = 100 / progress.Total;
-            IProgress<int> compressionProgress = new Progress<int>(pct =>
-                progress.Progress = fileBase + (pct * fileRange / 100)
-            );
+            IProgress<int> compressionProgress = new Progress<int>(pct => progress.Progress = fileBase + (pct * fileRange / 100));
 
             Result<MatchResult> result = await _trimService.TrimAsync(
                 game.Result,
@@ -1080,11 +952,7 @@ namespace RomForge.UI.ViewModels
             return null;
         }
 
-        private bool CanTrimAll() =>
-            !IsTrimming
-            && !IsReArchiving
-            && _compressor.IsAvailable
-            && ActiveDat?.Games.Any(g => g.IsUntrimmed) == true;
+        private bool CanTrimAll() => !IsTrimming && !IsReArchiving && _compressor.IsAvailable && ActiveDat?.Games.Any(g => g.IsUntrimmed) == true;
 
         private async Task ReplaceGameAsync(GameRowVM original, MatchResult updatedMatch)
         {
@@ -1096,17 +964,10 @@ namespace RomForge.UI.ViewModels
             if (ReferenceEquals(SelectedGame, original))
                 SelectedGame = updatedRow;
             original.Dispose();
-            await _scanResultStore.UpdateResultAsync(
-                ActiveDat.DatFile.Header.DatName,
-                updatedMatch
-            );
+            await _scanResultStore.UpdateResultAsync(ActiveDat.DatFile.Header.DatName, updatedMatch);
         }
 
-        private async Task UpdateGameRowOnUiThreadAsync(
-            LoadedDatVM activeDat,
-            GameRowVM original,
-            MatchResult updated
-        )
+        private async Task UpdateGameRowOnUiThreadAsync(LoadedDatVM activeDat, GameRowVM original, MatchResult updated)
         {
             await _uiDispatcher.InvokeAsync(() =>
             {
@@ -1156,17 +1017,11 @@ namespace RomForge.UI.ViewModels
 
             if (moved.Count > 0)
             {
-                activeDat.UnmatchedRoms = activeDat
-                    .UnmatchedRoms.Where(r => !moved.Contains(r))
-                    .ToList();
+                activeDat.UnmatchedRoms = activeDat.UnmatchedRoms.Where(r => !moved.Contains(r)).ToList();
             }
         }
 
-        private async Task<string?> MoveOneAsync(
-            ScannedRom rom,
-            string destFolder,
-            List<ScannedRom> moved
-        )
+        private async Task<string?> MoveOneAsync(ScannedRom rom, string destFolder, List<ScannedRom> moved)
         {
             string destPath = Path.Combine(destFolder, Path.GetFileName(rom.FilePath));
             Result result = await _fileOperations.RenameAsync(rom.FilePath, destPath);
@@ -1190,23 +1045,17 @@ namespace RomForge.UI.ViewModels
             if (header.NewDatVersionUrl is null)
                 return;
 
-            Result<DatUpdateCheck> checkResult = await _datUpdateService.CheckForUpdateAsync(
-                header
-            );
+            Result<DatUpdateCheck> checkResult = await _datUpdateService.CheckForUpdateAsync(header);
             if (checkResult.IsFailed)
             {
-                await _notifier.NotifyErrorAsync(
-                    $"Could not check for updates.\n{checkResult.Errors[0].Message}"
-                );
+                await _notifier.NotifyErrorAsync($"Could not check for updates.\n{checkResult.Errors[0].Message}");
                 return;
             }
 
             DatUpdateCheck check = checkResult.Value;
             if (!check.IsNewer)
             {
-                await _notifier.NotifyInfoAsync(
-                    $"Already up to date (version {check.CurrentVersion})."
-                );
+                await _notifier.NotifyInfoAsync($"Already up to date (version {check.CurrentVersion}).");
                 return;
             }
 
@@ -1221,23 +1070,13 @@ namespace RomForge.UI.ViewModels
             progressVm.CurrentFile = "Downloading DAT…";
 
             IProgress<int> datProgress = new Progress<int>(p => progressVm.Progress = p);
-            Task<Result> updateTask = _datUpdateService.DownloadUpdateAsync(
-                header,
-                datProgress,
-                progressVm.CancellationToken
-            );
-            await _notifier.ShowProgressAsync(
-                $"Updating DAT — {ActiveDat.DisplayTitle}",
-                progressVm,
-                updateTask
-            );
+            Task<Result> updateTask = _datUpdateService.DownloadUpdateAsync(header, datProgress, progressVm.CancellationToken);
+            await _notifier.ShowProgressAsync($"Updating DAT — {ActiveDat.DisplayTitle}", progressVm, updateTask);
 
             var updateResult = await updateTask;
             if (updateResult.IsFailed)
             {
-                await _notifier.NotifyErrorAsync(
-                    $"Update failed.\n{updateResult.Errors[0].Message}"
-                );
+                await _notifier.NotifyErrorAsync($"Update failed.\n{updateResult.Errors[0].Message}");
                 return;
             }
 
@@ -1272,11 +1111,7 @@ namespace RomForge.UI.ViewModels
             // `using` while syncTask is still running.
 #pragma warning disable CA2025
             Task syncTask = RunImageSyncAsync(datFile, imageVm);
-            await _notifier.ShowImageDownloadAsync(
-                $"Downloading Images — {datDisplayName}",
-                imageVm,
-                syncTask
-            );
+            await _notifier.ShowImageDownloadAsync($"Downloading Images — {datDisplayName}", imageVm, syncTask);
 #pragma warning restore CA2025
         }
 
@@ -1285,12 +1120,7 @@ namespace RomForge.UI.ViewModels
             IProgress<ImageSyncProgress> progress = new Progress<ImageSyncProgress>(imageVm.Report);
             try
             {
-                Result<ImageSyncSummary> result = await _imageSync.SyncMissingAsync(
-                    datFile,
-                    _appData.ImgsPath,
-                    progress,
-                    imageVm.CancellationToken
-                );
+                Result<ImageSyncSummary> result = await _imageSync.SyncMissingAsync(datFile, _appData.ImgsPath, progress, imageVm.CancellationToken);
 
                 imageVm.Finish(result.IsSuccess ? result.Value : new ImageSyncSummary(0, 0, 0));
             }
@@ -1313,8 +1143,7 @@ namespace RomForge.UI.ViewModels
         }
 
         [RelayCommand]
-        private async Task CheckForUpdatesAsync() =>
-            await RunUpdateCheckAsync(announceWhenCurrent: true);
+        private async Task CheckForUpdatesAsync() => await RunUpdateCheckAsync(announceWhenCurrent: true);
 
         /// <summary>
         /// Checks for a newer release. When <paramref name="announceWhenCurrent"/> is <c>false</c>
@@ -1338,15 +1167,11 @@ namespace RomForge.UI.ViewModels
                 }
                 else if (announceWhenCurrent && outcome.Status == UpdateCheckStatus.UpToDate)
                 {
-                    await _notifier.NotifyInfoAsync(
-                        $"You're on the latest version ({outcome.CurrentVersion})."
-                    );
+                    await _notifier.NotifyInfoAsync($"You're on the latest version ({outcome.CurrentVersion}).");
                 }
                 else if (announceWhenCurrent && outcome.Status == UpdateCheckStatus.CheckFailed)
                 {
-                    await _notifier.NotifyErrorAsync(
-                        $"Could not check for updates.\n{outcome.Error}"
-                    );
+                    await _notifier.NotifyErrorAsync($"Could not check for updates.\n{outcome.Error}");
                 }
             }
             // CA1031: an uncaught throw here (e.g. from launching the release page) would abort the
@@ -1373,8 +1198,7 @@ namespace RomForge.UI.ViewModels
         public string AppVersionDisplay => $"RomForge v{_updateCheck.CurrentVersion}";
 
         [RelayCommand]
-        private async Task OpenReleasesPageAsync() =>
-            await _urlLauncher.OpenUrlAsync(GitHubReleaseChecker.ReleasesPageUrl);
+        private async Task OpenReleasesPageAsync() => await _urlLauncher.OpenUrlAsync(GitHubReleaseChecker.ReleasesPageUrl);
 
         [RelayCommand]
         private async Task ShowAboutAsync()

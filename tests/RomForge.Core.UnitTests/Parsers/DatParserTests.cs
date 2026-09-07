@@ -63,8 +63,7 @@ namespace RomForge.Core.UnitTests.Parsers
             </dat>
             """;
 
-        private static MemoryStream ToStream(string xml) =>
-            new MemoryStream(Encoding.UTF8.GetBytes(xml));
+        private static MemoryStream ToStream(string xml) => new MemoryStream(Encoding.UTF8.GetBytes(xml));
 
         [Test]
         public async Task ParseAsync_ReturnsCorrectHeader()

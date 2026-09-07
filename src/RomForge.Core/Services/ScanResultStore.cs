@@ -21,18 +21,13 @@ namespace RomForge.Core.Services
         {
             ArgumentNullException.ThrowIfNull(appData);
             ArgumentNullException.ThrowIfNull(logger);
-            _connectionString = new SqliteConnectionStringBuilder
-            {
-                DataSource = appData.StatusDbPath,
-            }.ToString();
+            _connectionString = new SqliteConnectionStringBuilder { DataSource = appData.StatusDbPath }.ToString();
             _logger = logger.ForContext<ScanResultStore>();
         }
 
         public async Task InitializeAsync()
         {
-            await using SqliteConnection conn = await StatusDbConnection.OpenAsync(
-                _connectionString
-            );
+            await using SqliteConnection conn = await StatusDbConnection.OpenAsync(_connectionString);
 
             await using (SqliteCommand cmd = conn.CreateCommand())
             {
@@ -69,11 +64,8 @@ namespace RomForge.Core.Services
 
             try
             {
-                await using SqliteConnection conn = await StatusDbConnection.OpenAsync(
-                    _connectionString
-                );
-                await using SqliteTransaction tx = (SqliteTransaction)
-                    await conn.BeginTransactionAsync();
+                await using SqliteConnection conn = await StatusDbConnection.OpenAsync(_connectionString);
+                await using SqliteTransaction tx = (SqliteTransaction)await conn.BeginTransactionAsync();
 
                 await using (SqliteCommand del = conn.CreateCommand())
                 {
@@ -94,38 +86,17 @@ namespace RomForge.Core.Services
                          @IsIncorrectlyNamed, @IsWrongArchiveType, @IsUntrimmed, @IsReArchived, @LastModified)";
 
                     SqliteParameter pDatName = ins.Parameters.Add(ParamDatName, SqliteType.Text);
-                    SqliteParameter pRelNum = ins.Parameters.Add(
-                        "@ReleaseNumber",
-                        SqliteType.Integer
-                    );
+                    SqliteParameter pRelNum = ins.Parameters.Add("@ReleaseNumber", SqliteType.Integer);
                     SqliteParameter pStatus = ins.Parameters.Add("@Status", SqliteType.Integer);
                     SqliteParameter pFilePath = ins.Parameters.Add("@FilePath", SqliteType.Text);
-                    SqliteParameter pFileExt = ins.Parameters.Add(
-                        "@FileExtension",
-                        SqliteType.Text
-                    );
+                    SqliteParameter pFileExt = ins.Parameters.Add("@FileExtension", SqliteType.Text);
                     SqliteParameter pRomExt = ins.Parameters.Add("@RomExtension", SqliteType.Text);
                     SqliteParameter pCrc = ins.Parameters.Add("@Crc", SqliteType.Integer);
-                    SqliteParameter pIncorrectlyNamed = ins.Parameters.Add(
-                        "@IsIncorrectlyNamed",
-                        SqliteType.Integer
-                    );
-                    SqliteParameter pWrongArchive = ins.Parameters.Add(
-                        "@IsWrongArchiveType",
-                        SqliteType.Integer
-                    );
-                    SqliteParameter pUntrimmed = ins.Parameters.Add(
-                        "@IsUntrimmed",
-                        SqliteType.Integer
-                    );
-                    SqliteParameter pReArchived = ins.Parameters.Add(
-                        "@IsReArchived",
-                        SqliteType.Integer
-                    );
-                    SqliteParameter pLastModified = ins.Parameters.Add(
-                        "@LastModified",
-                        SqliteType.Text
-                    );
+                    SqliteParameter pIncorrectlyNamed = ins.Parameters.Add("@IsIncorrectlyNamed", SqliteType.Integer);
+                    SqliteParameter pWrongArchive = ins.Parameters.Add("@IsWrongArchiveType", SqliteType.Integer);
+                    SqliteParameter pUntrimmed = ins.Parameters.Add("@IsUntrimmed", SqliteType.Integer);
+                    SqliteParameter pReArchived = ins.Parameters.Add("@IsReArchived", SqliteType.Integer);
+                    SqliteParameter pLastModified = ins.Parameters.Add("@LastModified", SqliteType.Text);
 
                     foreach (MatchResult r in results)
                     {
@@ -135,15 +106,12 @@ namespace RomForge.Core.Services
                         pFilePath.Value = (object?)r.ScannedRom?.FilePath ?? DBNull.Value;
                         pFileExt.Value = (object?)r.ScannedRom?.FileExtension ?? DBNull.Value;
                         pRomExt.Value = (object?)r.ScannedRom?.RomExtension ?? DBNull.Value;
-                        pCrc.Value = r.ScannedRom is not null
-                            ? (object)(long)r.ScannedRom.Crc
-                            : DBNull.Value;
+                        pCrc.Value = r.ScannedRom is not null ? (object)(long)r.ScannedRom.Crc : DBNull.Value;
                         pIncorrectlyNamed.Value = r.IsIncorrectlyNamed ? 1 : 0;
                         pWrongArchive.Value = r.IsWrongArchiveType ? 1 : 0;
                         pUntrimmed.Value = r.IsUntrimmed ? 1 : 0;
                         pReArchived.Value = r.IsReArchived ? 1 : 0;
-                        pLastModified.Value =
-                            (object?)r.ScannedRom?.LastModified?.ToString("O") ?? DBNull.Value;
+                        pLastModified.Value = (object?)r.ScannedRom?.LastModified?.ToString("O") ?? DBNull.Value;
                         await ins.ExecuteNonQueryAsync();
                     }
                 }
@@ -162,10 +130,7 @@ namespace RomForge.Core.Services
         /// current game list. Games not present in the DB are returned as Missing.
         /// Returns an empty list when no results have been saved yet.
         /// </summary>
-        public async Task<IReadOnlyList<MatchResult>> LoadResultsAsync(
-            string datName,
-            DatFile datFile
-        )
+        public async Task<IReadOnlyList<MatchResult>> LoadResultsAsync(string datName, DatFile datFile)
         {
             ArgumentNullException.ThrowIfNull(datFile);
 
@@ -219,11 +184,7 @@ namespace RomForge.Core.Services
                 var isReArchived = reader.GetInt32(9) != 0;
                 DateTime? lastModified = await reader.IsDBNullAsync(10)
                     ? null
-                    : DateTime.Parse(
-                        reader.GetString(10),
-                        CultureInfo.InvariantCulture,
-                        DateTimeStyles.RoundtripKind
-                    );
+                    : DateTime.Parse(reader.GetString(10), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
                 rows[releaseNumber] = new PersistedRow(
                     status,
                     filePath,
@@ -285,9 +246,7 @@ namespace RomForge.Core.Services
 
             try
             {
-                await using SqliteConnection conn = await StatusDbConnection.OpenAsync(
-                    _connectionString
-                );
+                await using SqliteConnection conn = await StatusDbConnection.OpenAsync(_connectionString);
                 await using SqliteCommand cmd = conn.CreateCommand();
                 cmd.CommandText =
                     @"
@@ -300,48 +259,20 @@ namespace RomForge.Core.Services
                 cmd.Parameters.AddWithValue(ParamDatName, datName);
                 cmd.Parameters.AddWithValue("@ReleaseNumber", result.Game.ReleaseNumber);
                 cmd.Parameters.AddWithValue("@Status", (int)result.Status);
-                cmd.Parameters.AddWithValue(
-                    "@FilePath",
-                    (object?)result.ScannedRom?.FilePath ?? DBNull.Value
-                );
-                cmd.Parameters.AddWithValue(
-                    "@FileExtension",
-                    (object?)result.ScannedRom?.FileExtension ?? DBNull.Value
-                );
-                cmd.Parameters.AddWithValue(
-                    "@RomExtension",
-                    (object?)result.ScannedRom?.RomExtension ?? DBNull.Value
-                );
-                cmd.Parameters.AddWithValue(
-                    "@Crc",
-                    result.ScannedRom is not null
-                        ? (object)(long)result.ScannedRom.Crc
-                        : DBNull.Value
-                );
-                cmd.Parameters.AddWithValue(
-                    "@IsIncorrectlyNamed",
-                    result.IsIncorrectlyNamed ? 1 : 0
-                );
-                cmd.Parameters.AddWithValue(
-                    "@IsWrongArchiveType",
-                    result.IsWrongArchiveType ? 1 : 0
-                );
+                cmd.Parameters.AddWithValue("@FilePath", (object?)result.ScannedRom?.FilePath ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@FileExtension", (object?)result.ScannedRom?.FileExtension ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@RomExtension", (object?)result.ScannedRom?.RomExtension ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@Crc", result.ScannedRom is not null ? (object)(long)result.ScannedRom.Crc : DBNull.Value);
+                cmd.Parameters.AddWithValue("@IsIncorrectlyNamed", result.IsIncorrectlyNamed ? 1 : 0);
+                cmd.Parameters.AddWithValue("@IsWrongArchiveType", result.IsWrongArchiveType ? 1 : 0);
                 cmd.Parameters.AddWithValue("@IsUntrimmed", result.IsUntrimmed ? 1 : 0);
                 cmd.Parameters.AddWithValue("@IsReArchived", result.IsReArchived ? 1 : 0);
-                cmd.Parameters.AddWithValue(
-                    "@LastModified",
-                    (object?)result.ScannedRom?.LastModified?.ToString("O") ?? DBNull.Value
-                );
+                cmd.Parameters.AddWithValue("@LastModified", (object?)result.ScannedRom?.LastModified?.ToString("O") ?? DBNull.Value);
                 await cmd.ExecuteNonQueryAsync();
             }
             catch (SqliteException ex)
             {
-                _logger.Warning(
-                    ex,
-                    "Could not update scan result for {DatName}/{ReleaseNumber}",
-                    datName,
-                    result.Game.ReleaseNumber
-                );
+                _logger.Warning(ex, "Could not update scan result for {DatName}/{ReleaseNumber}", datName, result.Game.ReleaseNumber);
             }
         }
 
@@ -379,9 +310,7 @@ namespace RomForge.Core.Services
                 "UPDATE ScanResults SET Status = (CASE WHEN Status = 3 THEN 0 ELSE 1 END)",
             ];
 
-            await using (
-                SqliteTransaction tx = (SqliteTransaction)await conn.BeginTransactionAsync()
-            )
+            await using (SqliteTransaction tx = (SqliteTransaction)await conn.BeginTransactionAsync())
             {
                 foreach (string sql in statements)
                 {

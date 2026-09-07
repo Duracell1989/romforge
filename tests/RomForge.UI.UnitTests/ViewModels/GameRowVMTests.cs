@@ -13,11 +13,8 @@ namespace RomForge.UI.UnitTests.ViewModels
     [TestOf(typeof(GameRowVM))]
     public sealed class GameRowVMTests
     {
-        private static GameRowVM MakeRow(
-            MatchResult result,
-            DatHeader? header = null,
-            IReadOnlyList<LanguageBit>? bits = null
-        ) => new GameRowVM(result, string.Empty, header ?? new DatHeader(), bits ?? []);
+        private static GameRowVM MakeRow(MatchResult result, DatHeader? header = null, IReadOnlyList<LanguageBit>? bits = null) =>
+            new GameRowVM(result, string.Empty, header ?? new DatHeader(), bits ?? []);
 
         private static MatchResult MakeVerified(
             bool incorrectlyNamed = false,
@@ -52,9 +49,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void StatusText_Missing_ReturnsMissing()
         {
-            GameRowVM vm = MakeRow(
-                new MatchResult { Game = new Game(), Status = MatchStatus.Missing }
-            );
+            GameRowVM vm = MakeRow(new MatchResult { Game = new Game(), Status = MatchStatus.Missing });
 
             vm.StatusText.Should().Be("Missing");
         }
@@ -104,9 +99,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void StatusSortKey_Missing_Returns0()
         {
-            GameRowVM vm = MakeRow(
-                new MatchResult { Game = new Game(), Status = MatchStatus.Missing }
-            );
+            GameRowVM vm = MakeRow(new MatchResult { Game = new Game(), Status = MatchStatus.Missing });
 
             vm.StatusSortKey.Should().Be(0);
         }
@@ -290,9 +283,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void StatusBrush_Missing_ReturnsMissingBrush()
         {
-            GameRowVM vm = MakeRow(
-                new MatchResult { Game = new Game(), Status = MatchStatus.Missing }
-            );
+            GameRowVM vm = MakeRow(new MatchResult { Game = new Game(), Status = MatchStatus.Missing });
 
             vm.StatusBrush.Should().BeSameAs(StatusColors.Missing);
         }

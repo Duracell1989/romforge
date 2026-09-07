@@ -20,12 +20,8 @@ namespace RomForge.UI
             if (param is null)
                 return null;
 
-            var fullName = param
-                .GetType()
-                .FullName!.Replace("ViewModels.", "Views.", StringComparison.Ordinal);
-            var name = fullName.EndsWith("VM", StringComparison.Ordinal)
-                ? fullName[..^2]
-                : fullName;
+            var fullName = param.GetType().FullName!.Replace("ViewModels.", "Views.", StringComparison.Ordinal);
+            var name = fullName.EndsWith("VM", StringComparison.Ordinal) ? fullName[..^2] : fullName;
             var type = Type.GetType(name);
 
             if (type != null)

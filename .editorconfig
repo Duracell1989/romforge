@@ -9,6 +9,10 @@ insert_final_newline = true
 [*.cs]
 indent_style = space
 indent_size = 4
+
+# CSharpier reads max_line_length as its print width (its own default is 100), and Rider
+# honours the same key — so both wrap at the standard 160 adopted across all .NET projects here.
+max_line_length = 160
 dotnet_diagnostic.IDE0290.severity = none
 
 # CA2007: ConfigureAwait targets redistributable libraries consumed under an

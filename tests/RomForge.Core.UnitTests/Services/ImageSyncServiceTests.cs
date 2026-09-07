@@ -29,22 +29,10 @@ namespace RomForge.Core.UnitTests.Services
         public void SetUp()
         {
             _downloader = new Mock<IImageDownloader>();
-            _downloader
-                .Setup(d =>
-                    d.DownloadImageAsync(
-                        It.IsAny<string>(),
-                        It.IsAny<string>(),
-                        It.IsAny<CancellationToken>()
-                    )
-                )
-                .ReturnsAsync(() => Result.Ok());
+            _downloader.Setup(d => d.DownloadImageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(() => Result.Ok());
             _fileOps = new Mock<IRomFileOperations>();
             _fileOps.Setup(f => f.FileExists(It.IsAny<string>())).Returns(false);
-            _service = new ImageSyncService(
-                _downloader.Object,
-                _fileOps.Object,
-                new LoggerConfiguration().CreateLogger()
-            );
+            _service = new ImageSyncService(_downloader.Object, _fileOps.Object, new LoggerConfiguration().CreateLogger());
         }
 
         private static DatFile MakeDat(string? imUrl, params int[] imageNumbers)
@@ -69,15 +57,7 @@ namespace RomForge.Core.UnitTests.Services
 
             result.IsSuccess.Should().BeTrue();
             result.Value.Should().Be(new ImageSyncSummary(0, 0, 0));
-            _downloader.Verify(
-                d =>
-                    d.DownloadImageAsync(
-                        It.IsAny<string>(),
-                        It.IsAny<string>(),
-                        It.IsAny<CancellationToken>()
-                    ),
-                Times.Never
-            );
+            _downloader.Verify(d => d.DownloadImageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Test]
@@ -118,15 +98,7 @@ namespace RomForge.Core.UnitTests.Services
             Result<ImageSyncSummary> result = await _service.SyncMissingAsync(dat, ImgsBase);
 
             result.Value.Should().Be(new ImageSyncSummary(1, 0, 1));
-            _downloader.Verify(
-                d =>
-                    d.DownloadImageAsync(
-                        existing,
-                        It.IsAny<string>(),
-                        It.IsAny<CancellationToken>()
-                    ),
-                Times.Never
-            );
+            _downloader.Verify(d => d.DownloadImageAsync(existing, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Test]
@@ -154,13 +126,7 @@ namespace RomForge.Core.UnitTests.Services
         {
             DatFile dat = MakeDat(ImUrl, 1);
             _downloader
-                .Setup(d =>
-                    d.DownloadImageAsync(
-                        It.Is<string>(u => u.EndsWith("1b.png")),
-                        It.IsAny<string>(),
-                        It.IsAny<CancellationToken>()
-                    )
-                )
+                .Setup(d => d.DownloadImageAsync(It.Is<string>(u => u.EndsWith("1b.png")), It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Result.Fail("404"));
 
             Result<ImageSyncSummary> result = await _service.SyncMissingAsync(dat, ImgsBase);
@@ -173,9 +139,7 @@ namespace RomForge.Core.UnitTests.Services
         {
             DatFile dat = MakeDat(ImUrl, 1);
             List<ImageSyncProgress> reported = [];
-            SyncProgress<ImageSyncProgress> progress = new SyncProgress<ImageSyncProgress>(
-                reported.Add
-            );
+            SyncProgress<ImageSyncProgress> progress = new SyncProgress<ImageSyncProgress>(reported.Add);
 
             await _service.SyncMissingAsync(dat, ImgsBase, progress);
 

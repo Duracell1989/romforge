@@ -202,11 +202,7 @@ namespace RomForge.Core.UnitTests.IO
             return path;
         }
 
-        private static void CreateZip(
-            string zipPath,
-            string? entryName = null,
-            byte[]? content = null
-        )
+        private static void CreateZip(string zipPath, string? entryName = null, byte[]? content = null)
         {
             using ZipArchive zip = ZipFile.Open(zipPath, ZipArchiveMode.Create);
             if (entryName is not null && content is not null)

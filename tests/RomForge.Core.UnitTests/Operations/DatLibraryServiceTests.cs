@@ -72,9 +72,7 @@ namespace RomForge.Core.UnitTests.Operations
         public async Task ReadAsync_DelegatesToReaderFactory()
         {
             DatFile datFile = MakeDatFile(MakeGame(1));
-            _datReader
-                .Setup(r => r.ReadAsync(It.IsAny<CancellationToken>()))
-                .ReturnsAsync(Result.Ok(datFile));
+            _datReader.Setup(r => r.ReadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Result.Ok(datFile));
 
             Result<DatFile> result = await _service.ReadAsync("/some/path.dat");
 
@@ -86,21 +84,10 @@ namespace RomForge.Core.UnitTests.Operations
         public async Task ImportAsync_ImportFails_ReturnsFailure()
         {
             _datImporter
-                .Setup(i =>
-                    i.ImportAsync(
-                        It.IsAny<string>(),
-                        It.IsAny<DatHeader>(),
-                        It.IsAny<IProgress<ImportProgress>?>(),
-                        It.IsAny<CancellationToken>()
-                    )
-                )
+                .Setup(i => i.ImportAsync(It.IsAny<string>(), It.IsAny<DatHeader>(), It.IsAny<IProgress<ImportProgress>?>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Result.Fail("import boom"));
 
-            Result<string> result = await _service.ImportAsync(
-                "/src/list.dat",
-                new DatHeader { DatName = DatName },
-                progress: null
-            );
+            Result<string> result = await _service.ImportAsync("/src/list.dat", new DatHeader { DatName = DatName }, progress: null);
 
             result.IsFailed.Should().BeTrue();
             result.Errors[0].Message.Should().Contain("import boom");
@@ -110,21 +97,10 @@ namespace RomForge.Core.UnitTests.Operations
         public async Task ImportAsync_ImportSucceeds_ReturnsManagedPath()
         {
             _datImporter
-                .Setup(i =>
-                    i.ImportAsync(
-                        It.IsAny<string>(),
-                        It.IsAny<DatHeader>(),
-                        It.IsAny<IProgress<ImportProgress>?>(),
-                        It.IsAny<CancellationToken>()
-                    )
-                )
+                .Setup(i => i.ImportAsync(It.IsAny<string>(), It.IsAny<DatHeader>(), It.IsAny<IProgress<ImportProgress>?>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Result.Ok("/managed/list.dat"));
 
-            Result<string> result = await _service.ImportAsync(
-                "/src/list.dat",
-                new DatHeader { DatName = DatName },
-                progress: null
-            );
+            Result<string> result = await _service.ImportAsync("/src/list.dat", new DatHeader { DatName = DatName }, progress: null);
 
             result.IsSuccess.Should().BeTrue();
             result.Value.Should().Be("/managed/list.dat");
@@ -135,9 +111,7 @@ namespace RomForge.Core.UnitTests.Operations
         {
             DatFile datFile = MakeDatFile(MakeGame(1), MakeGame(2));
 
-            (IReadOnlyList<MatchResult> results, bool fromCache) = await _service.LoadResultsAsync(
-                datFile
-            );
+            (IReadOnlyList<MatchResult> results, bool fromCache) = await _service.LoadResultsAsync(datFile);
 
             fromCache.Should().BeFalse();
             results.Should().HaveCount(2);
@@ -148,14 +122,9 @@ namespace RomForge.Core.UnitTests.Operations
         public async Task LoadResultsAsync_Persisted_ReturnsFromCache()
         {
             DatFile datFile = MakeDatFile(MakeGame(1));
-            await _scanResultStore.SaveResultsAsync(
-                DatName,
-                [new MatchResult { Game = MakeGame(1), Status = MatchStatus.Verified }]
-            );
+            await _scanResultStore.SaveResultsAsync(DatName, [new MatchResult { Game = MakeGame(1), Status = MatchStatus.Verified }]);
 
-            (IReadOnlyList<MatchResult> results, bool fromCache) = await _service.LoadResultsAsync(
-                datFile
-            );
+            (IReadOnlyList<MatchResult> results, bool fromCache) = await _service.LoadResultsAsync(datFile);
 
             fromCache.Should().BeTrue();
             results.Should().HaveCount(1);
@@ -175,11 +144,7 @@ namespace RomForge.Core.UnitTests.Operations
                 },
             ];
 
-            IReadOnlyList<MatchResult> cleared = await _service.FindAndClearStaleAsync(
-                DatName,
-                "/roms",
-                results
-            );
+            IReadOnlyList<MatchResult> cleared = await _service.FindAndClearStaleAsync(DatName, "/roms", results);
 
             cleared.Should().BeEmpty();
         }
@@ -187,16 +152,9 @@ namespace RomForge.Core.UnitTests.Operations
         [Test]
         public async Task FindAndClearStaleAsync_NoStale_ReturnsEmpty()
         {
-            List<MatchResult> results =
-            [
-                new MatchResult { Game = MakeGame(1), Status = MatchStatus.Missing },
-            ];
+            List<MatchResult> results = [new MatchResult { Game = MakeGame(1), Status = MatchStatus.Missing }];
 
-            IReadOnlyList<MatchResult> cleared = await _service.FindAndClearStaleAsync(
-                DatName,
-                romFolder: null,
-                results
-            );
+            IReadOnlyList<MatchResult> cleared = await _service.FindAndClearStaleAsync(DatName, romFolder: null, results);
 
             cleared.Should().BeEmpty();
         }
@@ -204,11 +162,7 @@ namespace RomForge.Core.UnitTests.Operations
         [Test]
         public async Task FindAndClearStaleAsync_StaleFile_PersistsMissingAndReturnsCleared()
         {
-            string missingPath = Path.Combine(
-                Path.GetTempPath(),
-                Guid.NewGuid().ToString("N"),
-                "gone.7z"
-            );
+            string missingPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"), "gone.7z");
             List<MatchResult> results =
             [
                 new MatchResult
@@ -219,11 +173,7 @@ namespace RomForge.Core.UnitTests.Operations
                 },
             ];
 
-            IReadOnlyList<MatchResult> cleared = await _service.FindAndClearStaleAsync(
-                DatName,
-                romFolder: null,
-                results
-            );
+            IReadOnlyList<MatchResult> cleared = await _service.FindAndClearStaleAsync(DatName, romFolder: null, results);
 
             cleared.Should().HaveCount(1);
             cleared[0].Status.Should().Be(MatchStatus.Missing);
@@ -231,10 +181,7 @@ namespace RomForge.Core.UnitTests.Operations
 
             // The missing status was persisted.
             DatFile datFile = MakeDatFile(MakeGame(1));
-            IReadOnlyList<MatchResult> persisted = await _scanResultStore.LoadResultsAsync(
-                DatName,
-                datFile
-            );
+            IReadOnlyList<MatchResult> persisted = await _scanResultStore.LoadResultsAsync(DatName, datFile);
             persisted.Should().ContainSingle(r => r.Status == MatchStatus.Missing);
         }
     }

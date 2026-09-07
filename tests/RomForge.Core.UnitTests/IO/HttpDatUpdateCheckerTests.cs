@@ -56,11 +56,7 @@ namespace RomForge.Core.UnitTests.IO
             Mock<HttpMessageHandler> handlerMock = new Mock<HttpMessageHandler>();
             handlerMock
                 .Protected()
-                .Setup<Task<HttpResponseMessage>>(
-                    "SendAsync",
-                    ItExpr.IsAny<HttpRequestMessage>(),
-                    ItExpr.IsAny<CancellationToken>()
-                )
+                .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
                 .ThrowsAsync(new HttpRequestException("Network unreachable"));
 
             HttpClient http = new HttpClient(handlerMock.Object);
@@ -79,11 +75,7 @@ namespace RomForge.Core.UnitTests.IO
             Mock<HttpMessageHandler> handlerMock = new Mock<HttpMessageHandler>();
             handlerMock
                 .Protected()
-                .Setup<Task<HttpResponseMessage>>(
-                    "SendAsync",
-                    ItExpr.IsAny<HttpRequestMessage>(),
-                    ItExpr.IsAny<CancellationToken>()
-                )
+                .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
                 .ThrowsAsync(new OperationCanceledException());
 
             HttpClient http = new HttpClient(handlerMock.Object);
@@ -91,9 +83,7 @@ namespace RomForge.Core.UnitTests.IO
             await cts.CancelAsync();
 
             await checker
-                .Invoking(c =>
-                    c.FetchLatestVersionAsync("http://example.com/version.txt", cts.Token)
-                )
+                .Invoking(c => c.FetchLatestVersionAsync("http://example.com/version.txt", cts.Token))
                 .Should()
                 .ThrowAsync<OperationCanceledException>();
         }
@@ -103,18 +93,8 @@ namespace RomForge.Core.UnitTests.IO
             Mock<HttpMessageHandler> handlerMock = new Mock<HttpMessageHandler>();
             handlerMock
                 .Protected()
-                .Setup<Task<HttpResponseMessage>>(
-                    "SendAsync",
-                    ItExpr.IsAny<HttpRequestMessage>(),
-                    ItExpr.IsAny<CancellationToken>()
-                )
-                .ReturnsAsync(
-                    new HttpResponseMessage
-                    {
-                        StatusCode = status,
-                        Content = new StringContent(body),
-                    }
-                );
+                .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(new HttpResponseMessage { StatusCode = status, Content = new StringContent(body) });
             return new HttpClient(handlerMock.Object);
         }
 

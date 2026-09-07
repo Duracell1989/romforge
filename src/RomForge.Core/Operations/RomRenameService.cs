@@ -29,10 +29,7 @@ namespace RomForge.Core.Operations
             if (target is null)
                 return Result.Ok<MatchResult?>(null);
 
-            Result renameResult = await _fileOperations.RenameAsync(
-                target.Value.From,
-                target.Value.To
-            );
+            Result renameResult = await _fileOperations.RenameAsync(target.Value.From, target.Value.To);
             if (renameResult.IsFailed)
                 return Result.Fail<MatchResult?>(renameResult.Errors);
 

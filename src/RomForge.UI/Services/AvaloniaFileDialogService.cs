@@ -9,10 +9,7 @@ namespace RomForge.UI.Services
     {
         private readonly Func<Window?> _getWindow;
 
-        private static readonly FilePickerFileType DatFileType = new("OfflineList DAT")
-        {
-            Patterns = ["*.zip", "*.xml"],
-        };
+        private static readonly FilePickerFileType DatFileType = new("OfflineList DAT") { Patterns = ["*.zip", "*.xml"] };
 
         public AvaloniaFileDialogService(Func<Window?> getWindow)
         {
@@ -39,8 +36,7 @@ namespace RomForge.UI.Services
 
         public Task<string?> PickRomFolderAsync() => PickFolderAsync("Select ROM Folder");
 
-        public Task<string?> PickUnverifiedDestinationAsync() =>
-            PickFolderAsync("Move Unverified Files To…");
+        public Task<string?> PickUnverifiedDestinationAsync() => PickFolderAsync("Move Unverified Files To…");
 
         private async Task<string?> PickFolderAsync(string title)
         {
@@ -48,9 +44,7 @@ namespace RomForge.UI.Services
             if (topLevel is null)
                 return null;
 
-            var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(
-                new FolderPickerOpenOptions { Title = title, AllowMultiple = false }
-            );
+            var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = title, AllowMultiple = false });
 
             return folders.Count == 1 ? folders[0].Path.LocalPath : null;
         }

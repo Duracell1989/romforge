@@ -15,11 +15,7 @@ namespace RomForge.Core.Operations
         /// when <c>From</c> and <c>To</c> would be identical — the content still changes, so the
         /// caller must handle the same-path case (e.g., by using a temporary output path).
         /// </remarks>
-        public static (string From, string To)? GetTrimTarget(
-            MatchResult result,
-            string namingMask,
-            string targetExtension = "7z"
-        )
+        public static (string From, string To)? GetTrimTarget(MatchResult result, string namingMask, string targetExtension = "7z")
         {
             ArgumentNullException.ThrowIfNull(result);
 

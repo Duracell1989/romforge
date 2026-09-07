@@ -38,19 +38,12 @@ namespace RomForge.UI.UnitTests.ViewModels
                 Directory.Delete(_tempDir, recursive: true);
         }
 
-        private SettingsVM MakeVM(AppPreferences? current = null) =>
-            new SettingsVM(
-                _preferencesService,
-                _fileDialogs.Object,
-                current ?? new AppPreferences()
-            );
+        private SettingsVM MakeVM(AppPreferences? current = null) => new SettingsVM(_preferencesService, _fileDialogs.Object, current ?? new AppPreferences());
 
         [Test]
         public void Constructor_InitializesFromCurrentPreferences()
         {
-            SettingsVM vm = MakeVM(
-                new AppPreferences { DefaultArchiveFormat = "zip", UnverifiedFolder = "/roms/unv" }
-            );
+            SettingsVM vm = MakeVM(new AppPreferences { DefaultArchiveFormat = "zip", UnverifiedFolder = "/roms/unv" });
 
             vm.ArchiveFormat.Should().Be("zip");
             vm.UnverifiedFolder.Should().Be("/roms/unv");
