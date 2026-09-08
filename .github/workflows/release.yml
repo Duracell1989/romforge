@@ -69,8 +69,16 @@ jobs:
             --entitlements packaging/macos/entitlements.plist \
             artifacts/RomForge.app
 
+      # macos-latest is the macos-26 image, which taps aws/tap for the AWS CLI. Homebrew's
+      # tap-trust check runs as a preinstall diagnostic and warns about it on every `brew
+      # install`, including this one. Nothing here uses that tap, so drop it rather than run
+      # `brew trust` on a tap we do not want or set HOMEBREW_NO_REQUIRE_TAP_TRUST, which
+      # Homebrew says it will remove. Untapping runs no preinstall checks, so it is silent
+      # itself, and `|| true` keeps this working if the image stops shipping the tap.
       - name: Install create-dmg
-        run: brew install create-dmg
+        run: |
+          brew untap aws/tap || true
+          brew install create-dmg
 
       - name: Create DMG
         run: |
