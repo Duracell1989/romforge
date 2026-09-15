@@ -15,13 +15,23 @@ namespace RomForge.UI
     )]
     public class ViewLocator : IDataTemplate
     {
+        /// <summary>
+        /// Maps a view-model type to the full name of its view type. Split out from
+        /// <see cref="Build"/> so it can be tested without an Avalonia host — <see cref="Build"/>
+        /// instantiates the resolved <see cref="Control"/>, this does not.
+        /// </summary>
+        internal static string ResolveViewTypeName(Type viewModelType)
+        {
+            string fullName = viewModelType.FullName!.Replace("ViewModels.", "Views.", StringComparison.Ordinal);
+            return fullName.EndsWith("Vm", StringComparison.Ordinal) ? fullName[..^2] : fullName;
+        }
+
         public Control? Build(object? param)
         {
             if (param is null)
                 return null;
 
-            var fullName = param.GetType().FullName!.Replace("ViewModels.", "Views.", StringComparison.Ordinal);
-            var name = fullName.EndsWith("Vm", StringComparison.Ordinal) ? fullName[..^2] : fullName;
+            string name = ResolveViewTypeName(param.GetType());
             var type = Type.GetType(name);
 
             if (type != null)

@@ -15,14 +15,6 @@ namespace RomForge.UI.UnitTests
     [TestOf(typeof(ViewLocator))]
     public sealed class ViewLocatorTests
     {
-        // Mirrors ViewLocator.Build. Kept as a copy rather than calling Build, because Build
-        // instantiates the Control and that needs an Avalonia application host.
-        private static string ResolveViewTypeName(Type viewModelType)
-        {
-            string fullName = viewModelType.FullName!.Replace("ViewModels.", "Views.", StringComparison.Ordinal);
-            return fullName.EndsWith("Vm", StringComparison.Ordinal) ? fullName[..^2] : fullName;
-        }
-
         private static IEnumerable<Type> WindowViewModels() =>
             typeof(VmBase)
                 .Assembly.GetTypes()
@@ -41,7 +33,7 @@ namespace RomForge.UI.UnitTests
         {
             foreach (Type viewModelType in WindowViewModels())
             {
-                string viewTypeName = ResolveViewTypeName(viewModelType);
+                string viewTypeName = ViewLocator.ResolveViewTypeName(viewModelType);
 
                 // Resolved through the UI assembly explicitly. ViewLocator itself can use the
                 // bare Type.GetType because it lives in that same assembly; this test does not.
@@ -52,7 +44,7 @@ namespace RomForge.UI.UnitTests
         [Test]
         public void ResolveViewTypeName_DropsTheVmSuffix()
         {
-            ResolveViewTypeName(typeof(MainWindowVm)).Should().Be("RomForge.UI.Views.MainWindow");
+            ViewLocator.ResolveViewTypeName(typeof(MainWindowVm)).Should().Be("RomForge.UI.Views.MainWindow");
         }
     }
 }
