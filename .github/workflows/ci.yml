@@ -121,6 +121,29 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
+      # A malformed .DotSettings fails SILENTLY: ReSharper ignores the whole file, every
+      # suppression in it disappears at once, and the only symptom is a pile of findings that
+      # were supposedly settled. Caught that way on 2026-09-15 (a literal double hyphen inside
+      # an XML comment). Cheaper to fail here, naming the file, than to debug it from the report.
+      - name: Validate DotSettings files are well-formed XML
+        run: |
+          python3 - <<'PY'
+          import glob, sys, xml.dom.minidom
+          bad = []
+          files = glob.glob('**/*.DotSettings', recursive=True)
+          for f in files:
+              try:
+                  xml.dom.minidom.parse(f)
+              except Exception as e:
+                  bad.append(f'{f}: {e}')
+          print(f'checked {len(files)} DotSettings file(s)')
+          if not files:
+              sys.exit('no .DotSettings files found - did they move?')
+          for b in bad:
+              print(f'  MALFORMED {b}')
+          sys.exit(1 if bad else 0)
+          PY
+
       - name: Inspect code
         uses: JetBrains/ReSharper-InspectCode@96fdc3456bf2908dd877213a2644ccb9e3010785 # v0.14
         with:

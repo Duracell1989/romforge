@@ -31,7 +31,13 @@
 	about to write in the comment — both of the above read plausibly and were wrong.
 
 	Note on testing a change to this file: `jb inspectcode` CACHES analysis between runs, so a
-	settings change can appear to have no effect. Pass a fresh --caches-home=<dir> per run.
+	settings change can appear to have no effect. Pass a fresh caches-home directory on every
+	run (the `caches-home` flag) or the comparison is meaningless.
+
+	Careful editing this comment: a literal double hyphen is illegal inside an XML comment and
+	makes the whole file malformed, which ReSharper handles by SILENTLY ignoring it — every
+	suppression below disappears at once and CI reports findings you thought were settled.
+	That happened on 2026-09-15 writing the line above.
 	-->
 
 	<!--
