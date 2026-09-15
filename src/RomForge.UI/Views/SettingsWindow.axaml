@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         x:Class="RomForge.UI.Views.SettingsWindow"
-        x:DataType="vm:SettingsVM"
+        x:DataType="vm:SettingsVm"
         Title="Settings"
         SizeToContent="WidthAndHeight"
         CanResize="False"

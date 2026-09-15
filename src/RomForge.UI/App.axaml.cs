@@ -19,7 +19,11 @@ using SevenZipSharper;
 
 namespace RomForge.UI
 {
-    public partial class App : Application
+    // Not `partial`: App.axaml is loaded at runtime via AvaloniaXamlLoader.Load(this), so the
+    // XAML compiler generates no second part for this type (unlike the Views, which call
+    // InitializeComponent). Verified with EmitCompilerGeneratedFiles — 40 generated files, none
+    // declaring App.
+    public class App : Application
     {
         public override void Initialize()
         {
@@ -41,7 +45,7 @@ namespace RomForge.UI
                 // ReSharper disable once AccessToModifiedClosure
                 ServiceProvider services = ConfigureServices(() => mainWindow);
 
-                MainWindowVM vm = services.GetRequiredService<MainWindowVM>();
+                MainWindowVm vm = services.GetRequiredService<MainWindowVm>();
                 DataContext = vm;
                 MainWindow window = new MainWindow { DataContext = vm };
                 mainWindow = window;
@@ -154,7 +158,7 @@ namespace RomForge.UI
             services.AddSingleton<ScanResultStore>();
             services.AddSingleton<ReArchiveStore>();
             services.AddSingleton<AppPreferencesService>();
-            services.AddSingleton<MainWindowVM>();
+            services.AddSingleton<MainWindowVm>();
             return services.BuildServiceProvider();
         }
 

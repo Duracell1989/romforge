@@ -12,7 +12,7 @@ namespace RomForge.UI.ViewModels
     /// log of each image as it is fetched and tracks an <c>X of Y downloaded</c> counter, staying
     /// open after completion so the result can be read.
     /// </summary>
-    public sealed partial class ImageDownloadWindowVM : VMBase, IDisposable
+    public sealed partial class ImageDownloadWindowVm : VmBase, IDisposable
     {
         private readonly CancellationTokenSource _cts;
         private readonly StringBuilder _log;
@@ -47,7 +47,7 @@ namespace RomForge.UI.ViewModels
         public string CountText => $"{Current} of {Total} downloaded";
         public string CloseButtonText => IsComplete ? "Close" : "Cancel";
 
-        public ImageDownloadWindowVM()
+        public ImageDownloadWindowVm()
         {
             _cts = new CancellationTokenSource();
             _log = new StringBuilder();

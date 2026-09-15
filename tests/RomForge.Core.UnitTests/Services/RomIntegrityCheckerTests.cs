@@ -54,7 +54,7 @@ namespace RomForge.Core.UnitTests.Services
         public void FindStaleResults_FileMissingAndParentDirMissing_ReturnsStaleResult()
         {
             // A missing containing directory is no longer special-cased here: the offline-volume
-            // guard now lives one layer up (MainWindowVM.ValidateIntegrityAsync, keyed off the DAT's
+            // guard now lives one layer up (MainWindowVm.ValidateIntegrityAsync, keyed off the DAT's
             // actual configured ROM root), so a missing file is always reported regardless of whether
             // its parent directory also happens to be gone — otherwise a genuinely deleted subfolder
             // of ROMs would be permanently invisible to this check.

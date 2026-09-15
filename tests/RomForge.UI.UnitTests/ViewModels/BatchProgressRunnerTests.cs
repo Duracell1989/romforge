@@ -22,8 +22,8 @@ namespace RomForge.UI.UnitTests.ViewModels
             _notifier = new Mock<IUserNotifier>();
             // Run the operation task the runner hands to the progress window, as the real notifier does.
             _notifier
-                .Setup(n => n.ShowProgressAsync(It.IsAny<string>(), It.IsAny<ProgressWindowVM>(), It.IsAny<Task>()))
-                .Returns<string, ProgressWindowVM, Task>((_, _, task) => task);
+                .Setup(n => n.ShowProgressAsync(It.IsAny<string>(), It.IsAny<ProgressWindowVm>(), It.IsAny<Task>()))
+                .Returns<string, ProgressWindowVm, Task>((_, _, task) => task);
 
             ILogger logger = new LoggerConfiguration().CreateLogger();
             _runner = new BatchProgressRunner(_notifier.Object, logger);
@@ -31,7 +31,7 @@ namespace RomForge.UI.UnitTests.ViewModels
 
         private static BatchProgressOperation<string> Operation(
             IReadOnlyList<string> targets,
-            Func<string, ProgressWindowVM, Task<string?>> process,
+            Func<string, ProgressWindowVm, Task<string?>> process,
             bool cancellable = false,
             bool bumpProgress = false,
             Action<bool>? busyFlag = null
@@ -56,7 +56,7 @@ namespace RomForge.UI.UnitTests.ViewModels
             int succeeded = await _runner.RunAsync(Operation([], (_, _) => Task.FromResult<string?>(null)));
 
             succeeded.Should().Be(0);
-            _notifier.Verify(n => n.ShowProgressAsync(It.IsAny<string>(), It.IsAny<ProgressWindowVM>(), It.IsAny<Task>()), Times.Never);
+            _notifier.Verify(n => n.ShowProgressAsync(It.IsAny<string>(), It.IsAny<ProgressWindowVm>(), It.IsAny<Task>()), Times.Never);
             _notifier.Verify(n => n.NotifyErrorAsync(It.IsAny<string>()), Times.Never);
         }
 
@@ -156,7 +156,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public async Task RunAsync_Cancelled_StopsProcessingRemainingItems()
         {
-            ProgressWindowVM? captured = null;
+            ProgressWindowVm? captured = null;
             List<string> processed = [];
 
             int succeeded = await _runner.RunAsync(
@@ -188,8 +188,8 @@ namespace RomForge.UI.UnitTests.ViewModels
             int processed = 0;
             int processedWhenShown = -1;
             _notifier
-                .Setup(n => n.ShowProgressAsync(It.IsAny<string>(), It.IsAny<ProgressWindowVM>(), It.IsAny<Task>()))
-                .Returns<string, ProgressWindowVM, Task>(
+                .Setup(n => n.ShowProgressAsync(It.IsAny<string>(), It.IsAny<ProgressWindowVm>(), It.IsAny<Task>()))
+                .Returns<string, ProgressWindowVm, Task>(
                     (_, _, task) =>
                     {
                         processedWhenShown = processed;

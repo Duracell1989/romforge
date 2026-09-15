@@ -5,13 +5,13 @@ using RomForge.UI.ViewModels;
 
 namespace RomForge.UI.UnitTests.ViewModels
 {
-    [TestOf(typeof(BatchProgressWindowVM))]
-    public class BatchProgressWindowVMTests
+    [TestOf(typeof(BatchProgressWindowVm))]
+    public class BatchProgressWindowVmTests
     {
         [Test]
         public void Slots_Count_MatchesSlotCountArgument()
         {
-            BatchProgressWindowVM vm = new BatchProgressWindowVM(total: 10, slotCount: 3, isCancellable: false);
+            BatchProgressWindowVm vm = new BatchProgressWindowVm(total: 10, slotCount: 3, isCancellable: false);
 
             vm.Slots.Should().HaveCount(3);
         }
@@ -19,7 +19,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void CountText_ReflectsCompletedAndTotal()
         {
-            BatchProgressWindowVM vm = new BatchProgressWindowVM(total: 10, slotCount: 2, isCancellable: false);
+            BatchProgressWindowVm vm = new BatchProgressWindowVm(total: 10, slotCount: 2, isCancellable: false);
 
             vm.Completed = 4;
 
@@ -29,19 +29,19 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void CountText_RaisesPropertyChanged_WhenCompletedChanges()
         {
-            BatchProgressWindowVM vm = new BatchProgressWindowVM(total: 10, slotCount: 2, isCancellable: false);
+            BatchProgressWindowVm vm = new BatchProgressWindowVm(total: 10, slotCount: 2, isCancellable: false);
             List<string?> raised = [];
             vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
 
             vm.Completed = 3;
 
-            raised.Should().Contain(nameof(BatchProgressWindowVM.CountText));
+            raised.Should().Contain(nameof(BatchProgressWindowVm.CountText));
         }
 
         [Test]
         public void CancellationToken_IsNone_WhenNotCancellable()
         {
-            BatchProgressWindowVM vm = new BatchProgressWindowVM(total: 5, slotCount: 2, isCancellable: false);
+            BatchProgressWindowVm vm = new BatchProgressWindowVm(total: 5, slotCount: 2, isCancellable: false);
 
             vm.CancellationToken.Should().Be(System.Threading.CancellationToken.None);
         }
@@ -49,7 +49,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void CancellationToken_IsCancelled_AfterCancelCommand()
         {
-            BatchProgressWindowVM vm = new BatchProgressWindowVM(total: 5, slotCount: 2, isCancellable: true);
+            BatchProgressWindowVm vm = new BatchProgressWindowVm(total: 5, slotCount: 2, isCancellable: true);
 
             vm.CancelCommand.Execute(null);
 
@@ -57,17 +57,17 @@ namespace RomForge.UI.UnitTests.ViewModels
         }
 
         [Test]
-        public void BatchSlotVM_IsActive_FalseWhenFileNameIsNull()
+        public void BatchSlotVm_IsActive_FalseWhenFileNameIsNull()
         {
-            BatchSlotVM slot = new BatchSlotVM();
+            BatchSlotVm slot = new BatchSlotVm();
 
             slot.IsActive.Should().BeFalse();
         }
 
         [Test]
-        public void BatchSlotVM_IsActive_TrueWhenFileNameIsSet()
+        public void BatchSlotVm_IsActive_TrueWhenFileNameIsSet()
         {
-            BatchSlotVM slot = new BatchSlotVM();
+            BatchSlotVm slot = new BatchSlotVm();
 
             slot.FileName = "game.7z";
 
@@ -75,21 +75,21 @@ namespace RomForge.UI.UnitTests.ViewModels
         }
 
         [Test]
-        public void BatchSlotVM_IsActive_RaisesPropertyChanged_WhenFileNameChanges()
+        public void BatchSlotVm_IsActive_RaisesPropertyChanged_WhenFileNameChanges()
         {
-            BatchSlotVM slot = new BatchSlotVM();
+            BatchSlotVm slot = new BatchSlotVm();
             List<string?> raised = [];
             slot.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
 
             slot.FileName = "game.7z";
 
-            raised.Should().Contain(nameof(BatchSlotVM.IsActive));
+            raised.Should().Contain(nameof(BatchSlotVm.IsActive));
         }
 
         [Test]
-        public void BatchSlotVM_IsActive_FalseAfterFileNameClearedToNull()
+        public void BatchSlotVm_IsActive_FalseAfterFileNameClearedToNull()
         {
-            BatchSlotVM slot = new BatchSlotVM { FileName = "game.7z" };
+            BatchSlotVm slot = new BatchSlotVm { FileName = "game.7z" };
 
             slot.FileName = null;
 

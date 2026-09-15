@@ -5,13 +5,13 @@ using RomForge.UI.ViewModels;
 
 namespace RomForge.UI.UnitTests.ViewModels
 {
-    [TestOf(typeof(ImageDownloadWindowVM))]
-    public sealed class ImageDownloadWindowVMTests
+    [TestOf(typeof(ImageDownloadWindowVm))]
+    public sealed class ImageDownloadWindowVmTests
     {
         [Test]
         public void Constructor_StartsRunningWithEmptyLog()
         {
-            using ImageDownloadWindowVM vm = new ImageDownloadWindowVM();
+            using ImageDownloadWindowVm vm = new ImageDownloadWindowVm();
 
             vm.LogText.Should().BeEmpty();
             vm.IsRunning.Should().BeTrue();
@@ -22,7 +22,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void IsIndeterminate_TrueBeforeTotalKnown_FalseOnceTotalSet()
         {
-            using ImageDownloadWindowVM vm = new ImageDownloadWindowVM();
+            using ImageDownloadWindowVm vm = new ImageDownloadWindowVm();
 
             vm.IsIndeterminate.Should().BeTrue();
 
@@ -34,7 +34,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void Report_UpdatesCountAndAppendsLine()
         {
-            using ImageDownloadWindowVM vm = new ImageDownloadWindowVM();
+            using ImageDownloadWindowVm vm = new ImageDownloadWindowVm();
 
             vm.Report(new ImageSyncProgress(2, 5, "1-500/2a.png", true));
 
@@ -47,7 +47,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void Report_FailedImage_LogsFailureMarker()
         {
-            using ImageDownloadWindowVM vm = new ImageDownloadWindowVM();
+            using ImageDownloadWindowVm vm = new ImageDownloadWindowVm();
 
             vm.Report(new ImageSyncProgress(1, 1, "1-500/1b.png", false));
 
@@ -57,7 +57,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void Finish_WithDownloads_MarksCompleteAndSwitchesButtonToClose()
         {
-            using ImageDownloadWindowVM vm = new ImageDownloadWindowVM();
+            using ImageDownloadWindowVm vm = new ImageDownloadWindowVm();
 
             vm.Finish(new ImageSyncSummary(3, 0, 3));
 
@@ -70,7 +70,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void Finish_NothingMissing_ReportsEverythingPresent()
         {
-            using ImageDownloadWindowVM vm = new ImageDownloadWindowVM();
+            using ImageDownloadWindowVm vm = new ImageDownloadWindowVm();
 
             vm.Finish(new ImageSyncSummary(0, 0, 0));
 
@@ -80,7 +80,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void Finish_WithFailures_ReportsFailureCount()
         {
-            using ImageDownloadWindowVM vm = new ImageDownloadWindowVM();
+            using ImageDownloadWindowVm vm = new ImageDownloadWindowVm();
 
             vm.Finish(new ImageSyncSummary(2, 1, 3));
 
@@ -90,7 +90,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void Cancelled_MarksCompleteAndLogsCancellation()
         {
-            using ImageDownloadWindowVM vm = new ImageDownloadWindowVM();
+            using ImageDownloadWindowVm vm = new ImageDownloadWindowVm();
 
             vm.Cancelled();
 
@@ -101,7 +101,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void CloseOrCancel_WhileRunning_CancelsToken()
         {
-            using ImageDownloadWindowVM vm = new ImageDownloadWindowVM();
+            using ImageDownloadWindowVm vm = new ImageDownloadWindowVm();
 
             vm.CloseOrCancelCommand.Execute(null);
 
@@ -111,7 +111,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void CloseOrCancel_WhenComplete_InvokesRequestClose()
         {
-            using ImageDownloadWindowVM vm = new ImageDownloadWindowVM();
+            using ImageDownloadWindowVm vm = new ImageDownloadWindowVm();
             bool closed = false;
             vm.RequestClose = () => closed = true;
             vm.Finish(new ImageSyncSummary(0, 0, 0));

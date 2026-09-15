@@ -5,14 +5,14 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         x:Class="RomForge.UI.Views.ProgressWindow"
-        x:DataType="vm:ProgressWindowVM"
+        x:DataType="vm:ProgressWindowVm"
         Width="440" Height="120"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False">
 
     <Design.DataContext>
-        <vm:ProgressWindowVM/>
+        <vm:ProgressWindowVm/>
     </Design.DataContext>
 
     <StackPanel Margin="16" Spacing="10">

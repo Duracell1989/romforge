@@ -81,7 +81,7 @@ namespace RomForge.UI.Services
             return result == ViewOnGitHubButton;
         }
 
-        public async Task ShowProgressAsync(string title, ProgressWindowVM vm, Task operationTask)
+        public async Task ShowProgressAsync(string title, ProgressWindowVm vm, Task operationTask)
         {
             var parent = _getWindow();
             var window = new ProgressWindow { Title = title, DataContext = vm };
@@ -130,7 +130,7 @@ namespace RomForge.UI.Services
             }
         }
 
-        public async Task ShowImageDownloadAsync(string title, ImageDownloadWindowVM vm, Task operationTask)
+        public async Task ShowImageDownloadAsync(string title, ImageDownloadWindowVm vm, Task operationTask)
         {
             var parent = _getWindow();
             var window = new ImageDownloadWindow { Title = title, DataContext = vm };
@@ -155,7 +155,7 @@ namespace RomForge.UI.Services
             await operationTask;
         }
 
-        public async Task ShowSettingsAsync(SettingsVM vm)
+        public async Task ShowSettingsAsync(SettingsVm vm)
         {
             var parent = _getWindow();
             var window = new SettingsWindow { DataContext = vm };
@@ -167,7 +167,7 @@ namespace RomForge.UI.Services
                 window.Show();
         }
 
-        public async Task ShowBatchProgressAsync(string title, BatchProgressWindowVM vm, Task operationTask)
+        public async Task ShowBatchProgressAsync(string title, BatchProgressWindowVm vm, Task operationTask)
         {
             var parent = _getWindow();
             var window = new BatchProgressWindow { Title = title, DataContext = vm };

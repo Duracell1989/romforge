@@ -38,7 +38,7 @@ namespace RomForge.UI.ViewModels
             if (operation.Targets.Count == 0)
                 return 0;
 
-            var progress = new ProgressWindowVM(operation.Targets.Count, operation.IsCancellable);
+            var progress = new ProgressWindowVm(operation.Targets.Count, operation.IsCancellable);
             var operationTask = RunCoreAsync(operation, progress);
             await _notifier.ShowProgressAsync(operation.Title, progress, operationTask);
 
@@ -54,7 +54,7 @@ namespace RomForge.UI.ViewModels
             return succeeded;
         }
 
-        private async Task<List<string>> RunCoreAsync<T>(BatchProgressOperation<T> operation, ProgressWindowVM progress)
+        private async Task<List<string>> RunCoreAsync<T>(BatchProgressOperation<T> operation, ProgressWindowVm progress)
         {
             operation.BusyFlag?.Invoke(true);
             var errors = new List<string>();
@@ -120,7 +120,7 @@ namespace RomForge.UI.ViewModels
         public required Func<T, string> FileName { get; init; }
 
         /// <summary>Processes one item, returning an error message on failure or null on success.</summary>
-        public required Func<T, ProgressWindowVM, Task<string?>> ProcessAsync { get; init; }
+        public required Func<T, ProgressWindowVm, Task<string?>> ProcessAsync { get; init; }
 
         public bool IsCancellable { get; init; }
 

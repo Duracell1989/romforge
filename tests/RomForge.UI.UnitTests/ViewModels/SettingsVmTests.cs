@@ -11,8 +11,8 @@ using Serilog;
 
 namespace RomForge.UI.UnitTests.ViewModels
 {
-    [TestOf(typeof(SettingsVM))]
-    public sealed class SettingsVMTests
+    [TestOf(typeof(SettingsVm))]
+    public sealed class SettingsVmTests
     {
         private string _tempDir = null!;
         private AppPreferencesService _preferencesService = null!;
@@ -37,12 +37,12 @@ namespace RomForge.UI.UnitTests.ViewModels
                 Directory.Delete(_tempDir, recursive: true);
         }
 
-        private SettingsVM MakeVM(AppPreferences? current = null) => new SettingsVM(_preferencesService, _fileDialogs.Object, current ?? new AppPreferences());
+        private SettingsVm MakeVm(AppPreferences? current = null) => new SettingsVm(_preferencesService, _fileDialogs.Object, current ?? new AppPreferences());
 
         [Test]
         public void Constructor_InitializesFromCurrentPreferences()
         {
-            SettingsVM vm = MakeVM(new AppPreferences { DefaultArchiveFormat = "zip", UnverifiedFolder = "/roms/unv" });
+            SettingsVm vm = MakeVm(new AppPreferences { DefaultArchiveFormat = "zip", UnverifiedFolder = "/roms/unv" });
 
             vm.ArchiveFormat.Should().Be("zip");
             vm.UnverifiedFolder.Should().Be("/roms/unv");
@@ -51,7 +51,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void ArchiveFormats_Contains7zAndZip()
         {
-            SettingsVM vm = MakeVM();
+            SettingsVm vm = MakeVm();
 
             vm.ArchiveFormats.Should().BeEquivalentTo("7z", "zip");
         }
@@ -59,7 +59,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void Constructor_InitializesCheckForUpdatesOnStartup_FromCurrentPreferences()
         {
-            SettingsVM vm = MakeVM(new AppPreferences { CheckForUpdatesOnStartup = false });
+            SettingsVm vm = MakeVm(new AppPreferences { CheckForUpdatesOnStartup = false });
 
             vm.CheckForUpdatesOnStartup.Should().BeFalse();
         }
@@ -67,7 +67,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void CheckForUpdatesOnStartup_DefaultsToTrue()
         {
-            SettingsVM vm = MakeVM();
+            SettingsVm vm = MakeVm();
 
             vm.CheckForUpdatesOnStartup.Should().BeTrue();
         }
@@ -75,7 +75,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public async Task Save_PersistsCheckForUpdatesOnStartup()
         {
-            SettingsVM vm = MakeVM();
+            SettingsVm vm = MakeVm();
             vm.CheckForUpdatesOnStartup = false;
 
             await vm.SaveCommand.ExecuteAsync(null);
@@ -87,7 +87,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         public async Task BrowseUnverifiedFolder_WhenPicked_SetsFolder()
         {
             _fileDialogs.Setup(d => d.PickUnverifiedDestinationAsync()).ReturnsAsync("/picked");
-            SettingsVM vm = MakeVM();
+            SettingsVm vm = MakeVm();
 
             await vm.BrowseUnverifiedFolderCommand.ExecuteAsync(null);
 
@@ -98,7 +98,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         public async Task BrowseUnverifiedFolder_WhenCancelled_LeavesFolderUnchanged()
         {
             _fileDialogs.Setup(d => d.PickUnverifiedDestinationAsync()).ReturnsAsync((string?)null);
-            SettingsVM vm = MakeVM(new AppPreferences { UnverifiedFolder = "/existing" });
+            SettingsVm vm = MakeVm(new AppPreferences { UnverifiedFolder = "/existing" });
 
             await vm.BrowseUnverifiedFolderCommand.ExecuteAsync(null);
 
@@ -108,7 +108,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void ClearUnverifiedFolder_SetsNull()
         {
-            SettingsVM vm = MakeVM(new AppPreferences { UnverifiedFolder = "/existing" });
+            SettingsVm vm = MakeVm(new AppPreferences { UnverifiedFolder = "/existing" });
 
             vm.ClearUnverifiedFolderCommand.Execute(null);
 
@@ -118,7 +118,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public async Task Save_PersistsPreferencesAndRequestsCloseWithTrue()
         {
-            SettingsVM vm = MakeVM();
+            SettingsVm vm = MakeVm();
             vm.ArchiveFormat = "zip";
             vm.UnverifiedFolder = "/dest";
             bool? closedWith = null;
@@ -136,7 +136,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         public async Task Cancel_DoesNotPersistAndRequestsCloseWithFalse()
         {
             await _preferencesService.UpdateSettingsAsync("7z", null);
-            SettingsVM vm = MakeVM();
+            SettingsVm vm = MakeVm();
             vm.ArchiveFormat = "zip";
             bool? closedWith = null;
             vm.RequestClose = result => closedWith = result;

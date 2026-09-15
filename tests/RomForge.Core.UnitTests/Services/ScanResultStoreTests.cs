@@ -365,10 +365,10 @@ namespace RomForge.Core.UnitTests.Services
             await _store.SaveResultsAsync("TestDat", toSave);
             IReadOnlyList<MatchResult> loaded = await _store.LoadResultsAsync("TestDat", dat);
 
-            DateTime? loaded_time = loaded[0].ScannedRom!.LastModified;
-            loaded_time.Should().NotBeNull();
-            loaded_time.Value.Kind.Should().Be(DateTimeKind.Utc);
-            loaded_time.Value.Should().Be(dstBoundary);
+            DateTime? loadedTime = loaded[0].ScannedRom!.LastModified;
+            loadedTime.Should().NotBeNull();
+            loadedTime.Value.Kind.Should().Be(DateTimeKind.Utc);
+            loadedTime.Value.Should().Be(dstBoundary);
         }
 
         private static Game MakeGame(int releaseNumber) =>

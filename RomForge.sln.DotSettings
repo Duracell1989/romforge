@@ -9,18 +9,36 @@
 
 	Every entry is a deliberate divergence from a ReSharper default, justified in place.
 	Do not add blanket suppressions here to silence a real finding.
-	-->
 
-	<!--
-	Naming is not a CI gate — Rider still surfaces it live, it just does not fail the build.
-	ReSharper's defaults disagree with conventions set in /Development/CLAUDE.md (notably
-	_camelCase private fields) and with generator-produced members it cannot see the source of.
+	Two suppressions were removed on 2026-09-15 after their stated justifications turned out
+	to be false. Both inspections are now ENFORCED and the tree is clean at both.
 
-	Note for anyone tempted to fix this in .editorconfig instead: ReSharper does read
-	dotnet_naming_rule, and .editorconfig severity WINS over this file, so adding a rule there
-	silently re-enables this inspection.
+	  InconsistentNaming — claimed ReSharper's defaults disagree with /Development/CLAUDE.md
+	  on `_camelCase` private fields. False: ReSharper's default for private INSTANCE fields
+	  is already `_camelCase`, and enabling the inspection produced zero findings of that kind.
+	  All 31 findings it did surface were real.
+
+	  PartialTypeWithSinglePart — claimed Avalonia's XAML compiler generates a second half for
+	  `App` and that "dropping the modifier breaks the build". False on both counts: App.axaml.cs
+	  calls AvaloniaXamlLoader.Load(this), not InitializeComponent(), so nothing generates a part
+	  (EmitCompilerGeneratedFiles: 40 files, none declaring App), and removing `partial` builds
+	  clean in Debug and Release. XamlIl is a post-compile IL weaver, so it never needed the
+	  modifier — the compiled assembly still carries !AvaloniaResources, /App.axaml and the
+	  XamlIlPopulate trampolines. The Views keep `partial` because they DO call
+	  InitializeComponent, and the inspection correctly leaves them alone.
+
+	Do not re-suppress either. Before adding any suppression here, verify the claim you are
+	about to write in the comment — both of the above read plausibly and were wrong.
+
+	Note on testing a change to this file: `jb inspectcode` CACHES analysis between runs, so a
+	settings change can appear to have no effect. Pass a fresh caches-home directory on every
+	run (the `caches-home` flag) or the comparison is meaningless.
+
+	Careful editing this comment: a literal double hyphen is illegal inside an XML comment and
+	makes the whole file malformed, which ReSharper handles by SILENTLY ignoring it — every
+	suppression below disappears at once and CI reports findings you thought were settled.
+	That happened on 2026-09-15 writing the line above.
 	-->
-	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=InconsistentNaming/@EntryIndexedValue">DO_NOT_SHOW</s:String>
 
 	<!--
 	The pattern flagged is always the same: a `using var` (SemaphoreSlim, HttpClient, temp dir)
@@ -45,12 +63,5 @@
 	to declare the parameter. It cannot be removed.
 	-->
 	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=UnusedParameterInPartialMethod/@EntryIndexedValue">DO_NOT_SHOW</s:String>
-
-	<!--
-	`App` is partial because Avalonia's XAML compiler generates the other half (InitializeComponent
-	and the named-control fields) at build time. ReSharper only sees the hand-written part and
-	reports a single-part partial; dropping the modifier breaks the build.
-	-->
-	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=PartialTypeWithSinglePart/@EntryIndexedValue">DO_NOT_SHOW</s:String>
 
 </wpf:ResourceDictionary>

@@ -4,7 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace RomForge.UI.ViewModels
 {
-    public sealed partial class ProgressWindowVM : VMBase
+    public sealed partial class ProgressWindowVm : VmBase
     {
         private readonly CancellationTokenSource? _cts;
 
@@ -36,10 +36,10 @@ namespace RomForge.UI.ViewModels
 
         public string CountText => $"{Current} of {Total}";
 
-        public ProgressWindowVM()
+        public ProgressWindowVm()
             : this(100, false) { }
 
-        public ProgressWindowVM(int total, bool isCancellable)
+        public ProgressWindowVm(int total, bool isCancellable)
         {
             _cts = isCancellable ? new CancellationTokenSource() : null;
             Total = total;

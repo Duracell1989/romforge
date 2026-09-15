@@ -14,7 +14,7 @@ using RomForge.UI.Converters;
 
 namespace RomForge.UI.ViewModels
 {
-    public sealed partial class GameRowVM : ObservableObject, IDisposable
+    public sealed partial class GameRowVm : ObservableObject, IDisposable
     {
         private readonly IReadOnlyList<LanguageBit> _languageBits;
         private readonly string? _im1Path;
@@ -27,7 +27,7 @@ namespace RomForge.UI.ViewModels
         [ObservableProperty]
         public partial Bitmap? Im2Bitmap { get; private set; }
 
-        public GameRowVM(MatchResult result, string imagesBasePath, DatHeader header, IReadOnlyList<LanguageBit> languageBits)
+        public GameRowVm(MatchResult result, string imagesBasePath, DatHeader header, IReadOnlyList<LanguageBit> languageBits)
         {
             ArgumentNullException.ThrowIfNull(result);
             ArgumentNullException.ThrowIfNull(header);

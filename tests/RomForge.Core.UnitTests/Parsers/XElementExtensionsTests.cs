@@ -10,14 +10,14 @@ namespace RomForge.Core.UnitTests.Parsers
     [TestOf(typeof(XElementExtensions))]
     public sealed class XElementExtensionsTests
     {
-        // --- ElementCI ---
+        // --- ElementIgnoreCase ---
 
         [Test]
         public void ElementCI_ExactMatch_ReturnsElement()
         {
             XElement parent = new XElement("root", new XElement("game", "value"));
 
-            XElement? result = parent.ElementCI("game");
+            XElement? result = parent.ElementIgnoreCase("game");
 
             result.Should().NotBeNull();
             result.Value.Should().Be("value");
@@ -28,7 +28,7 @@ namespace RomForge.Core.UnitTests.Parsers
         {
             XElement parent = new XElement("root", new XElement("game", "value"));
 
-            XElement? result = parent.ElementCI("GAME");
+            XElement? result = parent.ElementIgnoreCase("GAME");
 
             result.Should().NotBeNull();
         }
@@ -38,7 +38,7 @@ namespace RomForge.Core.UnitTests.Parsers
         {
             XElement parent = new XElement("root", new XElement("game", "value"));
 
-            XElement? result = parent.ElementCI("GaMe");
+            XElement? result = parent.ElementIgnoreCase("GaMe");
 
             result.Should().NotBeNull();
         }
@@ -48,7 +48,7 @@ namespace RomForge.Core.UnitTests.Parsers
         {
             XElement parent = new XElement("root", new XElement("game", "value"));
 
-            XElement? result = parent.ElementCI("rom");
+            XElement? result = parent.ElementIgnoreCase("rom");
 
             result.Should().BeNull();
         }
@@ -58,20 +58,20 @@ namespace RomForge.Core.UnitTests.Parsers
         {
             XElement parent = new XElement("root", new XElement("game", "first"), new XElement("game", "second"));
 
-            XElement? result = parent.ElementCI("game");
+            XElement? result = parent.ElementIgnoreCase("game");
 
             result.Should().NotBeNull();
             result.Value.Should().Be("first");
         }
 
-        // --- ElementsCI ---
+        // --- ElementsIgnoreCase ---
 
         [Test]
         public void ElementsCI_ReturnsAllMatches()
         {
             XElement parent = new XElement("root", new XElement("game", "a"), new XElement("GAME", "b"), new XElement("Game", "c"), new XElement("other", "d"));
 
-            List<XElement> result = parent.ElementsCI("game").ToList();
+            List<XElement> result = parent.ElementsIgnoreCase("game").ToList();
 
             result.Should().HaveCount(3);
             result.Select(e => e.Value).Should().ContainInOrder("a", "b", "c");
@@ -82,7 +82,7 @@ namespace RomForge.Core.UnitTests.Parsers
         {
             XElement parent = new XElement("root", new XElement("rom", "value"));
 
-            List<XElement> result = parent.ElementsCI("game").ToList();
+            List<XElement> result = parent.ElementsIgnoreCase("game").ToList();
 
             result.Should().BeEmpty();
         }
