@@ -19,7 +19,11 @@ using SevenZipSharper;
 
 namespace RomForge.UI
 {
-    public partial class App : Application
+    // Not `partial`: App.axaml is loaded at runtime via AvaloniaXamlLoader.Load(this), so the
+    // XAML compiler generates no second part for this type (unlike the Views, which call
+    // InitializeComponent). Verified with EmitCompilerGeneratedFiles — 40 generated files, none
+    // declaring App.
+    public class App : Application
     {
         public override void Initialize()
         {
