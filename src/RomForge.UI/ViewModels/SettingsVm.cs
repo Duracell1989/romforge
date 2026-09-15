@@ -13,7 +13,7 @@ namespace RomForge.UI.ViewModels
     /// Backs the settings dialog. Edits a working copy of the application preferences and
     /// persists them on save; the host is notified to close the window via <see cref="RequestClose"/>.
     /// </summary>
-    public sealed partial class SettingsVM : VMBase
+    public sealed partial class SettingsVm : VmBase
     {
         private readonly AppPreferencesService _preferencesService;
         private readonly IFileDialogService _fileDialogs;
@@ -35,7 +35,7 @@ namespace RomForge.UI.ViewModels
         /// </summary>
         public Action<bool>? RequestClose { get; set; }
 
-        public SettingsVM(AppPreferencesService preferencesService, IFileDialogService fileDialogs, AppPreferences current)
+        public SettingsVm(AppPreferencesService preferencesService, IFileDialogService fileDialogs, AppPreferences current)
         {
             ArgumentNullException.ThrowIfNull(current);
             _preferencesService = preferencesService;

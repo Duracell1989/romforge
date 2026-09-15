@@ -2,7 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace RomForge.UI.ViewModels
 {
-    public sealed partial class BatchSlotVM : VMBase
+    public sealed partial class BatchSlotVm : VmBase
     {
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(IsActive))]

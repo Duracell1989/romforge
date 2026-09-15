@@ -5,7 +5,7 @@ xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         x:Class="RomForge.UI.Views.MainWindow"
-        x:DataType="vm:MainWindowVM"
+        x:DataType="vm:MainWindowVm"
         Icon="avares://RomForge/Assets/icon.png"
         Title="RomForge"
         Width="1200" Height="700"
@@ -87,7 +87,7 @@ xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                           MaxWidth="320"
                           IsVisible="{Binding IsDatLoaded}">
                     <ComboBox.ItemTemplate>
-                        <DataTemplate x:DataType="vm:LoadedDatVM">
+                        <DataTemplate x:DataType="vm:LoadedDatVm">
                             <TextBlock Text="{Binding DisplayTitle}" TextTrimming="CharacterEllipsis"/>
                         </DataTemplate>
                     </ComboBox.ItemTemplate>
@@ -265,15 +265,15 @@ xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                             <ListBox.ContextMenu>
                                 <ContextMenu>
                                     <MenuItem Header="Rename"
-                                              Command="{Binding $parent[Window].((vm:MainWindowVM)DataContext).RenameSelectedCommand}"/>
+                                              Command="{Binding $parent[Window].((vm:MainWindowVm)DataContext).RenameSelectedCommand}"/>
                                     <MenuItem Header="Re-archive"
-                                              Command="{Binding $parent[Window].((vm:MainWindowVM)DataContext).ReArchiveSelectedCommand}"/>
+                                              Command="{Binding $parent[Window].((vm:MainWindowVm)DataContext).ReArchiveSelectedCommand}"/>
                                     <MenuItem Header="Trim"
-                                              Command="{Binding $parent[Window].((vm:MainWindowVM)DataContext).TrimSelectedCommand}"/>
+                                              Command="{Binding $parent[Window].((vm:MainWindowVm)DataContext).TrimSelectedCommand}"/>
                                 </ContextMenu>
                             </ListBox.ContextMenu>
                             <ListBox.ItemTemplate>
-                                <DataTemplate x:DataType="vm:GameRowVM">
+                                <DataTemplate x:DataType="vm:GameRowVm">
                                     <Grid ColumnDefinitions="60,*,150,60,80,80,130" Margin="0,1">
                                         <TextBlock Grid.Column="0"
                                                    Text="{Binding ReleaseNumber}"
@@ -321,7 +321,7 @@ xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                     <!-- Detail pane -->
                     <ContentControl Grid.Column="2" Content="{Binding SelectedGame}">
                         <ContentControl.ContentTemplate>
-                            <DataTemplate x:DataType="vm:GameRowVM">
+                            <DataTemplate x:DataType="vm:GameRowVm">
                                 <ScrollViewer>
                                     <StackPanel Margin="12" Spacing="4">
                                         <TextBlock Text="{Binding Title}"

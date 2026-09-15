@@ -22,7 +22,7 @@ using Serilog;
 
 namespace RomForge.UI.ViewModels
 {
-    public partial class MainWindowVM : VMBase
+    public partial class MainWindowVm : VmBase
     {
         private readonly IFileDialogService _fileDialogs;
         private readonly IDatLibraryService _datLibrary;
@@ -48,19 +48,19 @@ namespace RomForge.UI.ViewModels
         private readonly IRomTrimService _trimService;
         private readonly WorkingSetBudgetGate _memoryGate;
         private readonly BatchProgressRunner _batchRunner;
-        private ObservableCollection<GameRowVM>? _subscribedGames;
+        private ObservableCollection<GameRowVm>? _subscribedGames;
         private string? _unverifiedFolder;
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(IsDatLoaded))]
         [NotifyPropertyChangedFor(nameof(StatusSummary))]
-        public partial LoadedDatVM? ActiveDat { get; set; }
+        public partial LoadedDatVm? ActiveDat { get; set; }
 
         [ObservableProperty]
-        public partial ObservableCollection<LoadedDatVM> LoadedDats { get; set; }
+        public partial ObservableCollection<LoadedDatVm> LoadedDats { get; set; }
 
         [ObservableProperty]
-        public partial GameRowVM? SelectedGame { get; set; }
+        public partial GameRowVm? SelectedGame { get; set; }
 
         [ObservableProperty]
         private partial bool IsReArchiving { get; set; }
@@ -83,7 +83,7 @@ namespace RomForge.UI.ViewModels
         public string MoveUnverifiedLabel => $"Move Unverified ({ActiveDat?.UnmatchedCount ?? 0})";
 
 #pragma warning disable S107
-        public MainWindowVM(
+        public MainWindowVm(
             IFileDialogService fileDialogs,
             IDatLibraryService datLibrary,
             IRomSource romSource,
@@ -117,7 +117,7 @@ namespace RomForge.UI.ViewModels
             _urlLauncher = urlLauncher;
             ArgumentNullException.ThrowIfNull(logger);
             _updateCheck = updateCheck;
-            _logger = logger.ForContext<MainWindowVM>();
+            _logger = logger.ForContext<MainWindowVm>();
             _appData = appData;
             _datUpdateService = datUpdateService;
             _imageSync = imageSync;
@@ -137,7 +137,7 @@ namespace RomForge.UI.ViewModels
         }
 #pragma warning restore S107
 
-        partial void OnSelectedGameChanged(GameRowVM? value)
+        partial void OnSelectedGameChanged(GameRowVm? value)
         {
             RenameSelectedCommand.NotifyCanExecuteChanged();
             ReArchiveSelectedCommand.NotifyCanExecuteChanged();
@@ -162,7 +162,7 @@ namespace RomForge.UI.ViewModels
             RenameAllCommand.NotifyCanExecuteChanged();
         }
 
-        partial void OnActiveDatChanged(LoadedDatVM? oldValue, LoadedDatVM? newValue)
+        partial void OnActiveDatChanged(LoadedDatVm? oldValue, LoadedDatVm? newValue)
         {
             if (oldValue is not null)
             {
@@ -195,23 +195,23 @@ namespace RomForge.UI.ViewModels
         {
             switch (e.PropertyName)
             {
-                case nameof(LoadedDatVM.StatusSummary):
+                case nameof(LoadedDatVm.StatusSummary):
                     OnPropertyChanged(nameof(StatusSummary));
                     break;
-                case nameof(LoadedDatVM.Games) when sender is LoadedDatVM dat:
+                case nameof(LoadedDatVm.Games) when sender is LoadedDatVm dat:
                     ResubscribeGames(dat.Games);
                     RenameAllCommand.NotifyCanExecuteChanged();
                     ReArchiveAllCommand.NotifyCanExecuteChanged();
                     TrimAllCommand.NotifyCanExecuteChanged();
                     break;
-                case nameof(LoadedDatVM.UnmatchedRoms):
+                case nameof(LoadedDatVm.UnmatchedRoms):
                     MoveUnverifiedCommand.NotifyCanExecuteChanged();
                     OnPropertyChanged(nameof(MoveUnverifiedLabel));
                     break;
             }
         }
 
-        private void ResubscribeGames(ObservableCollection<GameRowVM>? newGames)
+        private void ResubscribeGames(ObservableCollection<GameRowVm>? newGames)
         {
             _subscribedGames?.CollectionChanged -= OnActiveDatGamesChanged;
             _subscribedGames = newGames;
@@ -239,7 +239,7 @@ namespace RomForge.UI.ViewModels
                 return;
             }
 
-            var progressVm = new ProgressWindowVM(0, isCancellable: true);
+            var progressVm = new ProgressWindowVm(0, isCancellable: true);
             var importProgress = new Progress<ImportProgress>(p =>
             {
                 progressVm.Total = p.Total;
@@ -349,16 +349,16 @@ namespace RomForge.UI.ViewModels
             ActiveDat = datVm;
         }
 
-        private async Task<LoadedDatVM> BuildDatVmAsync(DatFile datFile, string path)
+        private async Task<LoadedDatVm> BuildDatVmAsync(DatFile datFile, string path)
         {
             var config = await _configService.LoadAsync(datFile.Header.DatName);
-            var datVm = new LoadedDatVM(datFile, path, config);
+            var datVm = new LoadedDatVm(datFile, path, config);
             if (config?.RomFolderPath is not null)
                 datVm.RomFolder = config.RomFolderPath;
 
             (var matchResults, bool fromCache) = await _datLibrary.LoadResultsAsync(datFile);
 
-            datVm.Games = new ObservableCollection<GameRowVM>(matchResults.Select(datVm.BuildGameRow));
+            datVm.Games = new ObservableCollection<GameRowVm>(matchResults.Select(datVm.BuildGameRow));
 
             if (fromCache)
                 _ = ValidateIntegrityAsync(datVm, matchResults);
@@ -366,7 +366,7 @@ namespace RomForge.UI.ViewModels
             return datVm;
         }
 
-        private async Task ValidateIntegrityAsync(LoadedDatVM datVm, IReadOnlyList<MatchResult> results)
+        private async Task ValidateIntegrityAsync(LoadedDatVm datVm, IReadOnlyList<MatchResult> results)
         {
             try
             {
@@ -410,7 +410,7 @@ namespace RomForge.UI.ViewModels
             var cachePath = _appData.GetScanCachePath(folder);
             var cache = new JsonRomScanCache(cachePath);
 
-            var progressVm = new ProgressWindowVM(0, isCancellable: true);
+            var progressVm = new ProgressWindowVm(0, isCancellable: true);
             var scanProgress = new Progress<ScanProgress>(p =>
             {
                 progressVm.Total = p.Total;
@@ -463,7 +463,7 @@ namespace RomForge.UI.ViewModels
                 .ToList();
 
             ActiveDat.UnmatchedRoms = summary.UnmatchedRoms;
-            ActiveDat.Games = new ObservableCollection<GameRowVM>(results.Select(ActiveDat.BuildGameRow));
+            ActiveDat.Games = new ObservableCollection<GameRowVm>(results.Select(ActiveDat.BuildGameRow));
             await _scanResultStore.SaveResultsAsync(datName, results);
 
             _logger.Information(
@@ -500,7 +500,7 @@ namespace RomForge.UI.ViewModels
             if (SelectedGame is null || ActiveDat is null)
                 return;
 
-            using GameRowVM snapshot = SelectedGame;
+            using GameRowVm snapshot = SelectedGame;
             var result = await _renameService.RenameAsync(snapshot.Result, NamingMask.DefaultMask);
 
             if (result.IsFailed)
@@ -524,7 +524,7 @@ namespace RomForge.UI.ViewModels
             var targets = ActiveDat.Games.Where(g => g.IsIncorrectlyNamed).ToList();
 
             await _batchRunner.RunAsync(
-                new BatchProgressOperation<GameRowVM>
+                new BatchProgressOperation<GameRowVm>
                 {
                     Title = "Renaming ROMs",
                     LogLabel = "Rename all",
@@ -539,7 +539,7 @@ namespace RomForge.UI.ViewModels
             );
         }
 
-        private async Task<string?> RenameOneAsync(GameRowVM game, ProgressWindowVM progress)
+        private async Task<string?> RenameOneAsync(GameRowVm game, ProgressWindowVm progress)
         {
             var result = await _renameService.RenameAsync(game.Result, NamingMask.DefaultMask);
 
@@ -587,7 +587,7 @@ namespace RomForge.UI.ViewModels
                 return;
 
             var snapshotGame = SelectedGame;
-            var progressVm = new ProgressWindowVM(1, isCancellable: true);
+            var progressVm = new ProgressWindowVm(1, isCancellable: true);
             var scanCache = CreateScanCacheForActiveDat();
             var operationTask = ReArchiveSelectedCoreAsync(snapshotGame, target.Value, progressVm, scanCache);
             await _notifier.ShowProgressAsync($"Re-Archiving to {ArchiveFormat}", progressVm, operationTask);
@@ -600,9 +600,9 @@ namespace RomForge.UI.ViewModels
         }
 
         private async Task<string?> ReArchiveSelectedCoreAsync(
-            GameRowVM game,
+            GameRowVm game,
             (string From, string To) target,
-            ProgressWindowVM progress,
+            ProgressWindowVm progress,
             JsonRomScanCache? scanCache
         )
         {
@@ -664,7 +664,7 @@ namespace RomForge.UI.ViewModels
                 return;
 
             int maxConcurrency = ComputeReArchiveConcurrency(targets);
-            var progressVm = new BatchProgressWindowVM(targets.Count, maxConcurrency, isCancellable: true);
+            var progressVm = new BatchProgressWindowVm(targets.Count, maxConcurrency, isCancellable: true);
             var scanCache = CreateScanCacheForActiveDat();
             var operationTask = ReArchiveAllCoreAsync(targets, progressVm, maxConcurrency, scanCache);
             await _notifier.ShowBatchProgressAsync($"Re-Archiving ROMs to {ArchiveFormat}", progressVm, operationTask);
@@ -687,7 +687,7 @@ namespace RomForge.UI.ViewModels
         // gate could only ever admit one of their compress phases at a time. Using the batch's
         // worst-case (largest) job cost keeps the slot count from ever promising more parallelism
         // than the memory gate can actually sustain.
-        private int ComputeReArchiveConcurrency(List<GameRowVM> targets)
+        private int ComputeReArchiveConcurrency(List<GameRowVm> targets)
         {
             int coreCap = Math.Clamp(Environment.ProcessorCount / 2, 2, 4);
 
@@ -706,8 +706,8 @@ namespace RomForge.UI.ViewModels
         }
 
         private async Task<List<string>> ReArchiveAllCoreAsync(
-            List<GameRowVM> targets,
-            BatchProgressWindowVM progress,
+            List<GameRowVm> targets,
+            BatchProgressWindowVm progress,
             int maxConcurrency,
             JsonRomScanCache? scanCache
         )
@@ -720,14 +720,14 @@ namespace RomForge.UI.ViewModels
             // shared WorkingSetBudgetGate DI singleton so total working set never exceeds the
             // machine's memory budget, no matter which compress-based operation is in flight.
             using var semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
-            var slotQueue = new ConcurrentQueue<BatchSlotVM>(progress.Slots);
+            var slotQueue = new ConcurrentQueue<BatchSlotVm>(progress.Slots);
             var activeDat = ActiveDat!;
             var archiveFormat = ArchiveFormat;
             var datName = activeDat.DatFile.Header.DatName;
             const string namingMask = NamingMask.DefaultMask;
             var ct = progress.CancellationToken;
 
-            async Task ProcessGameAsync(GameRowVM game)
+            async Task ProcessGameAsync(GameRowVm game)
             {
                 await semaphore.WaitAsync(ct);
                 int done = Interlocked.Increment(ref completed);
@@ -745,7 +745,7 @@ namespace RomForge.UI.ViewModels
                         archiveFormat
                     );
 
-                    if (target is not null && slotQueue.TryDequeue(out BatchSlotVM? slot))
+                    if (target is not null && slotQueue.TryDequeue(out BatchSlotVm? slot))
                     {
                         try
                         {
@@ -860,8 +860,8 @@ namespace RomForge.UI.ViewModels
             if (target is null)
                 return;
 
-            GameRowVM snapshotGame = SelectedGame;
-            ProgressWindowVM progressVm = new ProgressWindowVM(1, isCancellable: true);
+            GameRowVm snapshotGame = SelectedGame;
+            ProgressWindowVm progressVm = new ProgressWindowVm(1, isCancellable: true);
             Task<string?> operationTask = TrimSelectedCoreAsync(snapshotGame, target.Value, progressVm);
             await _notifier.ShowProgressAsync("Trimming ROM", progressVm, operationTask);
 
@@ -870,7 +870,7 @@ namespace RomForge.UI.ViewModels
                 await _notifier.NotifyErrorAsync(error);
         }
 
-        private async Task<string?> TrimSelectedCoreAsync(GameRowVM game, (string From, string To) target, ProgressWindowVM progress)
+        private async Task<string?> TrimSelectedCoreAsync(GameRowVm game, (string From, string To) target, ProgressWindowVm progress)
         {
             IsTrimming = true;
             try
@@ -904,10 +904,10 @@ namespace RomForge.UI.ViewModels
             if (ActiveDat is null)
                 return;
 
-            List<GameRowVM> targets = ActiveDat.Games.Where(g => g.IsUntrimmed).ToList();
+            List<GameRowVm> targets = ActiveDat.Games.Where(g => g.IsUntrimmed).ToList();
 
             await _batchRunner.RunAsync(
-                new BatchProgressOperation<GameRowVM>
+                new BatchProgressOperation<GameRowVm>
                 {
                     Title = "Trimming ROMs",
                     LogLabel = "Trim all",
@@ -924,7 +924,7 @@ namespace RomForge.UI.ViewModels
             );
         }
 
-        private async Task<string?> TrimOneAsync(GameRowVM game, ProgressWindowVM progress)
+        private async Task<string?> TrimOneAsync(GameRowVm game, ProgressWindowVm progress)
         {
             (string From, string To)? target = RomTrimmer.GetTrimTarget(game.Result, NamingMask.DefaultMask, ArchiveFormat);
 
@@ -954,7 +954,7 @@ namespace RomForge.UI.ViewModels
 
         private bool CanTrimAll() => !IsTrimming && !IsReArchiving && _compressor.IsAvailable && ActiveDat?.Games.Any(g => g.IsUntrimmed) == true;
 
-        private async Task ReplaceGameAsync(GameRowVM original, MatchResult updatedMatch)
+        private async Task ReplaceGameAsync(GameRowVm original, MatchResult updatedMatch)
         {
             var index = ActiveDat!.Games.IndexOf(original);
             if (index < 0)
@@ -967,11 +967,11 @@ namespace RomForge.UI.ViewModels
             await _scanResultStore.UpdateResultAsync(ActiveDat.DatFile.Header.DatName, updatedMatch);
         }
 
-        private async Task UpdateGameRowOnUiThreadAsync(LoadedDatVM activeDat, GameRowVM original, MatchResult updated)
+        private async Task UpdateGameRowOnUiThreadAsync(LoadedDatVm activeDat, GameRowVm original, MatchResult updated)
         {
             await _uiDispatcher.InvokeAsync(() =>
             {
-                GameRowVM updatedRow = activeDat.BuildGameRow(updated);
+                GameRowVm updatedRow = activeDat.BuildGameRow(updated);
                 int index = activeDat.Games.IndexOf(original);
                 if (index >= 0)
                 {
@@ -996,7 +996,7 @@ namespace RomForge.UI.ViewModels
                     return;
             }
 
-            LoadedDatVM activeDat = ActiveDat;
+            LoadedDatVm activeDat = ActiveDat;
             List<ScannedRom> targets = activeDat.UnmatchedRoms.ToList();
             List<ScannedRom> moved = [];
 
@@ -1066,7 +1066,7 @@ namespace RomForge.UI.ViewModels
             if (!confirmed)
                 return;
 
-            var progressVm = new ProgressWindowVM(0, isCancellable: true);
+            var progressVm = new ProgressWindowVm(0, isCancellable: true);
             progressVm.CurrentFile = "Downloading DAT…";
 
             IProgress<int> datProgress = new Progress<int>(p => progressVm.Progress = p);
@@ -1105,7 +1105,7 @@ namespace RomForge.UI.ViewModels
         /// </summary>
         private async Task RunImageDownloadUiAsync(string datDisplayName, DatFile datFile)
         {
-            using ImageDownloadWindowVM imageVm = new ImageDownloadWindowVM();
+            using ImageDownloadWindowVm imageVm = new ImageDownloadWindowVm();
             // CA2025: ShowImageDownloadAsync keeps the modal dialog open until the sync completes
             // (window.Closing blocks while !vm.IsComplete), so imageVm is never disposed by this
             // `using` while syncTask is still running.
@@ -1115,7 +1115,7 @@ namespace RomForge.UI.ViewModels
 #pragma warning restore CA2025
         }
 
-        private async Task RunImageSyncAsync(DatFile datFile, ImageDownloadWindowVM imageVm)
+        private async Task RunImageSyncAsync(DatFile datFile, ImageDownloadWindowVm imageVm)
         {
             IProgress<ImageSyncProgress> progress = new Progress<ImageSyncProgress>(imageVm.Report);
             try
@@ -1134,7 +1134,7 @@ namespace RomForge.UI.ViewModels
         private async Task OpenSettingsAsync()
         {
             AppPreferences current = await _preferencesService.LoadAsync();
-            SettingsVM settingsVm = new SettingsVM(_preferencesService, _fileDialogs, current);
+            SettingsVm settingsVm = new SettingsVm(_preferencesService, _fileDialogs, current);
             await _notifier.ShowSettingsAsync(settingsVm);
 
             AppPreferences updated = await _preferencesService.LoadAsync();

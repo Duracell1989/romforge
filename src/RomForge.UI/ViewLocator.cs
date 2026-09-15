@@ -21,7 +21,7 @@ namespace RomForge.UI
                 return null;
 
             var fullName = param.GetType().FullName!.Replace("ViewModels.", "Views.", StringComparison.Ordinal);
-            var name = fullName.EndsWith("VM", StringComparison.Ordinal) ? fullName[..^2] : fullName;
+            var name = fullName.EndsWith("Vm", StringComparison.Ordinal) ? fullName[..^2] : fullName;
             var type = Type.GetType(name);
 
             if (type != null)
@@ -34,7 +34,7 @@ namespace RomForge.UI
 
         public bool Match(object? data)
         {
-            return data is VMBase;
+            return data is VmBase;
         }
     }
 }

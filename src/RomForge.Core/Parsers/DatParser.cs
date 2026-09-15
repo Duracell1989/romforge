@@ -21,8 +21,8 @@ namespace RomForge.Core.Parsers
 
             return new DatFile
             {
-                Header = ParseConfiguration(root.ElementCI(Xml.Configuration)),
-                Games = root.ElementCI(nameof(DatFile.Games))?.ElementsCI(nameof(Game)).Select(ParseGame).ToList() ?? [],
+                Header = ParseConfiguration(root.ElementIgnoreCase(Xml.Configuration)),
+                Games = root.ElementIgnoreCase(nameof(DatFile.Games))?.ElementsIgnoreCase(nameof(Game)).Select(ParseGame).ToList() ?? [],
             };
         }
 
@@ -31,42 +31,42 @@ namespace RomForge.Core.Parsers
             if (config is null)
                 return new DatHeader();
 
-            XElement? newDat = config.ElementCI(Xml.NewDat);
-            XElement? datUrl = newDat?.ElementCI(Xml.DatURL);
+            XElement? newDat = config.ElementIgnoreCase(Xml.NewDat);
+            XElement? datUrl = newDat?.ElementIgnoreCase(Xml.DatUrl);
 
             return new DatHeader
             {
-                DatName = (string?)config.ElementCI(nameof(DatHeader.DatName)) ?? string.Empty,
-                System = (string?)config.ElementCI(nameof(DatHeader.System)) ?? string.Empty,
-                DatVersion = ParseInt(config.ElementCI(nameof(DatHeader.DatVersion))),
-                ImFolder = NullIfEmpty((string?)config.ElementCI(nameof(DatHeader.ImFolder))),
-                ScreenshotsWidth = ParseInt(config.ElementCI(nameof(DatHeader.ScreenshotsWidth))),
-                ScreenshotsHeight = ParseInt(config.ElementCI(nameof(DatHeader.ScreenshotsHeight))),
-                NewDatVersionUrl = NullIfEmpty((string?)newDat?.ElementCI(Xml.DatVersionURL)),
+                DatName = (string?)config.ElementIgnoreCase(nameof(DatHeader.DatName)) ?? string.Empty,
+                System = (string?)config.ElementIgnoreCase(nameof(DatHeader.System)) ?? string.Empty,
+                DatVersion = ParseInt(config.ElementIgnoreCase(nameof(DatHeader.DatVersion))),
+                ImFolder = NullIfEmpty((string?)config.ElementIgnoreCase(nameof(DatHeader.ImFolder))),
+                ScreenshotsWidth = ParseInt(config.ElementIgnoreCase(nameof(DatHeader.ScreenshotsWidth))),
+                ScreenshotsHeight = ParseInt(config.ElementIgnoreCase(nameof(DatHeader.ScreenshotsHeight))),
+                NewDatVersionUrl = NullIfEmpty((string?)newDat?.ElementIgnoreCase(Xml.DatVersionUrl)),
                 NewDatUrl = NullIfEmpty((string?)datUrl),
                 NewDatFileName = NullIfEmpty((string?)datUrl?.Attribute(Xml.FileName)),
-                NewImUrl = NullIfEmpty((string?)newDat?.ElementCI(Xml.ImURL)),
+                NewImUrl = NullIfEmpty((string?)newDat?.ElementIgnoreCase(Xml.ImUrl)),
             };
         }
 
         private static Game ParseGame(XElement game)
         {
-            XElement? files = game.ElementCI(nameof(Game.Files));
-            XElement? romCrc = files?.ElementCI(nameof(GameFiles.RomCrc));
+            XElement? files = game.ElementIgnoreCase(nameof(Game.Files));
+            XElement? romCrc = files?.ElementIgnoreCase(nameof(GameFiles.RomCrc));
 
             return new Game
             {
-                ImageNumber = ParseInt(game.ElementCI(nameof(Game.ImageNumber))),
-                ReleaseNumber = ParseInt(game.ElementCI(nameof(Game.ReleaseNumber))),
-                Title = (string?)game.ElementCI(nameof(Game.Title)) ?? string.Empty,
-                SaveType = NullIfEmpty((string?)game.ElementCI(nameof(Game.SaveType))),
-                RomSize = ParseLong(game.ElementCI(nameof(Game.RomSize))),
-                Publisher = NullIfEmpty((string?)game.ElementCI(nameof(Game.Publisher))),
-                Location = ParseInt(game.ElementCI(nameof(Game.Location))),
-                Language = ParseInt(game.ElementCI(nameof(Game.Language))),
-                SourceRom = NullIfEmpty((string?)game.ElementCI(nameof(Game.SourceRom))),
-                Comment = NullIfEmpty((string?)game.ElementCI(nameof(Game.Comment))),
-                DuplicateId = ParseInt(game.ElementCI(nameof(Game.DuplicateId))),
+                ImageNumber = ParseInt(game.ElementIgnoreCase(nameof(Game.ImageNumber))),
+                ReleaseNumber = ParseInt(game.ElementIgnoreCase(nameof(Game.ReleaseNumber))),
+                Title = (string?)game.ElementIgnoreCase(nameof(Game.Title)) ?? string.Empty,
+                SaveType = NullIfEmpty((string?)game.ElementIgnoreCase(nameof(Game.SaveType))),
+                RomSize = ParseLong(game.ElementIgnoreCase(nameof(Game.RomSize))),
+                Publisher = NullIfEmpty((string?)game.ElementIgnoreCase(nameof(Game.Publisher))),
+                Location = ParseInt(game.ElementIgnoreCase(nameof(Game.Location))),
+                Language = ParseInt(game.ElementIgnoreCase(nameof(Game.Language))),
+                SourceRom = NullIfEmpty((string?)game.ElementIgnoreCase(nameof(Game.SourceRom))),
+                Comment = NullIfEmpty((string?)game.ElementIgnoreCase(nameof(Game.Comment))),
+                DuplicateId = ParseInt(game.ElementIgnoreCase(nameof(Game.DuplicateId))),
                 Files = new GameFiles
                 {
                     RomCrc = ParseHexUInt32(romCrc),
@@ -76,8 +76,8 @@ namespace RomForge.Core.Parsers
                     // never produces a double dot.
                     RomExtension = ((string?)romCrc?.Attribute(Xml.Extension) ?? string.Empty).TrimStart('.'),
                 },
-                Im1Crc = ParseHexUInt32Nullable(game.ElementCI(nameof(Game.Im1Crc))),
-                Im2Crc = ParseHexUInt32Nullable(game.ElementCI(nameof(Game.Im2Crc))),
+                Im1Crc = ParseHexUInt32Nullable(game.ElementIgnoreCase(nameof(Game.Im1Crc))),
+                Im2Crc = ParseHexUInt32Nullable(game.ElementIgnoreCase(nameof(Game.Im2Crc))),
             };
         }
 
@@ -104,9 +104,9 @@ namespace RomForge.Core.Parsers
         {
             public const string Configuration = "configuration";
             public const string NewDat = "newDat";
-            public const string DatVersionURL = "datVersionURL";
-            public const string DatURL = "datURL";
-            public const string ImURL = "imURL";
+            public const string DatVersionUrl = "datVersionURL";
+            public const string DatUrl = "datURL";
+            public const string ImUrl = "imURL";
             public const string Extension = "extension";
             public const string FileName = "fileName";
         }

@@ -15,7 +15,7 @@ namespace RomForge.Core.Services
         /// Only <see cref="MatchStatus.Verified"/> results with a non-null <see cref="Core.Matching.MatchResult.ScannedRom"/> are checked;
         /// all others are skipped. Callers are responsible for skipping this check entirely when the
         /// DAT's ROM folder itself is unavailable (e.g. an unmounted external drive) — see
-        /// <c>MainWindowVM.ValidateIntegrityAsync</c> — otherwise every ROM on an offline volume would
+        /// <c>MainWindowVm.ValidateIntegrityAsync</c> — otherwise every ROM on an offline volume would
         /// be reported here and overwrite good scan results with "Missing".
         /// </summary>
         public static IReadOnlyList<MatchResult> FindStaleResults(IReadOnlyList<MatchResult> results)

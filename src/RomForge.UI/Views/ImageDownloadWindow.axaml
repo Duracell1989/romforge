@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         x:Class="RomForge.UI.Views.ImageDownloadWindow"
-        x:DataType="vm:ImageDownloadWindowVM"
+        x:DataType="vm:ImageDownloadWindowVm"
         Width="520"
         Height="360"
         CanResize="False"

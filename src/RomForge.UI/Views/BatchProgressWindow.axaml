@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         x:Class="RomForge.UI.Views.BatchProgressWindow"
-        x:DataType="vm:BatchProgressWindowVM"
+        x:DataType="vm:BatchProgressWindowVm"
         Width="440"
         SizeToContent="Height"
         CanResize="False"
@@ -17,7 +17,7 @@
         <!-- Per-slot rows — each collapses when the slot is idle -->
         <ItemsControl ItemsSource="{Binding Slots}">
             <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="vm:BatchSlotVM">
+                <DataTemplate x:DataType="vm:BatchSlotVm">
                     <StackPanel Spacing="3"
                                 Margin="0,0,0,4"
                                 IsVisible="{Binding IsActive}">

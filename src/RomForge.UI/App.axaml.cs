@@ -41,7 +41,7 @@ namespace RomForge.UI
                 // ReSharper disable once AccessToModifiedClosure
                 ServiceProvider services = ConfigureServices(() => mainWindow);
 
-                MainWindowVM vm = services.GetRequiredService<MainWindowVM>();
+                MainWindowVm vm = services.GetRequiredService<MainWindowVm>();
                 DataContext = vm;
                 MainWindow window = new MainWindow { DataContext = vm };
                 mainWindow = window;
@@ -154,7 +154,7 @@ namespace RomForge.UI
             services.AddSingleton<ScanResultStore>();
             services.AddSingleton<ReArchiveStore>();
             services.AddSingleton<AppPreferencesService>();
-            services.AddSingleton<MainWindowVM>();
+            services.AddSingleton<MainWindowVm>();
             return services.BuildServiceProvider();
         }
 

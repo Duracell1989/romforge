@@ -6,13 +6,13 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace RomForge.UI.ViewModels
 {
-    public sealed partial class BatchProgressWindowVM : VMBase
+    public sealed partial class BatchProgressWindowVm : VmBase
     {
         private readonly CancellationTokenSource? _cts;
 
         public bool IsCancellable { get; }
         public CancellationToken CancellationToken => _cts?.Token ?? CancellationToken.None;
-        public IReadOnlyList<BatchSlotVM> Slots { get; }
+        public IReadOnlyList<BatchSlotVm> Slots { get; }
         public int Total { get; }
         public string CountText => $"{Completed} of {Total}";
 
@@ -20,12 +20,12 @@ namespace RomForge.UI.ViewModels
         [NotifyPropertyChangedFor(nameof(CountText))]
         public partial int Completed { get; set; }
 
-        public BatchProgressWindowVM(int total, int slotCount, bool isCancellable)
+        public BatchProgressWindowVm(int total, int slotCount, bool isCancellable)
         {
             Total = total;
             IsCancellable = isCancellable;
             _cts = isCancellable ? new CancellationTokenSource() : null;
-            Slots = Enumerable.Range(0, slotCount).Select(_ => new BatchSlotVM()).ToList();
+            Slots = Enumerable.Range(0, slotCount).Select(_ => new BatchSlotVm()).ToList();
         }
 
         [RelayCommand]

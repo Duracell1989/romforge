@@ -9,18 +9,14 @@
 
 	Every entry is a deliberate divergence from a ReSharper default, justified in place.
 	Do not add blanket suppressions here to silence a real finding.
-	-->
 
-	<!--
-	Naming is not a CI gate — Rider still surfaces it live, it just does not fail the build.
-	ReSharper's defaults disagree with conventions set in /Development/CLAUDE.md (notably
-	_camelCase private fields) and with generator-produced members it cannot see the source of.
-
-	Note for anyone tempted to fix this in .editorconfig instead: ReSharper does read
-	dotnet_naming_rule, and .editorconfig severity WINS over this file, so adding a rule there
-	silently re-enables this inspection.
+	InconsistentNaming was suppressed here until 2026-09-15 and is now deliberately ENFORCED
+	at its default severity, with the tree clean at it. The old suppression claimed ReSharper's
+	defaults disagree with /Development/CLAUDE.md on `_camelCase` private fields — that was
+	false: ReSharper's default for private INSTANCE fields is `_camelCase`, and enabling the
+	inspection produced zero findings of that kind. All 31 findings it did surface were real.
+	Do not re-suppress it; fix the name instead.
 	-->
-	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=InconsistentNaming/@EntryIndexedValue">DO_NOT_SHOW</s:String>
 
 	<!--
 	The pattern flagged is always the same: a `using var` (SemaphoreSlim, HttpClient, temp dir)

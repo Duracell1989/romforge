@@ -15,9 +15,9 @@ namespace RomForge.UI.ViewModels
 {
     /// <summary>
     /// Per-DAT state: games, ROM folder, filter criteria, and computed display strings.
-    /// Operations stay in MainWindowVM; this is a pure state container.
+    /// Operations stay in MainWindowVm; this is a pure state container.
     /// </summary>
-    public partial class LoadedDatVM : VMBase
+    public partial class LoadedDatVm : VmBase
     {
         private enum SortColumn
         {
@@ -34,14 +34,14 @@ namespace RomForge.UI.ViewModels
         private readonly DatFile _datFile;
         private readonly string _imgsBasePath;
         private readonly DatConfig? _config;
-        private readonly ObservableCollection<GameRowVM> _filteredGames = [];
+        private readonly ObservableCollection<GameRowVm> _filteredGames = [];
         private SortColumn _sortColumn = SortColumn.None;
         private bool _sortDescending;
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(GameCount))]
         [NotifyPropertyChangedFor(nameof(DisplaySubtitle))]
-        public partial ObservableCollection<GameRowVM> Games { get; set; }
+        public partial ObservableCollection<GameRowVm> Games { get; set; }
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(DisplaySubtitle))]
@@ -74,7 +74,7 @@ namespace RomForge.UI.ViewModels
 
         public int UnmatchedCount => UnmatchedRoms.Count;
 
-        public LoadedDatVM(DatFile datFile, string datFilePath, DatConfig? config = null)
+        public LoadedDatVm(DatFile datFile, string datFilePath, DatConfig? config = null)
         {
             _datFile = datFile;
             DatFilePath = datFilePath;
@@ -98,7 +98,7 @@ namespace RomForge.UI.ViewModels
         public string DatName => _datFile.Header.DatName;
         public int GameCount => Games.Count;
         public string DisplayTitle => string.IsNullOrEmpty(SystemName) ? DatName : SystemName;
-        public ObservableCollection<GameRowVM> FilteredGames => _filteredGames;
+        public ObservableCollection<GameRowVm> FilteredGames => _filteredGames;
         public int FilteredCount => _filteredGames.Count;
 
         public string DisplaySubtitle => $"{GameCount} games  •  {(RomFolder is null ? "No folder" : Path.GetFileName(RomFolder))}";
@@ -204,7 +204,7 @@ namespace RomForge.UI.ViewModels
             return _sortDescending ? " ▼" : " ▲";
         }
 
-        private IEnumerable<GameRowVM> ApplySort(IEnumerable<GameRowVM> items) =>
+        private IEnumerable<GameRowVm> ApplySort(IEnumerable<GameRowVm> items) =>
             _sortColumn switch
             {
                 SortColumn.ReleaseNumber => _sortDescending ? items.OrderByDescending(g => g.ReleaseNumber) : items.OrderBy(g => g.ReleaseNumber),
@@ -225,7 +225,7 @@ namespace RomForge.UI.ViewModels
                 _ => items,
             };
 
-        internal GameRowVM BuildGameRow(MatchResult result) => new GameRowVM(result, _imgsBasePath, _datFile.Header, _config?.LanguageBits ?? []);
+        internal GameRowVm BuildGameRow(MatchResult result) => new GameRowVm(result, _imgsBasePath, _datFile.Header, _config?.LanguageBits ?? []);
 
         protected override void OnPropertyChanged(PropertyChangedEventArgs e)
         {
@@ -250,13 +250,13 @@ namespace RomForge.UI.ViewModels
         private void RefreshFilter()
         {
             _filteredGames.Clear();
-            foreach (GameRowVM g in ApplySort(Games.Where(MatchesFilter)))
+            foreach (GameRowVm g in ApplySort(Games.Where(MatchesFilter)))
                 _filteredGames.Add(g);
             OnPropertyChanged(nameof(StatusSummary));
             OnPropertyChanged(nameof(FilteredCount));
         }
 
-        private bool MatchesFilter(GameRowVM vm)
+        private bool MatchesFilter(GameRowVm vm)
         {
             if (!string.IsNullOrEmpty(TitleFilter) && !vm.Title.Contains(TitleFilter, StringComparison.OrdinalIgnoreCase))
             {
@@ -275,14 +275,14 @@ namespace RomForge.UI.ViewModels
             };
         }
 
-        partial void OnGamesChanged(ObservableCollection<GameRowVM> oldValue, ObservableCollection<GameRowVM> newValue)
+        partial void OnGamesChanged(ObservableCollection<GameRowVm> oldValue, ObservableCollection<GameRowVm> newValue)
         {
 #pragma warning disable CS8625 // generator declares oldValue non-nullable but backing field starts null
             if (oldValue is not null)
             {
 #pragma warning restore CS8625
                 oldValue.CollectionChanged -= OnGamesCollectionChanged;
-                foreach (GameRowVM vm in oldValue)
+                foreach (GameRowVm vm in oldValue)
                     vm.Dispose();
             }
             newValue.CollectionChanged += OnGamesCollectionChanged;

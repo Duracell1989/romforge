@@ -10,11 +10,11 @@ using RomForge.UI.ViewModels;
 
 namespace RomForge.UI.UnitTests.ViewModels
 {
-    [TestOf(typeof(GameRowVM))]
-    public sealed class GameRowVMTests
+    [TestOf(typeof(GameRowVm))]
+    public sealed class GameRowVmTests
     {
-        private static GameRowVM MakeRow(MatchResult result, DatHeader? header = null, IReadOnlyList<LanguageBit>? bits = null) =>
-            new GameRowVM(result, string.Empty, header ?? new DatHeader(), bits ?? []);
+        private static GameRowVm MakeRow(MatchResult result, DatHeader? header = null, IReadOnlyList<LanguageBit>? bits = null) =>
+            new GameRowVm(result, string.Empty, header ?? new DatHeader(), bits ?? []);
 
         private static MatchResult MakeVerified(
             bool incorrectlyNamed = false,
@@ -49,7 +49,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void StatusText_Missing_ReturnsMissing()
         {
-            GameRowVM vm = MakeRow(new MatchResult { Game = new Game(), Status = MatchStatus.Missing });
+            GameRowVm vm = MakeRow(new MatchResult { Game = new Game(), Status = MatchStatus.Missing });
 
             vm.StatusText.Should().Be("Missing");
         }
@@ -57,7 +57,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void StatusText_Untrimmed_ReturnsUntrimmed()
         {
-            GameRowVM vm = MakeRow(MakeVerified(untrimmed: true));
+            GameRowVm vm = MakeRow(MakeVerified(untrimmed: true));
 
             vm.StatusText.Should().Be("Untrimmed");
         }
@@ -65,7 +65,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void StatusText_WrongArchiveType_ReturnsWrongArchive()
         {
-            GameRowVM vm = MakeRow(MakeVerified(wrongArchiveType: true));
+            GameRowVm vm = MakeRow(MakeVerified(wrongArchiveType: true));
 
             vm.StatusText.Should().Be("Wrong Archive");
         }
@@ -73,7 +73,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void StatusText_IncorrectlyNamed_ReturnsIncorrectlyNamed()
         {
-            GameRowVM vm = MakeRow(MakeVerified(incorrectlyNamed: true));
+            GameRowVm vm = MakeRow(MakeVerified(incorrectlyNamed: true));
 
             vm.StatusText.Should().Be("Incorrectly Named");
         }
@@ -81,7 +81,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void StatusText_ReArchived_ReturnsGood()
         {
-            GameRowVM vm = MakeRow(MakeVerified(reArchived: true));
+            GameRowVm vm = MakeRow(MakeVerified(reArchived: true));
 
             vm.StatusText.Should().Be("Good");
         }
@@ -89,7 +89,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void StatusText_PlainVerified_ReturnsVerified()
         {
-            GameRowVM vm = MakeRow(MakeVerified());
+            GameRowVm vm = MakeRow(MakeVerified());
 
             vm.StatusText.Should().Be("Verified");
         }
@@ -99,7 +99,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void StatusSortKey_Missing_Returns0()
         {
-            GameRowVM vm = MakeRow(new MatchResult { Game = new Game(), Status = MatchStatus.Missing });
+            GameRowVm vm = MakeRow(new MatchResult { Game = new Game(), Status = MatchStatus.Missing });
 
             vm.StatusSortKey.Should().Be(0);
         }
@@ -107,7 +107,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void StatusSortKey_Untrimmed_Returns1()
         {
-            GameRowVM vm = MakeRow(MakeVerified(untrimmed: true));
+            GameRowVm vm = MakeRow(MakeVerified(untrimmed: true));
 
             vm.StatusSortKey.Should().Be(1);
         }
@@ -115,7 +115,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void StatusSortKey_WrongArchiveType_Returns2()
         {
-            GameRowVM vm = MakeRow(MakeVerified(wrongArchiveType: true));
+            GameRowVm vm = MakeRow(MakeVerified(wrongArchiveType: true));
 
             vm.StatusSortKey.Should().Be(2);
         }
@@ -123,7 +123,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void StatusSortKey_IncorrectlyNamed_Returns3()
         {
-            GameRowVM vm = MakeRow(MakeVerified(incorrectlyNamed: true));
+            GameRowVm vm = MakeRow(MakeVerified(incorrectlyNamed: true));
 
             vm.StatusSortKey.Should().Be(3);
         }
@@ -131,7 +131,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void StatusSortKey_PlainVerified_Returns4()
         {
-            GameRowVM vm = MakeRow(MakeVerified());
+            GameRowVm vm = MakeRow(MakeVerified());
 
             vm.StatusSortKey.Should().Be(4);
         }
@@ -139,7 +139,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void StatusSortKey_ReArchived_Returns5()
         {
-            GameRowVM vm = MakeRow(MakeVerified(reArchived: true));
+            GameRowVm vm = MakeRow(MakeVerified(reArchived: true));
 
             vm.StatusSortKey.Should().Be(5);
         }
@@ -150,7 +150,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         public void Language_ZeroBitmask_ReturnsEmpty()
         {
             IReadOnlyList<LanguageBit> bits = [new LanguageBit(0, "EN")];
-            GameRowVM vm = MakeRow(MakeVerified(language: 0), bits: bits);
+            GameRowVm vm = MakeRow(MakeVerified(language: 0), bits: bits);
 
             vm.Language.Should().Be(string.Empty);
         }
@@ -158,7 +158,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void Language_NoBitsProvided_ReturnsBitmaskAsString()
         {
-            GameRowVM vm = MakeRow(MakeVerified(language: 3), bits: []);
+            GameRowVm vm = MakeRow(MakeVerified(language: 3), bits: []);
 
             vm.Language.Should().Be("3");
         }
@@ -167,7 +167,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         public void Language_SingleBitSet_ReturnsLabel()
         {
             IReadOnlyList<LanguageBit> bits = [new LanguageBit(0, "EN")];
-            GameRowVM vm = MakeRow(MakeVerified(language: 1), bits: bits);
+            GameRowVm vm = MakeRow(MakeVerified(language: 1), bits: bits);
 
             vm.Language.Should().Be("EN");
         }
@@ -176,7 +176,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         public void Language_MultipleBitsSet_ReturnsJoinedLabels()
         {
             IReadOnlyList<LanguageBit> bits = [new LanguageBit(0, "EN"), new LanguageBit(1, "FR")];
-            GameRowVM vm = MakeRow(MakeVerified(language: 3), bits: bits);
+            GameRowVm vm = MakeRow(MakeVerified(language: 3), bits: bits);
 
             vm.Language.Should().Be("EN FR");
         }
@@ -186,7 +186,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         {
             // Bits 0 and 1 are set in the bitmask, but only bit 2 is defined in the language list.
             IReadOnlyList<LanguageBit> bits = [new LanguageBit(2, "DE")];
-            GameRowVM vm = MakeRow(MakeVerified(language: 3), bits: bits);
+            GameRowVm vm = MakeRow(MakeVerified(language: 3), bits: bits);
 
             vm.Language.Should().Be("3");
         }
@@ -213,7 +213,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [TestCase(22, "(PT)")]
         public void Location_KnownCode_ReturnsExpectedString(int code, string expected)
         {
-            GameRowVM vm = MakeRow(MakeVerified(location: code));
+            GameRowVm vm = MakeRow(MakeVerified(location: code));
 
             vm.Location.Should().Be(expected);
         }
@@ -221,7 +221,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void Location_UnknownCode_ReturnsNumericString()
         {
-            GameRowVM vm = MakeRow(MakeVerified(location: 99));
+            GameRowVm vm = MakeRow(MakeVerified(location: 99));
 
             vm.Location.Should().Be("99");
         }
@@ -231,7 +231,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void RomSize_ZeroBytes_ReturnsEmpty()
         {
-            GameRowVM vm = MakeRow(MakeVerified(romSize: 0));
+            GameRowVm vm = MakeRow(MakeVerified(romSize: 0));
 
             vm.RomSize.Should().Be(string.Empty);
         }
@@ -239,7 +239,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void RomSize_SmallFile_ReturnsKB()
         {
-            GameRowVM vm = MakeRow(MakeVerified(romSize: 512));
+            GameRowVm vm = MakeRow(MakeVerified(romSize: 512));
 
             // F1 formatting is culture-sensitive; compute expected the same way the method does.
             vm.RomSize.Should().Be($"{512 / 1024.0:F1} KB");
@@ -248,7 +248,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void RomSize_LargeFile_ReturnsMB()
         {
-            GameRowVM vm = MakeRow(MakeVerified(romSize: 2 * 1024 * 1024));
+            GameRowVm vm = MakeRow(MakeVerified(romSize: 2 * 1024 * 1024));
 
             vm.RomSize.Should().Be($"{2 * 1024 * 1024 / (1024.0 * 1024.0):F1} MB");
         }
@@ -258,7 +258,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void ExpectedFileName_NotIncorrectlyNamed_ReturnsNull()
         {
-            GameRowVM vm = MakeRow(MakeVerified(incorrectlyNamed: false));
+            GameRowVm vm = MakeRow(MakeVerified(incorrectlyNamed: false));
 
             vm.ExpectedFileName.Should().BeNull();
         }
@@ -266,7 +266,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void ExpectedFileName_IncorrectlyNamed_ReturnsDefaultMaskExpandedName()
         {
-            GameRowVM vm = MakeRow(
+            GameRowVm vm = MakeRow(
                 new MatchResult
                 {
                     Game = new Game { ReleaseNumber = 1, Title = "Mario" },
@@ -283,7 +283,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void StatusBrush_Missing_ReturnsMissingBrush()
         {
-            GameRowVM vm = MakeRow(new MatchResult { Game = new Game(), Status = MatchStatus.Missing });
+            GameRowVm vm = MakeRow(new MatchResult { Game = new Game(), Status = MatchStatus.Missing });
 
             vm.StatusBrush.Should().BeSameAs(StatusColors.Missing);
         }
@@ -291,7 +291,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void StatusBrush_Untrimmed_ReturnsUntrimmedBrush()
         {
-            GameRowVM vm = MakeRow(MakeVerified(untrimmed: true));
+            GameRowVm vm = MakeRow(MakeVerified(untrimmed: true));
 
             vm.StatusBrush.Should().BeSameAs(StatusColors.Untrimmed);
         }
@@ -299,7 +299,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void StatusBrush_WrongArchiveType_ReturnsWrongArchiveTypeBrush()
         {
-            GameRowVM vm = MakeRow(MakeVerified(wrongArchiveType: true));
+            GameRowVm vm = MakeRow(MakeVerified(wrongArchiveType: true));
 
             vm.StatusBrush.Should().BeSameAs(StatusColors.WrongArchiveType);
         }
@@ -307,7 +307,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void StatusBrush_IncorrectlyNamed_ReturnsIncorrectlyNamedBrush()
         {
-            GameRowVM vm = MakeRow(MakeVerified(incorrectlyNamed: true));
+            GameRowVm vm = MakeRow(MakeVerified(incorrectlyNamed: true));
 
             vm.StatusBrush.Should().BeSameAs(StatusColors.IncorrectlyNamed);
         }
@@ -315,7 +315,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void StatusBrush_ReArchived_ReturnsGoodBrush()
         {
-            GameRowVM vm = MakeRow(MakeVerified(reArchived: true));
+            GameRowVm vm = MakeRow(MakeVerified(reArchived: true));
 
             vm.StatusBrush.Should().BeSameAs(StatusColors.Good);
         }
@@ -323,7 +323,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void StatusBrush_PlainVerified_ReturnsVerifiedBrush()
         {
-            GameRowVM vm = MakeRow(MakeVerified());
+            GameRowVm vm = MakeRow(MakeVerified());
 
             vm.StatusBrush.Should().BeSameAs(StatusColors.Verified);
         }
@@ -333,7 +333,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void ReArchivedText_WhenReArchived_ReturnsCheckmark()
         {
-            GameRowVM vm = MakeRow(MakeVerified(reArchived: true));
+            GameRowVm vm = MakeRow(MakeVerified(reArchived: true));
 
             vm.ReArchivedText.Should().Be("✓");
         }
@@ -341,7 +341,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void ReArchivedText_WhenNotReArchived_ReturnsDash()
         {
-            GameRowVM vm = MakeRow(MakeVerified());
+            GameRowVm vm = MakeRow(MakeVerified());
 
             vm.ReArchivedText.Should().Be("–");
         }
@@ -351,7 +351,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void FilePath_WhenNoScannedRom_ReturnsNull()
         {
-            GameRowVM vm = MakeRow(MakeVerified());
+            GameRowVm vm = MakeRow(MakeVerified());
 
             vm.FilePath.Should().BeNull();
         }
@@ -359,7 +359,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void FilePath_WhenScannedRomPresent_ReturnsPath()
         {
-            GameRowVM vm = MakeRow(
+            GameRowVm vm = MakeRow(
                 new MatchResult
                 {
                     Game = new Game(),
@@ -376,7 +376,7 @@ namespace RomForge.UI.UnitTests.ViewModels
         [Test]
         public void Dispose_WhenCalledTwice_DoesNotThrow()
         {
-            GameRowVM vm = MakeRow(MakeVerified());
+            GameRowVm vm = MakeRow(MakeVerified());
             vm.Dispose();
 
             Action act = () => vm.Dispose();
