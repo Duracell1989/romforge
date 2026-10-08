@@ -10,11 +10,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.27.0.140913">
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.35.0.4138">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Roslynator.Analyzers" Version="4.15.0">
+    <PackageReference Include="Roslynator.Analyzers" Version="5.0.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
