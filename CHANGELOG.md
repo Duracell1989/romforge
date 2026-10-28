@@ -4,6 +4,12 @@ All notable changes to RomForge are documented here. This project follows [Seman
 
 ## [Unreleased]
 
+## [1.6.2] — 2026-10-28
+
+### Changed
+
+- SevenZipSharper 2.0.3, which bundles 7-Zip 26.05: improved unpacking of Z archives and upstream bug and vulnerability fixes. No other changes.
+
 ## [1.6.1] — 2026-10-08
 
 ### Changed
