@@ -114,14 +114,14 @@ namespace RomForge.Core.UnitTests.Operations
 
             // The re-archive holds the only 10 units the 15-unit budget can spare; the trim's
             // AcquireAsync must not have been admitted yet, so its CompressAsync is never reached.
-            await Task.WhenAny(trimTask, Task.Delay(200));
+            await Task.Delay(200);
             trimTask.IsCompleted.Should().BeFalse("the shared budget has no room for a second job");
 
             // Releasing the re-archive's lease is what lets the trim's AcquireAsync proceed.
             reArchiveCompressGate.SetResult(Result.Ok());
             await reArchiveTask;
 
-            await Task.WhenAny(trimTask, Task.Delay(200));
+            await Task.Delay(200);
             trimTask.IsCompleted.Should().BeFalse("still waiting on its own CompressAsync to return");
 
             trimCompressGate.SetResult(Result.Ok());
