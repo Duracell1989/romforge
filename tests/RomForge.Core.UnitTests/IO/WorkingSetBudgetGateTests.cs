@@ -57,7 +57,7 @@ namespace RomForge.Core.UnitTests.IO
 
             // 30 > 20, so the third job must not be admitted while both leases are held.
             Task<IDisposable> third = gate.AcquireAsync(10, CancellationToken.None);
-            await Task.WhenAny(third, Task.Delay(100));
+            await Task.Delay(100);
             third.IsCompleted.Should().BeFalse("the budget is full while two 10-cost leases are held");
 
             // Releasing one lease frees enough budget for the waiting job.
@@ -81,7 +81,7 @@ namespace RomForge.Core.UnitTests.IO
 
             // But nothing else may join it while it is in flight.
             Task<IDisposable> second = gate.AcquireAsync(1, CancellationToken.None);
-            await Task.WhenAny(second, Task.Delay(100));
+            await Task.Delay(100);
             second.IsCompleted.Should().BeFalse();
 
             oversized.Dispose();
@@ -129,12 +129,12 @@ namespace RomForge.Core.UnitTests.IO
 
             // 8 + 5 > 10, so the expensive job queues.
             Task<IDisposable> expensive = gate.AcquireAsync(5, CancellationToken.None);
-            await Task.WhenAny(expensive, Task.Delay(100));
+            await Task.Delay(100);
             expensive.IsCompleted.Should().BeFalse();
 
             // 8 + 1 <= 10, so this newcomer *would* fit — but it arrived second and must wait.
             Task<IDisposable> cheap = gate.AcquireAsync(1, CancellationToken.None);
-            await Task.WhenAny(cheap, Task.Delay(100));
+            await Task.Delay(100);
             cheap.IsCompleted.Should().BeFalse("a newcomer must not overtake a queued job");
 
             // Releasing frees the whole budget: the expensive job goes first, then the cheap one
@@ -157,7 +157,7 @@ namespace RomForge.Core.UnitTests.IO
             using CancellationTokenSource cts = new CancellationTokenSource();
 
             Task<IDisposable> cancelled = gate.AcquireAsync(5, cts.Token);
-            await Task.WhenAny(cancelled, Task.Delay(100));
+            await Task.Delay(100);
             Task<IDisposable> behind = gate.AcquireAsync(5, CancellationToken.None);
 
             await cts.CancelAsync();
