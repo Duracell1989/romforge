@@ -4,6 +4,10 @@ All notable changes to RomForge are documented here. This project follows [Seman
 
 ## [Unreleased]
 
+### Changed
+
+- SevenZipSharper 3.0.0. No user-facing changes.
+
 ## [1.6.4] — 2026-11-25
 
 ### Changed
