@@ -4,6 +4,12 @@ All notable changes to RomForge are documented here. This project follows [Seman
 
 ## [Unreleased]
 
+## [1.7.0] — 2026-11-25
+
+### Changed
+
+- No user-facing changes. Dependencies updated: SevenZipSharper 3.0.0, Avalonia 12.2.0, the .NET 11 runtime libraries, MessageBox.Avalonia 12.1.0, and the build-time analyzers and test tooling.
+
 ## [1.6.4] — 2026-11-25
 
 ### Changed
